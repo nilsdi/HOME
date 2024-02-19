@@ -5,6 +5,8 @@ __pycache__/
 
 # data folders
 testdata/
+extraction_tests/
+testipathi/
 
 # C extensions
 *.so
