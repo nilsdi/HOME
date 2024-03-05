@@ -7,6 +7,7 @@ __pycache__/
 testdata/
 extraction_tests/
 testipathi/
+data/
 
 # C extensions
 *.so
