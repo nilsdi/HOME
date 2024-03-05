@@ -4,9 +4,6 @@ __pycache__/
 *$py.class
 
 # data folders
-testdata/
-extraction_tests/
-testipathi/
 data/
 
 # C extensions
