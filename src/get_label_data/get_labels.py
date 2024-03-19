@@ -2,7 +2,7 @@ import rasterio
 from rasterio.transform import from_bounds
 from rasterio.features import geometry_mask
 import numpy as np
-import os
+from pathlib import Path
 
 
 def get_labels(fkb_omrade_gdf, bbox : list, pixel_size : float) -> tuple[np.ndarray]:
@@ -75,8 +75,8 @@ def save_labels(data:np.ndarray, file_name:str, transform:np.ndarray, data_scale
         'transform': transform
     }
     # get the path
-    parent_dir = os.path.dirname(os.path.dirname(os.getcwd()))
-    file_path = parent_dir + f"/data/temp/pretrain/labels/{file_name}.tif"
+    root_dir = Path(file_name).parent[2]
+    file_path = root_dir + f"/data/temp/pretrain/labels/{file_name}.tif"
 
     # Write the data to the file
     with rasterio.open(file_path, 'w', **meta) as dst:
