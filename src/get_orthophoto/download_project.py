@@ -14,7 +14,8 @@ def download_project(download_url: str, project: str, resolution: float,
         name_start = "im"
     else:
         name_start = "i"
-    file_name = f"{name_start}_{compression_name.lower()}_{compression_value}.zip"
+    file_name = (f"{name_start}_{compression_name.lower()}_" +
+                 f"{compression_value}.zip")
     extract_path = parent_dir + \
         f"/data/raw/orthophoto/res_{resolution}/{project.lower()}/"
     # Create the directory if it doesn't exist
