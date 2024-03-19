@@ -1,11 +1,10 @@
-from rasterio import warp
-from affine import Affine
 import rasterio
 from rasterio.windows import Window
 import numpy as np
 from pathlib import Path
 
-def cut_geotiff(geotiff_path, bbox:list, pixel_size:float)->np.array:
+
+def cut_geotiff(geotiff_path, bbox: list, pixel_size: float) -> np.array:
     """
     Function that reads a geotiff and returns a subset of the image
 
@@ -25,21 +24,24 @@ def cut_geotiff(geotiff_path, bbox:list, pixel_size:float)->np.array:
     with rasterio.open(geotiff_path) as src:
 
         # if the crs of the tiff is not the target crs, warn us
-        assert src.crs == target_crs, f"The crs of the geotiff is not WGS84, but {src.crs}"
+        assert src.crs == target_crs, \
+            f"The crs of the geotiff is not WGS84, but {src.crs}"
         # Convert the bounding box to pixel coordinates
         left_col, top_row = src.index(left, top)
         right_col, bottom_row = src.index(right, bottom)
         print(left_col, top_row, right_col, bottom_row)
 
         # Make a window from the bounding box
-        window = Window(top_row, left_col, bottom_row - top_row, right_col - left_col)
+        window = Window(top_row, left_col, bottom_row -
+                        top_row, right_col - left_col)
 
         # Read a subset of the GeoTIFF data
-        subset = src.read([1,2,3], window=window)
+        subset = src.read([1, 2, 3], window=window)
 
         # Rearrange the dimensions of the array
         subset = np.transpose(subset, (1, 2, 0))
     return subset
+
 
 def save_cut_geotiff(data: np.ndarray, file_name: str) -> None:
     """
@@ -62,10 +64,10 @@ def save_cut_geotiff(data: np.ndarray, file_name: str) -> None:
         'crs': 'EPSG:4326',  # always WGS84
         # 'transform': transform # lets pray it doens't need a transform
     }
-    root_dir = Path(file_name).parent[2]
+    root_dir = Path(file_name).parents[2]
     file_path = root_dir + f"/data/temp/pretrain/images/{file_name}.tif"
     # Write the data to a new GeoTIFF file
     with rasterio.open(file_path, 'w', **meta) as dst:
         dst.write(data)
-    
+
     return
