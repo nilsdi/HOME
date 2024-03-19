@@ -4,7 +4,8 @@ from rasterio.features import geometry_mask
 import numpy as np
 import os
 
-def get_labels(fkb_omrade_gdf, bbox:list, pixel_size:float) -> tuple[np.ndarray]:
+
+def get_labels(fkb_omrade_gdf, bbox : list, pixel_size : float) -> tuple[np.ndarray]:
     '''
     Function to get the labels of the buildings in the area of interest
 

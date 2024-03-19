@@ -30,5 +30,5 @@ def download_project(download_url: str, project: str, resolution: float,
     os.makedirs(unzip_folder, exist_ok=True)
     with zipfile.ZipFile(file_path, 'r') as zip_ref:
         zip_ref.extractall(unzip_folder)
-
+        #TODO: remove the zip file after extraction
     return
