@@ -3,6 +3,7 @@ from rasterio.transform import from_bounds
 from rasterio.features import geometry_mask
 import numpy as np
 from pathlib import Path
+from tqdm import tqdm
 
 
 def get_labels(fkb_omrade_gdf, bbox: list,
@@ -46,7 +47,8 @@ def get_labels(fkb_omrade_gdf, bbox: list,
                                                 bbox[1]:bbox[3]]
 
     # For each building
-    for _, building in fkb_omrade_gdf_filtered.iterrows():
+    for _, building in tqdm(fkb_omrade_gdf_filtered.iterrows(),
+                            total=fkb_omrade_gdf_filtered.shape[0]):
         # Calculate the pixel coordinates of the building
         building_geom = building.geometry  # assuming building is a gdf
         mask = geometry_mask([building_geom], transform=transform,
