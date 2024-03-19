@@ -5,7 +5,7 @@ import shutil
 
 from get_orthophoto.download_project import download_project
 
-root_directory = Path(__file__).parents[1]
+root_directory = Path(__file__).parents[2]
 possible_downloads = root_directory.glob("data/temp/urls/*")
 possible_downloads = [p for p in possible_downloads if "." in str(p)]
 print(f'current urls: {possible_downloads}.')
