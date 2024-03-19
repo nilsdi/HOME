@@ -7,6 +7,7 @@ import geopandas as gpd
 # rectangle in the center in of trondheim
 bbox = [10.3281, 63.3805, 10.4901, 63.4325]
 root_dir = Path(__file__).parents[1]
+filename = "trondheim_2019_rect"
 
 # %% get the labels
 path_label = (root_dir / "data/raw/FKB_bygning" /
@@ -16,14 +17,14 @@ gdf_omrade = gpd.read_file(path_label, driver="FileGDB",
 
 data, transform = get_labels(gdf_omrade, bbox, 0.3)
 
-save_labels(data, "trondheim_2019_rect_labels", transform)
+save_labels(data, filename, transform)
 
 # %% get the image
 subfolder = "data/raw/orthophoto/res_0.3/trondheim_2019/i_lzw_25"
 geotiff_path = root_dir / subfolder / "Eksport-nib.tif"
-image = cut_geotiff(geotiff_path, bbox, 0.3)
+image, transform = cut_geotiff(geotiff_path, bbox, 0.3)
 
 # save the image
-save_cut_geotiff(image, "trondheim_2019_rect_image")
+save_cut_geotiff(image, filename, transform)
 
 # %%

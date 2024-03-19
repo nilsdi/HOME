@@ -39,17 +39,21 @@ def cut_geotiff(geotiff_path, bbox: list, pixel_size: float) -> np.array:
         # print(left_col, top_row, right_col, bottom_row)
 
         # Make a window from the bounding box
-        window = Window(top_row, left_col, height, width)
+        window = Window(left_col, top_row, width, height)
+
+        # Calculate the transform for the subset
+        subset_transform = src.window_transform(window)
 
         # Read a subset of the GeoTIFF data
         subset = src.read([1, 2, 3], window=window)
 
         # Rearrange the dimensions of the array
         # subset = np.transpose(subset, (1, 2, 0))
-    return subset
+    return subset, subset_transform
 
 
-def save_cut_geotiff(data: np.ndarray, file_name: str) -> None:
+def save_cut_geotiff(data: np.ndarray, file_name: str,
+                     transform: np.ndarray,) -> None:
     """
     Function to save the subset of the geotiff to a new file
 
@@ -68,6 +72,7 @@ def save_cut_geotiff(data: np.ndarray, file_name: str) -> None:
         'width': data.shape[2],
         'height': data.shape[1],
         'crs': 'EPSG:25833',
+        'transform': transform
         # 'transform': transform # lets pray it doens't need a transform
     }
     root_dir = Path(__file__).parents[2]
