@@ -41,8 +41,8 @@ def get_labels(fkb_omrade_gdf, bbox: list,
 
     fkb_omrade_gdf = fkb_omrade_gdf.to_crs(target_crs)
     # filter the gdf for the selection:
-    fkb_omrade_gdf_filtered = fkb_omrade_gdf.cx[bbox[0]:bbox[2],
-                                                bbox[1]:bbox[3]]
+    fkb_omrade_gdf_filtered = fkb_omrade_gdf.cx[left:right,
+                                                bottom:top]
 
     geometries = fkb_omrade_gdf_filtered.geometry.to_list()
     mask = geometry_mask(geometries, transform=transform,

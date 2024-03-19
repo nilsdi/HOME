@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from osgeo import gdal, osr
 from pathlib import Path
 import math
+from pyproj import Transformer
 
 
 def pixel_to_geographic_coordinates(dataset, x, y):
@@ -15,6 +16,17 @@ def pixel_to_geographic_coordinates(dataset, x, y):
     # Transform pixel coordinates to geographic coordinates
     x_geo = geotransform[0] + (x * geotransform[1]) + (y * geotransform[2])
     y_geo = geotransform[3] + (x * geotransform[4]) + (y * geotransform[5])
+
+    # Get the projection from the dataset
+    projection = dataset.GetProjection()
+    srs = osr.SpatialReference(wkt=projection)
+    unit = srs.GetLinearUnitsName()
+
+    # If the projection is in meters, convert to degrees
+    if unit == 'metre':
+        transformer = Transformer.from_crs(srs.ExportToProj4(), 'EPSG:4326',
+                                           always_xy=True)
+        x_geo, y_geo = transformer.transform(x_geo, y_geo)
 
     return x_geo, y_geo
 
@@ -56,7 +68,7 @@ def display_rgb_geotiff_subset(file_path, x_start, y_start, width, height):
 
 root_dir = str(Path(__file__).parents[2])
 file_path = (root_dir + "/data/raw/orthophoto/res_0.3/trondheim_2019/" +
-             "i_lzw_25/Eksport-nib_4326.tif")
+             "i_lzw_25/Eksport-nib.tif")
 display_rgb_geotiff_subset(file_path, 77200, 9200, 1000, 1000)
 
 # %% display size and resolution of the image
@@ -93,4 +105,9 @@ if unit != 'metre':
     pixel_height = pixel_height_rad * EARTH_RADIUS
 
 print(f"Pixel resolution: {pixel_width:.4f} x {pixel_height:.4f} meters")
+# %%
+
+file_path = (root_dir + "/data/temp/pretrain/images/" +
+             "trondheim_2019_rect_image.tif")
+display_rgb_geotiff_subset(file_path, 5000, 5000, 1000, 1000)
 # %%
