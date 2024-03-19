@@ -98,10 +98,10 @@ def partition_and_crop_images(input_dir_images, input_dir_labels,
 
 
 # Example usage
-input_dir_images = 'data/Inria/AerialImageDataset/train/images/'
-input_dir_labels = 'data/Inria/AerialImageDataset/train/gt/'
-output_dir_images = 'data/Inria/train/image2/'
-output_dir_labels = 'data/Inria/train/label2/'
+input_dir_images = 'data/temp/pretrain/images/'
+input_dir_labels = 'data/temp/pretrain/labels'
+output_dir_images = 'data/train/image/'
+output_dir_labels = 'data/train/label/'
 
 partition_and_crop_images(input_dir_images, input_dir_labels,
                           output_dir_images, output_dir_labels,

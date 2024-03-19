@@ -29,7 +29,7 @@ def cut_geotiff(geotiff_path, bbox: list, pixel_size: float) -> np.array:
         # Convert the bounding box to pixel coordinates
         left_col, top_row = src.index(left, top)
         right_col, bottom_row = src.index(right, bottom)
-        print(left_col, top_row, right_col, bottom_row)
+        # print(left_col, top_row, right_col, bottom_row)
 
         # Make a window from the bounding box
         window = Window(top_row, left_col, bottom_row -
@@ -39,7 +39,7 @@ def cut_geotiff(geotiff_path, bbox: list, pixel_size: float) -> np.array:
         subset = src.read([1, 2, 3], window=window)
 
         # Rearrange the dimensions of the array
-        subset = np.transpose(subset, (1, 2, 0))
+        # subset = np.transpose(subset, (1, 2, 0))
     return subset
 
 
@@ -59,13 +59,13 @@ def save_cut_geotiff(data: np.ndarray, file_name: str) -> None:
         'driver': 'GTiff',
         'dtype': rasterio.uint8,
         'count': 3,
-        'width': data.shape[1],
-        'height': data.shape[0],
+        'width': data.shape[2],
+        'height': data.shape[1],
         'crs': 'EPSG:4326',  # always WGS84
         # 'transform': transform # lets pray it doens't need a transform
     }
-    root_dir = Path(file_name).parents[2]
-    file_path = root_dir + f"/data/temp/pretrain/images/{file_name}.tif"
+    root_dir = Path(__file__).parents[2]
+    file_path = root_dir / f"data/temp/pretrain/images/{file_name}.tif"
     # Write the data to a new GeoTIFF file
     with rasterio.open(file_path, 'w', **meta) as dst:
         dst.write(data)

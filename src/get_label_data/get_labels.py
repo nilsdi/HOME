@@ -3,7 +3,6 @@ from rasterio.transform import from_bounds
 from rasterio.features import geometry_mask
 import numpy as np
 from pathlib import Path
-from tqdm import tqdm
 
 
 def get_labels(fkb_omrade_gdf, bbox: list,
@@ -46,16 +45,12 @@ def get_labels(fkb_omrade_gdf, bbox: list,
     fkb_omrade_gdf_filtered = fkb_omrade_gdf.cx[bbox[0]:bbox[2],
                                                 bbox[1]:bbox[3]]
 
-    # For each building
-    for _, building in tqdm(fkb_omrade_gdf_filtered.iterrows(),
-                            total=fkb_omrade_gdf_filtered.shape[0]):
-        # Calculate the pixel coordinates of the building
-        building_geom = building.geometry  # assuming building is a gdf
-        mask = geometry_mask([building_geom], transform=transform,
-                             out_shape=(height, width), invert=True)
+    geometries = fkb_omrade_gdf_filtered.geometry.to_list()
+    mask = geometry_mask(geometries, transform=transform,
+                         out_shape=(height, width), invert=True)
 
-        # Set the corresponding elements of the array to 1
-        data[mask] = 1
+    # Set the corresponding elements of the array to 1
+    data[mask] = 1
 
     return data, transform
 
@@ -89,8 +84,8 @@ def save_labels(data: np.ndarray, file_name: str, transform: np.ndarray,
         'transform': transform
     }
     # get the path
-    root_dir = Path(file_name).parents[2]
-    file_path = root_dir + f"/data/temp/pretrain/labels/{file_name}.tif"
+    root_dir = Path(__file__).parents[2]
+    file_path = root_dir / f"data/temp/pretrain/labels/{file_name}.tif"
 
     # Write the data to the file
     with rasterio.open(file_path, 'w', **meta) as dst:
