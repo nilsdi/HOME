@@ -20,7 +20,7 @@ save_labels(data, "trondheim_2019_rect_labels", transform)
 
 # %% get the image
 subfolder = "data/raw/orthophoto/res_0.3/trondheim_2019/i_lzw_25"
-geotiff_path = root_dir / subfolder / "Eksport-nib_4326.tif"
+geotiff_path = root_dir / subfolder / "Eksport-nib.tif"
 image = cut_geotiff(geotiff_path, bbox, 0.3)
 
 # save the image

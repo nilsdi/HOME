@@ -24,6 +24,9 @@ def cut_geotiff(geotiff_path, bbox: list, pixel_size: float) -> np.array:
     # Define the bounding box and the resolution
     [left, bottom, right, top] = convert_bbox_to_meters(bbox)
 
+    width = int((right - left) / pixel_size)
+    height = int((top - bottom) / pixel_size)
+
     # Read the GeoTIFF file
     with rasterio.open(geotiff_path) as src:
 
@@ -36,8 +39,7 @@ def cut_geotiff(geotiff_path, bbox: list, pixel_size: float) -> np.array:
         # print(left_col, top_row, right_col, bottom_row)
 
         # Make a window from the bounding box
-        window = Window(top_row, left_col, bottom_row -
-                        top_row, right_col - left_col)
+        window = Window(top_row, left_col, height, width)
 
         # Read a subset of the GeoTIFF data
         subset = src.read([1, 2, 3], window=window)
