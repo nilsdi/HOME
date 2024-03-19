@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Map Example</title>
+    <style>
+        #map {
+            height: 400px;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+    <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@4.1.1/dist/maplibre-gl.css' />
+    <script src='https://unpkg.com/maplibre-gl@4.1.1/dist/maplibre-gl.js'></script>
+    <script>
+        var map = new maplibregl.Map({
+            container: 'map',
+            style: 'https://api.maptiler.com/maps/97a7fafc-4db8-4198-8ad3-0f71e9d0e796/style.json?key=2uk4vShrv97F5tyuyr5x',
+            center: [10.3951, 63.4305],
+            zoom: 9
+        });
+
+        // Add image and label layers
+        map.on('load', function () {
+            map.addSource('images', {
+                type: 'vector',
+                tiles: ['PATH_TO_IMAGE_TILES/{z}/{x}/{y}.png'],
+                tileSize: 256
+            });
+
+            map.addSource('labels', {
+                type: 'vector',
+                tiles: ['PATH_TO_LABEL_TILES/{z}/{x}/{y}.png'],
+                tileSize: 256
+            });
+
+            // Add filter control
+            var filterEl = document.createElement('div');
+            filterEl.innerHTML = '<select id="filter-select"><option value="image">Image</option><option value="label">Label</option></select>';
+            filterEl.style.position = 'absolute';
+            filterEl.style.top = '10px';
+            filterEl.style.left = '10px';
+            map.getContainer().appendChild(filterEl);
+
+            var filterSelect = document.getElementById('filter-select');
+            filterSelect.addEventListener('change', function () {
+                var filterValue = filterSelect.value;
+                if (filterValue === 'image') {
+                    map.setLayoutProperty('images', 'visibility', 'visible');
+                    map.setLayoutProperty('labels', 'visibility', 'none');
+                } else if (filterValue === 'label') {
+                    map.setLayoutProperty('images', 'visibility', 'none');
+                    map.setLayoutProperty('labels', 'visibility', 'visible');
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
