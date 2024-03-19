@@ -6,7 +6,7 @@ import geopandas as gpd
 
 # rectangle in the center in of trondheim
 bbox = [10.3281, 63.3805, 10.4901, 63.4325]
-root_dir = Path(__file__).parents[1]
+root_dir = Path(__file__).parents[2]
 filename = "trondheim_2019_rect"
 
 # %% get the labels
