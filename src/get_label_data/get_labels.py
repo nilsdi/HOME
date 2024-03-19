@@ -3,6 +3,10 @@ from rasterio.transform import from_bounds
 from rasterio.features import geometry_mask
 import numpy as np
 from pathlib import Path
+import sys
+parent_dir = Path(__file__).parent
+sys.path.append(str(parent_dir))
+from utils.bbox_to_meters import convert_bbox_to_meters  # noqa
 
 
 def get_labels(fkb_omrade_gdf, bbox: list,
@@ -22,19 +26,14 @@ def get_labels(fkb_omrade_gdf, bbox: list,
     no building)
     transform: np.ndarray, the transformation matrix for the GeoTIFF
     '''
-    target_crs = 'EPSG:4326'  # WGS84
+    target_crs = 'EPSG:25833'
     # Define the bounding box and the resolution
-    [left, bottom, right, top] = bbox
+    [left, bottom, right, top] = convert_bbox_to_meters(bbox)
     # Calculate the scaling factors
     # scaling factor in the y direction
-    scaling_factor_y = 1 / (pixel_size / 111320)
-    # scaling factor in the x direction
-    scaling_factor_x = scaling_factor_y * \
-        np.cos(np.radians((bottom + top) / 2))
-
-    # Calculate the dimensions and the transform of the new GeoTIFF
-    width = int((right - left) * scaling_factor_x)
-    height = int((top - bottom) * scaling_factor_y)
+    # Calculate the dimensions of the new GeoTIFF
+    width = int((right - left) / pixel_size)
+    height = int((top - bottom) / pixel_size)
     transform = from_bounds(left, bottom, right, top, width, height)
 
     # Create an empty array of the same size as the GeoTIFF
@@ -80,7 +79,7 @@ def save_labels(data: np.ndarray, file_name: str, transform: np.ndarray,
         'count': 1,
         'width': data.shape[1],
         'height': data.shape[0],
-        'crs': 'EPSG:4326',  # always WGS84
+        'crs': 'EPSG:25833',  # always WGS84
         'transform': transform
     }
     # get the path

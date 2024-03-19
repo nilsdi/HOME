@@ -2,6 +2,10 @@ import rasterio
 from rasterio.windows import Window
 import numpy as np
 from pathlib import Path
+import sys
+parent_dir = Path(__file__).parent
+sys.path.append(str(parent_dir))
+from utils.bbox_to_meters import convert_bbox_to_meters  # noqa
 
 
 def cut_geotiff(geotiff_path, bbox: list, pixel_size: float) -> np.array:
@@ -16,16 +20,16 @@ def cut_geotiff(geotiff_path, bbox: list, pixel_size: float) -> np.array:
     Returns:
     np.array : subset of the image
     """
-    target_crs = 'EPSG:4326'  # WGS84
+    target_crs = 'EPSG:25833'
     # Define the bounding box and the resolution
-    [left, bottom, right, top] = bbox
+    [left, bottom, right, top] = convert_bbox_to_meters(bbox)
 
     # Read the GeoTIFF file
     with rasterio.open(geotiff_path) as src:
 
         # if the crs of the tiff is not the target crs, warn us
         assert src.crs == target_crs, \
-            f"The crs of the geotiff is not WGS84, but {src.crs}"
+            f"The crs of the geotiff is not ETRS89, but {src.crs}"
         # Convert the bounding box to pixel coordinates
         left_col, top_row = src.index(left, top)
         right_col, bottom_row = src.index(right, bottom)
@@ -61,7 +65,7 @@ def save_cut_geotiff(data: np.ndarray, file_name: str) -> None:
         'count': 3,
         'width': data.shape[2],
         'height': data.shape[1],
-        'crs': 'EPSG:4326',  # always WGS84
+        'crs': 'EPSG:25833',
         # 'transform': transform # lets pray it doens't need a transform
     }
     root_dir = Path(__file__).parents[2]
