@@ -41,15 +41,15 @@ def download_project(download_url: str, project: str, resolution: float,
         os.remove(file_path)
 
     # Check the CRS of the orthophoto
-    dataset = gdal.Open(unzip_folder / "/Eksport-nib.tif")
+    dataset = gdal.Open(str(unzip_folder / "/Eksport-nib.tif"))
     srs = osr.SpatialReference(wkt=dataset.GetProjection())
 
-    # Check if the CRS is already EPSG:4326
-    if srs.GetAuthorityCode(None) != "4326":
-        output_path = unzip_folder / "/Eksport-nib_4326.tif"
-        # Warp the file to EPSG:4326
-        warp_options = gdal.WarpOptions(dstSRS='EPSG:4326')
+    # Check if the CRS is already EPSG:25833
+    if srs.GetAuthorityCode(None) != "25833":
+        output_path = str(unzip_folder / "/Eksport-nib_25833.tif")
+        # Warp the file to EPSG:25833
+        warp_options = gdal.WarpOptions(dstSRS='EPSG:25833')
         gdal.Warp(output_path, dataset, options=warp_options)
         # Remove the original file
-        os.remove(unzip_folder / "/Eksport-nib.tif")
+        # os.remove(unzip_folder / "/Eksport-nib.tif")
     return

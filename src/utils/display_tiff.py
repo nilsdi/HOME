@@ -1,7 +1,7 @@
 # %%
 import numpy as np
 import matplotlib.pyplot as plt
-from osgeo import gdal
+from osgeo import gdal, osr
 from pathlib import Path
 import math
 
@@ -56,32 +56,41 @@ def display_rgb_geotiff_subset(file_path, x_start, y_start, width, height):
 
 root_dir = str(Path(__file__).parents[2])
 file_path = (root_dir + "/data/raw/orthophoto/res_0.3/trondheim_2019/" +
-             "Eksport-nib_4326.tif")
+             "i_lzw_25/Eksport-nib_4326.tif")
 display_rgb_geotiff_subset(file_path, 77200, 9200, 1000, 1000)
 
 # %% display size and resolution of the image
 
 dataset = gdal.Open(file_path)
+projection = dataset.GetProjection()
+authority = projection.split('"')[1]
+print(f"Projection: {authority}")
 print(f"Size of the image: {dataset.RasterXSize} x {dataset.RasterYSize}")
 geotransform = dataset.GetGeoTransform()
-pixel_width = geotransform[1]
-pixel_height = geotransform[5]
+pixel_width = abs(geotransform[1])
+pixel_height = abs(geotransform[5])
 
-# Constants
-EARTH_RADIUS = 6371 * 1000  # Earth's radius in meters
-LATITUDE = math.radians(63.43)  # Latitude of Trondheim, Norway in radians
+# Check units of the projection
+projection = dataset.GetProjection()
+srs = osr.SpatialReference(wkt=projection)
+unit = srs.GetLinearUnitsName()
 
-# Pixel resolution in degrees
-pixel_width_deg = abs(pixel_width)
-pixel_height_deg = abs(pixel_height)
+if unit != 'metre':
+    # Constants
+    EARTH_RADIUS = 6371 * 1000  # Earth's radius in meters
+    LATITUDE = math.radians(63.43)  # Latitude of Trondheim, Norway in radians
 
-# Convert to radians
-pixel_width_rad = math.radians(pixel_width_deg)
-pixel_height_rad = math.radians(pixel_height_deg)
+    # Pixel resolution in degrees
+    pixel_width_deg = pixel_width
+    pixel_height_deg = pixel_height
 
-# Convert to meters
-pixel_width_m = pixel_width_rad * EARTH_RADIUS * math.cos(LATITUDE)
-pixel_height_m = pixel_height_rad * EARTH_RADIUS
+    # Convert to radians
+    pixel_width_rad = math.radians(pixel_width_deg)
+    pixel_height_rad = math.radians(pixel_height_deg)
 
-print(f"Pixel resolution: {pixel_width_m:.4f} x {pixel_height_m:.4f} meters")
+    # Convert to meters
+    pixel_width = pixel_width_rad * EARTH_RADIUS * math.cos(LATITUDE)
+    pixel_height = pixel_height_rad * EARTH_RADIUS
+
+print(f"Pixel resolution: {pixel_width:.4f} x {pixel_height:.4f} meters")
 # %%
