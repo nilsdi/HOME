@@ -46,6 +46,9 @@ def start_export(project:str, resolution:float, format:int = 4, compression_meth
 
     return JobID
 
+# remove whitespace from name
+# change coordinate system WSG84
+# proof the path stuff (for servers?)
 
 def save_export_job(JobID:int, project:str, resolution:float, 
                                 compression_method:int, compression_value:float, mosaic:bool)->None:
