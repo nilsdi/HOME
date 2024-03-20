@@ -13,7 +13,7 @@ from tqdm import tqdm
 from scipy.ndimage import distance_transform_edt, distance_transform_cdt
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--datadir", dest='datadir', default='data/Inria/')
+parser.add_argument("--datadir", dest='datadir', default='data/model/')
 parser.add_argument("--outname", default='boundary')
 # parser.add_argument('--split', nargs='+', default=['train', 'test'])
 parser.add_argument('--metric', default='euc', choices=['euc', 'taxicab'])

@@ -1,8 +1,11 @@
 # %%
-from get_label_data.get_labels import get_labels, save_labels
-from get_label_data.cut_images import cut_geotiff, save_cut_geotiff
 from pathlib import Path
 import geopandas as gpd
+import sys
+grandparent_dir = Path(__file__).parents[1]
+sys.path.append(str(grandparent_dir))
+from get_label_data.get_labels import get_labels, save_labels  # noqa
+from get_label_data.cut_images import cut_geotiff, save_cut_geotiff  # noqa
 
 # rectangle in the center in of trondheim
 bbox = [10.3281, 63.3805, 10.4901, 63.4325]

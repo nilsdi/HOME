@@ -5,6 +5,9 @@ from osgeo import gdal, osr
 from pathlib import Path
 import math
 from pyproj import Transformer
+import rasterio
+
+# %%
 
 
 def pixel_to_geographic_coordinates(dataset, x, y):
@@ -43,7 +46,9 @@ def display_rgb_geotiff_subset(file_path, x_start, y_start, width, height):
 
     # Plot the RGB subset using Matplotlib
     # Transpose the array to match Matplotlib's expectations for RGB images
-    plt.imshow(np.transpose(subset_rgb, (1, 2, 0)))
+    if subset_rgb.shape[0] == 3:
+        subset_rgb = np.transpose(subset_rgb, (1, 2, 0))
+    plt.imshow(subset_rgb)
     plt.colorbar(label='Pixel Intensity')
     plt.title("Subset of RGB GeoTIFF")
 
@@ -107,7 +112,58 @@ if unit != 'metre':
 print(f"Pixel resolution: {pixel_width:.4f} x {pixel_height:.4f} meters")
 # %%
 
+file_path = (root_dir + "/data/temp/pretrain/labels/" +
+             "trondheim_2019_rect.tif")
+display_rgb_geotiff_subset(file_path, 0, 0, 28000, 17000)
+
+# %%
 file_path = (root_dir + "/data/temp/pretrain/images/" +
-             "trondheim_2019_rect_image.tif")
-display_rgb_geotiff_subset(file_path, 5000, 5000, 1000, 1000)
+             "trondheim_2019_rect.tif")
+display_rgb_geotiff_subset(file_path, 0, 0, 28000, 17000)
+
+
+# %% display image, label and prediction side to side
+
+def display_images_side_by_side(name):
+    image_path = (root_dir + f"/data/model/train/image/{name}.tif")
+    label_path = (root_dir + f"/data/model/train/label/{name}.tif")
+    prediction_path = (root_dir + f"/data/model/predictions/{name}.tif")
+
+    # Open the files
+    with (rasterio.open(image_path) as image,
+          rasterio.open(label_path) as label,
+          rasterio.open(prediction_path) as prediction):
+        # Read the data
+        image_data = image.read([1, 2, 3])
+        label_data = label.read(1)
+        prediction_data = prediction.read(1)
+
+        # Create a figure with three subplots
+        fig, axs = plt.subplots(1, 3, figsize=(15, 5))
+
+        # Display the image
+        axs[0].imshow(image_data.transpose((1, 2, 0)))
+        axs[0].set_title('Image')
+        axs[0].set_xticks([])
+        axs[0].set_yticks([])
+
+        # Display the label
+        axs[1].imshow(label_data, cmap='gray')
+        axs[1].set_title('Ground Truth')
+        axs[1].set_xticks([])
+        axs[1].set_yticks([])
+
+        # Display the prediction
+        axs[2].imshow(prediction_data, cmap='gray')
+        axs[2].set_title('Prediction')
+        axs[2].set_xticks([])
+        axs[2].set_yticks([])
+
+        # Show the figure
+        plt.show()
+
+
+name = "trondheim_2019_rect_5_21"
+display_images_side_by_side(name)
+
 # %%

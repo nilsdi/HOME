@@ -114,8 +114,8 @@ def partition_and_crop_images(input_dir_images, input_dir_labels,
 root_dir = str(Path(__file__).parents[2])
 input_dir_images = root_dir + '/data/temp/pretrain/images/'
 input_dir_labels = root_dir + '/data/temp/pretrain/labels'
-output_dir_images = root_dir + '/data/train/image/'
-output_dir_labels = root_dir + '/data/train/label/'
+output_dir_images = root_dir + '/data/model/train/image/'
+output_dir_labels = root_dir + '/data/model/train/label/'
 
 partition_and_crop_images(input_dir_images, input_dir_labels,
                           output_dir_images, output_dir_labels,
