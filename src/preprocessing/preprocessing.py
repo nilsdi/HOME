@@ -1,8 +1,10 @@
 import os
-import cv2
 import numpy as np
 from tqdm import tqdm
 from pathlib import Path
+# Increase the maximum number of pixels OpenCV can handle
+os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2, 40))
+import cv2  # noqa
 
 
 def partition_and_crop_images(input_dir_images, input_dir_labels,
@@ -18,23 +20,24 @@ def partition_and_crop_images(input_dir_images, input_dir_labels,
     image_files = [f for f in os.listdir(
         input_dir_images) if f.endswith('.tif')]
 
+    effective_tile_size = tile_size * (1 - overlap_rate)
+
     # Calculate the image size if not given
+    total_iterations = 0
     if image_size is None:
-        label_path = os.path.join(input_dir_labels, image_files[0])
-        label = cv2.imread(label_path)
-        height, width, _ = label.shape
+        for file in image_files:
+            label_path = os.path.join(input_dir_labels, file)
+            label = cv2.imread(label_path)
+            height, width, _ = label.shape
+
+            num_tiles_x = int(np.ceil((width - tile_size) /
+                              (effective_tile_size))) + 1
+            num_tiles_y = int(np.ceil((height - tile_size) /
+                              (effective_tile_size))) + 1
+            total_iterations += num_tiles_x * num_tiles_y
     else:
         height, width = image_size, image_size
 
-    effective_tile_size = tile_size * (1 - overlap_rate)
-
-    # Calculate the number of tiles in each dimension
-    num_tiles_x = int(np.ceil((width - tile_size) /
-                              (effective_tile_size))) + 1
-    num_tiles_y = int(np.ceil((height - tile_size) /
-                              (effective_tile_size))) + 1
-
-    total_iterations = len(image_files) * num_tiles_x * num_tiles_y
     skipped = 0
 
     with tqdm(total=total_iterations, desc="Processing") as pbar:
@@ -42,6 +45,11 @@ def partition_and_crop_images(input_dir_images, input_dir_labels,
             # Load the label
             label_path = os.path.join(input_dir_labels, image_file)
             label = cv2.imread(label_path)
+            height, width, _ = label.shape
+            num_tiles_x = int(np.ceil((width - tile_size) /
+                              (effective_tile_size))) + 1
+            num_tiles_y = int(np.ceil((height - tile_size) /
+                              (effective_tile_size))) + 1
 
             # Calculate the ratio of positive to negative pixels
             num_positive_pixels = np.sum(label > 0)

@@ -22,6 +22,7 @@ path_label = (root_dir / "data/raw/FKB_bygning" /
               "Basisdata_0000_Norge_5973_FKB-Bygning_FGDB.gdb")
 gdf_omrade = gpd.read_file(path_label, driver="FileGDB",
                            layer="fkb_bygning_omrade")
+
 # %%
 for city in cities:
     for i in range(len(bbox[city])):
@@ -35,8 +36,7 @@ for city in cities:
 
         subfolders = list(
             (root_dir / "data/raw/orthophoto/res_0.3").glob(f"*{city}*"))
-        subfolder = subfolders[0].name
-        geotiff_path = root_dir / subfolder / "Eksport-nib.tif"
+        geotiff_path = subfolders[0] / "i_lzw_25" / "Eksport-nib.tif"
         image, transform = cut_geotiff(geotiff_path, bbox[city][i], 0.3)
 
         # save the image
