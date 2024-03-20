@@ -1,7 +1,7 @@
 import requests
 import json
 import time
-import os
+from pathlib import Path
 
 
 def status_export(JobID: int) -> tuple[bool, str]:
@@ -45,12 +45,12 @@ def save_download_url(download_url: str, project: str, resolution: float,
     '''
     Save the download url to a file for later reference.
     '''
-    grandparent_dir = os.path.dirname(os.path.dirname(os.getcwd()))
+    grandparent_dir = Path(__file__).resolve().parents[2]
 
     # current time for the file name
     current_time = time.strftime("%Y%m%d-%H%M%S")
     file_name = f"Download_{project.lower()}_{current_time}.json"
-    file_path = grandparent_dir + "/data/temp/urls/" + file_name
+    file_path = grandparent_dir / "data/temp/urls/" / file_name
 
     # this entire block should be changed - we should have a different
     # variable for the compresssion name.
