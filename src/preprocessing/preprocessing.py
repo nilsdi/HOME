@@ -60,6 +60,7 @@ def partition_and_crop_images(input_dir_images, input_dir_labels,
             if (ratio < imbalance_threshold[0] or
                     ratio > imbalance_threshold[1]):
                 skipped += num_tiles_x * num_tiles_y
+                pbar.update(num_tiles_x * num_tiles_y)
                 continue
 
             # Load the image
@@ -98,6 +99,7 @@ def partition_and_crop_images(input_dir_images, input_dir_labels,
                     if ratio < imbalance_threshold[0] or (
                             ratio > imbalance_threshold[1]):
                         skipped += 1
+                        pbar.update(1)
                         continue
 
                     # Crop the tile from the image

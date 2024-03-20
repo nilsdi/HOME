@@ -6,7 +6,10 @@ from pathlib import Path
 import math
 from pyproj import Transformer
 import rasterio
+import os
+import random
 
+root_dir = str(Path(__file__).resolve().parents[2])
 # %%
 
 
@@ -71,7 +74,6 @@ def display_rgb_geotiff_subset(file_path, x_start, y_start, width, height):
     plt.show()
 
 
-root_dir = str(Path(__file__).parents[2])
 file_path = (root_dir + "/data/raw/orthophoto/res_0.3/trondheim_2019/" +
              "i_lzw_25/Eksport-nib.tif")
 display_rgb_geotiff_subset(file_path, 77200, 9200, 1000, 1000)
@@ -124,46 +126,81 @@ display_rgb_geotiff_subset(file_path, 0, 0, 28000, 17000)
 
 # %% display image, label and prediction side to side
 
-def display_images_side_by_side(name):
-    image_path = (root_dir + f"/data/model/train/image/{name}.tif")
-    label_path = (root_dir + f"/data/model/train/label/{name}.tif")
-    prediction_path = (root_dir + f"/data/model/predictions/{name}.tif")
+def display_images_side_by_side(name, prediction: bool = False):
+    if name == 'random':
+        image_folder = root_dir + "/data/model/train/image/"
+        files_in_folder = [f for f in os.listdir(image_folder)]
+        name = files_in_folder[random.randint(0, len(files_in_folder))]
+        image_path = (root_dir + f"/data/model/train/image/{name}")
+        label_path = (root_dir + f"/data/model/train/label/{name}")
+        if prediction:
+            prediction_path = (root_dir + f"/data/model/predictions/{name}")
+    else:
+        image_path = (root_dir + f"/data/model/train/image/{name}.tif")
+        label_path = (root_dir + f"/data/model/train/label/{name}.tif")
+        if prediction:
+            prediction_path = (
+                root_dir + f"/data/model/predictions/{name}.tif")
 
     # Open the files
-    with (rasterio.open(image_path) as image,
-          rasterio.open(label_path) as label,
-          rasterio.open(prediction_path) as prediction):
-        # Read the data
-        image_data = image.read([1, 2, 3])
-        label_data = label.read(1)
-        prediction_data = prediction.read(1)
+    if prediction:
+        with (rasterio.open(image_path) as image,
+              rasterio.open(label_path) as label,
+              rasterio.open(prediction_path) as prediction):
+            # Read the data
+            image_data = image.read([1, 2, 3])
+            label_data = label.read(1)
+            prediction_data = prediction.read(1)
 
-        # Create a figure with three subplots
-        fig, axs = plt.subplots(1, 3, figsize=(15, 5))
+            # Create a figure with three subplots
+            fig, axs = plt.subplots(1, 3, figsize=(15, 5))
 
-        # Display the image
-        axs[0].imshow(image_data.transpose((1, 2, 0)))
-        axs[0].set_title('Image')
-        axs[0].set_xticks([])
-        axs[0].set_yticks([])
+            # Display the image
+            axs[0].imshow(image_data.transpose((1, 2, 0)))
+            axs[0].set_title('Image')
+            axs[0].set_xticks([])
+            axs[0].set_yticks([])
 
-        # Display the label
-        axs[1].imshow(label_data, cmap='gray')
-        axs[1].set_title('Ground Truth')
-        axs[1].set_xticks([])
-        axs[1].set_yticks([])
+            # Display the label
+            axs[1].imshow(label_data, cmap='gray')
+            axs[1].set_title('Ground Truth')
+            axs[1].set_xticks([])
+            axs[1].set_yticks([])
 
-        # Display the prediction
-        axs[2].imshow(prediction_data, cmap='gray')
-        axs[2].set_title('Prediction')
-        axs[2].set_xticks([])
-        axs[2].set_yticks([])
+            # Display the prediction
+            axs[2].imshow(prediction_data, cmap='gray')
+            axs[2].set_title('Prediction')
+            axs[2].set_xticks([])
+            axs[2].set_yticks([])
 
-        # Show the figure
-        plt.show()
+            # Show the figure
+            plt.show()
+    else:
+        with (rasterio.open(image_path) as image,
+              rasterio.open(label_path) as label):
+            # Read the data
+            image_data = image.read([1, 2, 3])
+            label_data = label.read(1)
+
+            # Create a figure with two subplots
+            fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+
+            # Display the image
+            axs[0].imshow(image_data.transpose((1, 2, 0)))
+            axs[0].set_title('Image')
+            axs[0].set_xticks([])
+            axs[0].set_yticks([])
+
+            # Display the label
+            axs[1].imshow(label_data, cmap='gray')
+            axs[1].set_title('Ground Truth')
+            axs[1].set_xticks([])
+            axs[1].set_yticks([])
+
+            # Show the figure
+            plt.show()
 
 
-name = "trondheim_2019_rect_5_21"
-display_images_side_by_side(name)
+display_images_side_by_side('random')
 
 # %%
