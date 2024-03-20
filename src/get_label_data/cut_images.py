@@ -39,7 +39,7 @@ def cut_geotiff(geotiff_path, bbox: list, pixel_size: float) -> np.array:
         # print(left_col, top_row, right_col, bottom_row)
 
         # Make a window from the bounding box
-        window = Window(left_col, top_row, width, height)
+        window = Window(top_row, left_col, width, height)
 
         # Calculate the transform for the subset
         subset_transform = src.window_transform(window)
