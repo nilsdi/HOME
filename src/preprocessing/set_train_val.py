@@ -1,3 +1,4 @@
+# %%
 import os
 from pathlib import Path
 import random
@@ -14,13 +15,13 @@ with open(current_dir / 'bbox.json', 'r') as f:
     bbox = json.load(f)
 cities = bbox.keys()
 
-data_path = root_dir / 'data/train/label'
+data_path = root_dir / 'data/model/train/label'
 
-train_file = open(root_dir / 'data/train/dataset/train.txt', 'w')
-val_file = open(root_dir / 'data/train/dataset/val.txt', 'w')
-test_file = open(root_dir / 'data/train/dataset/test.txt', 'w')
+train_file = open(root_dir / 'data/model/dataset/train.txt', 'w+')
+val_file = open(root_dir / 'data/model/dataset/val.txt', 'w+')
+test_file = open(root_dir / 'data/model/dataset/test.txt', 'w')
 
-
+random.seed(42)
 for city in cities:
     tiles = [os.path.splitext(tile)[0] for tile in os.listdir(data_path)
              if city in tile]
@@ -52,3 +53,5 @@ for city in cities:
 train_file.close()
 val_file.close()
 test_file.close()
+
+# %%

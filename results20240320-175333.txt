@@ -1,0 +1,5 @@
+[epoch: 0]
+batch_loss: 3.5260
+val_IoU: 0.000000
+
+
