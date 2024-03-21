@@ -19,8 +19,8 @@ matplotlib.use('tkagg')
 batchsize = 16
 num_workers = 0
 read_name = 'HDNet_Inria_best'
-Dataset = 'Matrikkelen'
-assert Dataset in ['WHU', 'Inria', 'Mass', 'Matrikkelen']
+Dataset = 'NOCI'
+assert Dataset in ['WHU', 'Inria', 'Mass', 'NOCI']
 net = HighResolutionDecoupledNet(base_channel=48, num_classes=1)
 print('Number of parameters: ', sum(p.numel() for p in net.parameters()))
 

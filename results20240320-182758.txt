@@ -1,0 +1,205 @@
+[epoch: 0]
+batch_loss: 3.6605
+val_IoU: 0.000000
+
+
+[epoch: 1]
+batch_loss: 3.1726
+val_IoU: 0.000000
+
+
+[epoch: 2]
+batch_loss: 3.3434
+val_IoU: 0.000000
+
+
+[epoch: 3]
+batch_loss: 2.8823
+val_IoU: 0.000000
+
+
+[epoch: 4]
+batch_loss: 3.0247
+val_IoU: 0.000000
+
+
+[epoch: 5]
+batch_loss: 3.5416
+val_IoU: 0.000000
+
+
+[epoch: 6]
+batch_loss: 3.0498
+val_IoU: 0.000000
+
+
+[epoch: 7]
+batch_loss: 2.9382
+val_IoU: 0.000000
+
+
+[epoch: 8]
+batch_loss: 3.0868
+val_IoU: 0.000000
+
+
+[epoch: 9]
+batch_loss: 3.3204
+val_IoU: 0.000000
+
+
+[epoch: 10]
+batch_loss: 3.2758
+val_IoU: 0.000000
+
+
+[epoch: 11]
+batch_loss: 3.3573
+val_IoU: 0.000000
+
+
+[epoch: 12]
+batch_loss: 2.9600
+val_IoU: 0.000000
+
+
+[epoch: 13]
+batch_loss: 3.7402
+val_IoU: 0.000000
+
+
+[epoch: 14]
+batch_loss: 2.8030
+val_IoU: 0.000000
+
+
+[epoch: 15]
+batch_loss: 3.5960
+val_IoU: 0.000000
+
+
+[epoch: 16]
+batch_loss: 3.1718
+val_IoU: 0.000000
+
+
+[epoch: 17]
+batch_loss: 3.3906
+val_IoU: 0.000000
+
+
+[epoch: 18]
+batch_loss: 3.0786
+val_IoU: 0.000000
+
+
+[epoch: 19]
+batch_loss: 3.0773
+val_IoU: 0.000000
+
+
+[epoch: 20]
+batch_loss: 2.9777
+val_IoU: 0.000000
+
+
+[epoch: 21]
+batch_loss: 2.9858
+val_IoU: 0.000000
+
+
+[epoch: 22]
+batch_loss: 3.2422
+val_IoU: 0.000000
+
+
+[epoch: 23]
+batch_loss: 3.4492
+val_IoU: 0.000000
+
+
+[epoch: 24]
+batch_loss: 2.7951
+val_IoU: 0.000000
+
+
+[epoch: 25]
+batch_loss: 3.0642
+val_IoU: 0.000000
+
+
+[epoch: 26]
+batch_loss: 3.3225
+val_IoU: 0.000000
+
+
+[epoch: 27]
+batch_loss: 3.1997
+val_IoU: 0.000000
+
+
+[epoch: 28]
+batch_loss: 2.9499
+val_IoU: 0.000000
+
+
+[epoch: 29]
+batch_loss: 3.4984
+val_IoU: 0.000000
+
+
+[epoch: 30]
+batch_loss: 3.6290
+val_IoU: 0.000000
+
+
+[epoch: 31]
+batch_loss: 3.8651
+val_IoU: 0.000000
+
+
+[epoch: 32]
+batch_loss: 3.0255
+val_IoU: 0.000000
+
+
+[epoch: 33]
+batch_loss: 3.2581
+val_IoU: 0.000000
+
+
+[epoch: 34]
+batch_loss: 3.3069
+val_IoU: 0.000000
+
+
+[epoch: 35]
+batch_loss: 3.2722
+val_IoU: 0.000000
+
+
+[epoch: 36]
+batch_loss: 3.4422
+val_IoU: 0.000000
+
+
+[epoch: 37]
+batch_loss: 3.7459
+val_IoU: 0.000000
+
+
+[epoch: 38]
+batch_loss: 4.0235
+val_IoU: 0.000000
+
+
+[epoch: 39]
+batch_loss: 3.0103
+val_IoU: 0.000000
+
+
+[epoch: 40]
+batch_loss: 2.9961
+val_IoU: 0.000000
+
+
