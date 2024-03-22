@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 grandparent_dir = Path(__file__).parents[2]
 sys.path.append(str(grandparent_dir))
-sys.path.append(str(grandparent_dir / 'ISPRS_HD_NET'))
+sys.path.insert(0, str(grandparent_dir / 'ISPRS_HD_NET'))
 from ISPRS_HD_NET.Train_HDNet import main  # noqa
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -34,16 +34,17 @@ def parse_args():
     parser.add_argument("--base-channel", default=48, type=int)
     parser.add_argument("--device", default="cuda", help="training device")
     parser.add_argument("--read-name", default='')
-    parser.add_argument("--save-name", default='HDNet_NOCI_test')
+    parser.add_argument("--save-name", default='HDNet_NOCI')
     parser.add_argument("--DataSet", default='NOCI')
     args = parser.parse_args()
 
     return args
 
 
+# %%
 if __name__ == '__main__':
     args = parse_args()
-    dir_checkpoint = str(root_dir) + '/data/model/save_weights/'
+    dir_checkpoint = str(root_dir) + '/data/model/save_weights/run_1/'
     if not os.path.exists(dir_checkpoint):
         os.mkdir(dir_checkpoint)
 
