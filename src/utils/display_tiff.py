@@ -261,4 +261,4 @@ with (rasterio.open(image_path) as image,
 
     # Show the figure
     plt.show()
-    fig.savefig(root_dir + f"/figures/pretrain_comparison.png")
+    fig.savefig(root_dir + "/figures/pretrain_comparison.png")
