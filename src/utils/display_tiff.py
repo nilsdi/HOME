@@ -37,12 +37,22 @@ def pixel_to_geographic_coordinates(dataset, x, y):
     return x_geo, y_geo
 
 
-def display_rgb_geotiff_subset(file_path, x_start, y_start, width, height):
+def display_rgb_geotiff_subset(file_path, x_start, y_start, width=None,
+                               height=None, dpi=None):
+
+    if dpi is None:
+        dpi = 100
+
     # Open the GeoTIFF file
     dataset = gdal.Open(file_path)
     if dataset is None:
         print("Error: Unable to open the GeoTIFF file.")
         return
+
+    # IF width and height not specific, then entire image
+    if width is None:
+        width = dataset.RasterXSize
+        height = dataset.RasterYSize
 
     # Read the subset of the RGB bands
     subset_rgb = dataset.ReadAsArray(x_start, y_start, width, height)
@@ -51,7 +61,11 @@ def display_rgb_geotiff_subset(file_path, x_start, y_start, width, height):
     # Transpose the array to match Matplotlib's expectations for RGB images
     if subset_rgb.shape[0] == 3:
         subset_rgb = np.transpose(subset_rgb, (1, 2, 0))
-    plt.imshow(subset_rgb)
+        cmap = None
+    else:
+        cmap = 'gray'
+    plt.figure(dpi=dpi)
+    plt.imshow(subset_rgb, cmap=cmap)
     plt.colorbar(label='Pixel Intensity')
     plt.title("Subset of RGB GeoTIFF")
 
@@ -74,9 +88,10 @@ def display_rgb_geotiff_subset(file_path, x_start, y_start, width, height):
     plt.show()
 
 
-file_path = (root_dir + "/data/raw/orthophoto/res_0.3/trondheim_2019/" +
-             "i_lzw_25/Eksport-nib.tif")
-display_rgb_geotiff_subset(file_path, 77200, 9200, 1000, 1000)
+file_path = ("/scratch/mueller_andco/demolition_footprints/" +
+             "demolition_footprints/data/temp/pretrain/labels/" +
+             "trondheim_0_latest.tif")
+display_rgb_geotiff_subset(file_path, 0, 0, dpi=300)
 
 # %% display size and resolution of the image
 
@@ -268,4 +283,5 @@ with (rasterio.open(image_path) as image,
 
     # Show the figure
     plt.show()
-    fig.savefig(root_dir + "/figures/pretrain_comparison.png")
+    fig.savefig(root_dir + "/figures/pretrain_comparison.png",
+                bbox_inches='tight', pad_inches=0)

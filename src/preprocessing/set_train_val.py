@@ -13,7 +13,7 @@ current_dir = Path(__file__).parents[0]
 # Read bbox from bbox.json
 with open(current_dir / 'bbox.json', 'r') as f:
     bbox = json.load(f)
-cities = bbox.keys()
+cities = list(bbox.keys())
 
 data_path = root_dir / 'data/model/train/label'
 
@@ -22,7 +22,7 @@ val_file = open(root_dir / 'data/model/dataset/val.txt', 'w+')
 test_file = open(root_dir / 'data/model/dataset/test.txt', 'w')
 
 random.seed(42)
-for city in cities:
+for city in cities[:-1]:   # exclude Fredrikstad
     tiles = [os.path.splitext(tile)[0] for tile in os.listdir(data_path)
              if city in tile]
 
