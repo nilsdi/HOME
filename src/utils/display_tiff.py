@@ -128,13 +128,19 @@ display_rgb_geotiff_subset(file_path, 0, 0, 28000, 17000)
 
 def display_images_side_by_side(name, prediction: bool = False):
     if name == 'random':
-        image_folder = root_dir + "/data/model/train/image/"
-        files_in_folder = [f for f in os.listdir(image_folder)]
-        name = files_in_folder[random.randint(0, len(files_in_folder))]
-        image_path = (root_dir + f"/data/model/train/image/{name}")
-        label_path = (root_dir + f"/data/model/train/label/{name}")
         if prediction:
+            prediction_folder = root_dir + "/data/model/predictions/"
+            files_in_folder = [f for f in os.listdir(prediction_folder)]
+            name = files_in_folder[random.randint(0, len(files_in_folder))]
+            image_path = (root_dir + f"/data/model/train/image/{name}")
+            label_path = (root_dir + f"/data/model/train/label/{name}")
             prediction_path = (root_dir + f"/data/model/predictions/{name}")
+        else:
+            image_folder = root_dir + "/data/model/train/image/"
+            files_in_folder = [f for f in os.listdir(image_folder)]
+            name = files_in_folder[random.randint(0, len(files_in_folder))]
+            image_path = (root_dir + f"/data/model/train/image/{name}")
+            label_path = (root_dir + f"/data/model/train/label/{name}")
     else:
         image_path = (root_dir + f"/data/model/train/image/{name}.tif")
         label_path = (root_dir + f"/data/model/train/label/{name}.tif")
@@ -199,8 +205,60 @@ def display_images_side_by_side(name, prediction: bool = False):
 
             # Show the figure
             plt.show()
+    return (fig)
 
 
-display_images_side_by_side('random')
+fig = display_images_side_by_side('oslo_0_latest_14_7', prediction=False)
 
 # %%
+
+for i in range(8):
+    fig = display_images_side_by_side('random', prediction=False)
+    fig.savefig(root_dir + f"/figures/figure_{i}.png")
+
+
+# %% display image, label and prediction for Inria, WHU and Mass side to side
+filename = 'oslo_0_latest_14_7'
+datasets = ['Inria', 'WHU', 'Mass']
+
+image_path = (root_dir + f"/data/model/train/image/{filename}.tif")
+label_path = (root_dir + f"/data/model/train/label/{filename}.tif")
+
+# Open the files
+with (rasterio.open(image_path) as image,
+      rasterio.open(label_path) as label):
+    # Read the data
+    image_data = image.read([1, 2, 3])
+    label_data = label.read(1)
+
+    # Create a figure with four subplots
+    fig, axs = plt.subplots(1, 5, figsize=(20, 5))
+
+    # Display the image
+    axs[0].imshow(image_data.transpose((1, 2, 0)))
+    axs[0].set_title('Image')
+    axs[0].set_xticks([])
+    axs[0].set_yticks([])
+
+    # Display the label
+    axs[1].imshow(label_data, cmap='gray')
+    axs[1].set_title('Ground Truth')
+    axs[1].set_xticks([])
+    axs[1].set_yticks([])
+
+    for i, dataset in enumerate(datasets):
+        prediction_path = (
+            root_dir + f"/data/model/predictions/{dataset}/{filename}.tif")
+
+        # Open the files
+        with rasterio.open(prediction_path) as prediction:
+            # Read the data
+            prediction_data = prediction.read(1)
+            axs[i + 2].imshow(prediction_data, cmap='gray')
+            axs[i + 2].set_title(f'{datasets[i]} Weights Prediction')
+            axs[i + 2].set_xticks([])
+            axs[i + 2].set_yticks([])
+
+    # Show the figure
+    plt.show()
+    fig.savefig(root_dir + f"/figures/pretrain_comparison.png")
