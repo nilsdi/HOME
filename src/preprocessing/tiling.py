@@ -1,3 +1,4 @@
+# %%
 import os
 import numpy as np
 from tqdm import tqdm
@@ -5,6 +6,8 @@ from pathlib import Path
 # Increase the maximum number of pixels OpenCV can handle
 os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2, 40))
 import cv2  # noqa
+
+# %%
 
 
 def partition_and_crop_images(input_dir_images, input_dir_labels,
@@ -27,8 +30,8 @@ def partition_and_crop_images(input_dir_images, input_dir_labels,
     if image_size is None:
         for file in image_files:
             label_path = os.path.join(input_dir_labels, file)
-            label = cv2.imread(label_path)
-            height, width, _ = label.shape
+            label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
+            height, width = label.shape
 
             num_tiles_x = int(np.ceil((width - tile_size) /
                               (effective_tile_size))) + 1
@@ -44,8 +47,8 @@ def partition_and_crop_images(input_dir_images, input_dir_labels,
         for image_file in image_files:
             # Load the label
             label_path = os.path.join(input_dir_labels, image_file)
-            label = cv2.imread(label_path)
-            height, width, _ = label.shape
+            label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
+            height, width = label.shape
             num_tiles_x = int(np.ceil((width - tile_size) /
                               (effective_tile_size))) + 1
             num_tiles_y = int(np.ceil((height - tile_size) /
@@ -77,7 +80,7 @@ def partition_and_crop_images(input_dir_images, input_dir_labels,
             image = np.pad(image, ((0, int(padding_y)),
                                    (0, int(padding_x)), (0, 0)))
             label = np.pad(label, ((0, int(padding_y)),
-                                   (0, int(padding_x)), (0, 0)))
+                                   (0, int(padding_x))))
 
             # Iterate over each tile
             for i in range(num_tiles_x):
