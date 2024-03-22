@@ -22,8 +22,8 @@ data_dir = str(root_dir / "data/model/")
 
 batchsize = 16
 num_workers = 8
-read_name = 'HDNet_WHU_best'
-Dataset = 'WHU'
+read_name = 'HDNet_Mass_best'
+Dataset = 'Mass'
 assert Dataset in ['WHU', 'Inria', 'Mass', 'NOCI']
 net = HighResolutionDecoupledNet(base_channel=48, num_classes=1)
 print('Number of parameters: ', sum(p.numel() for p in net.parameters()))
@@ -45,6 +45,7 @@ def eval_HRBR(net,
     best_score = eval_net(net, test_loader, device,
                           savename=Dataset + '_' + read_name)  #
     print('Best iou:', best_score)
+    return best_score
 
 
 if __name__ == '__main__':

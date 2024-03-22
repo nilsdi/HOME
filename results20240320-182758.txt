@@ -438,3 +438,18 @@ batch_loss: 3.2069
 val_IoU: 0.000000
 
 
+[epoch: 88]
+batch_loss: 3.3525
+val_IoU: 0.000000
+
+
+[epoch: 89]
+batch_loss: 3.6991
+val_IoU: 0.000000
+
+
+[epoch: 90]
+batch_loss: 3.3679
+val_IoU: 0.000000
+
+

@@ -9,7 +9,7 @@ sys.path.append(str(grandparent_dir))
 sys.path.append(str(grandparent_dir / 'ISPRS_HD_NET'))
 from ISPRS_HD_NET.Train_HDNet import main  # noqa
 
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 # os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:512"
 matplotlib.use('tkagg')
 
@@ -29,7 +29,7 @@ def parse_args():
     parser.add_argument(
         "--data-path",
         default="data/model/")
-    parser.add_argument("--numworkers", default=0, type=int)
+    parser.add_argument("--numworkers", default=8, type=int)
     parser.add_argument("--num-classes", default=1, type=int)
     parser.add_argument("--base-channel", default=48, type=int)
     parser.add_argument("--device", default="cuda", help="training device")
