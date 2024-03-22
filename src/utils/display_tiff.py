@@ -213,8 +213,15 @@ fig = display_images_side_by_side('oslo_0_latest_14_7', prediction=False)
 # %%
 
 for i in range(8):
-    fig = display_images_side_by_side('random', prediction=False)
-    fig.savefig(root_dir + f"/figures/figure_{i}.png")
+    image_folder = root_dir + "/data/model/train/image/"
+    files_in_folder = [f for f in os.listdir(image_folder)]
+    name = files_in_folder[random.randint(0, len(files_in_folder))]
+    image_path = (root_dir + f"/data/model/train/image/{name}")
+    label_path = (root_dir + f"/data/model/train/label/{name}")
+
+    # Copy the files to the test folder
+    os.system(f"cp {image_path} {root_dir}/figures/images/{name}")
+    os.system(f"cp {label_path} {root_dir}/figures/labels/{name}")
 
 
 # %% display image, label and prediction for Inria, WHU and Mass side to side
