@@ -13,7 +13,7 @@ from tqdm import tqdm
 from scipy.ndimage import distance_transform_edt, distance_transform_cdt
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--datadir", dest='datadir', default='data/Inria/')
+parser.add_argument("--datadir", dest='datadir', default='data/model/')
 parser.add_argument("--outname", default='boundary')
 # parser.add_argument('--split', nargs='+', default=['train', 'test'])
 parser.add_argument('--metric', default='euc', choices=['euc', 'taxicab'])
@@ -81,7 +81,8 @@ def process(inp):
 indir = osp.join(args.datadir, 'train', 'label')
 outdir = osp.join(args.datadir, args.outname)
 args_to_apply = [(indir, outdir, osp.basename(basename))
-                 for basename in glob(osp.join(indir, "*.tif"))]
+                 for basename in glob(osp.join(indir, "*.tif"))
+                 if "fredrikstad" not in osp.basename(basename)]
 print('Processing {} files'.format(len(args_to_apply)))
 for i in tqdm(range(0, len(args_to_apply))):
     process(args_to_apply[i])
