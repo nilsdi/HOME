@@ -17,13 +17,14 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 matplotlib.use('tkagg')
 
 root_dir = Path(__file__).parents[1]
-dir_checkpoint = str(grandparent_dir) + '/ISPRS_HD_NET/save_weights/pretrain/'
-data_dir = str(root_dir / "data/model/")
+data_dir = str(root_dir) + "/data/model/"
+dir_checkpoint = str(root_dir) + '/data/model/save_weights/run_1/'
+
 
 batchsize = 16
 num_workers = 8
-read_name = 'HDNet_Mass_best'
-Dataset = 'Mass'
+read_name = 'HDNet_NOCI_best'
+Dataset = 'NOCI'
 assert Dataset in ['WHU', 'Inria', 'Mass', 'NOCI']
 net = HighResolutionDecoupledNet(base_channel=48, num_classes=1)
 print('Number of parameters: ', sum(p.numel() for p in net.parameters()))
