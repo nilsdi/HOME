@@ -55,7 +55,8 @@ def get_labels(fkb_omrade_gdf, bbox: list,
 
 
 def save_labels(data: np.ndarray, file_name: str, transform: np.ndarray,
-                data_scale: int = 255) -> None:
+                data_scale: int = 255,
+                save_folder: str = "data/temp/pretrain/labels") -> None:
     '''
     Function to save the labels to a GeoTIFF file
 
@@ -84,7 +85,7 @@ def save_labels(data: np.ndarray, file_name: str, transform: np.ndarray,
     }
     # get the path
     root_dir = Path(__file__).parents[2]
-    file_path = root_dir / f"data/temp/pretrain/labels/{file_name}.tif"
+    file_path = root_dir / save_folder / f"{file_name}.tif"
 
     # Write the data to the file
     with rasterio.open(file_path, 'w', **meta) as dst:

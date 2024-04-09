@@ -53,7 +53,8 @@ def cut_geotiff(geotiff_path, bbox: list, pixel_size: float) -> np.array:
 
 
 def save_cut_geotiff(data: np.ndarray, file_name: str,
-                     transform: np.ndarray,) -> None:
+                     transform: np.ndarray,
+                     save_folder: str = "data/temp/pretrain/images/") -> None:
     """
     Function to save the subset of the geotiff to a new file
 
@@ -76,7 +77,7 @@ def save_cut_geotiff(data: np.ndarray, file_name: str,
         # 'transform': transform # lets pray it doens't need a transform
     }
     root_dir = Path(__file__).parents[2]
-    file_path = root_dir / f"data/temp/pretrain/images/{file_name}.tif"
+    file_path = root_dir / save_folder / f"{file_name}.tif"
     # Write the data to a new GeoTIFF file
     with rasterio.open(file_path, 'w', **meta) as dst:
         dst.write(data)

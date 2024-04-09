@@ -66,7 +66,7 @@ def display_rgb_geotiff_subset(file_path, x_start, y_start, width=None,
         cmap = 'gray'
     plt.figure(dpi=dpi)
     plt.imshow(subset_rgb, cmap=cmap)
-    plt.colorbar(label='Pixel Intensity')
+    # plt.colorbar(label='Pixel Intensity')
     plt.title("Subset of RGB GeoTIFF")
 
     # Set x-axis and y-axis ticks to show coordinates in degrees
@@ -88,10 +88,9 @@ def display_rgb_geotiff_subset(file_path, x_start, y_start, width=None,
     plt.show()
 
 
-file_path = ("/scratch/mueller_andco/demolition_footprints/" +
-             "demolition_footprints/data/temp/pretrain/labels/" +
-             "trondheim_0_latest.tif")
-display_rgb_geotiff_subset(file_path, 0, 0, dpi=300)
+file_path = ("data/raw/orthophoto/res_0.3/trondheim_strinda_1937/i_lzw_25/" +
+             "Eksport-nib.tif")
+display_rgb_geotiff_subset(file_path, 0, 0, 10000, 10000, dpi=300)
 
 # %% display size and resolution of the image
 
@@ -156,6 +155,7 @@ def display_images_side_by_side(name, prediction: bool = False):
             name = files_in_folder[random.randint(0, len(files_in_folder))]
             image_path = (root_dir + f"/data/model/train/image/{name}")
             label_path = (root_dir + f"/data/model/train/label/{name}")
+        print('name:', name)
     else:
         image_path = (root_dir + f"/data/model/train/image/{name}.tif")
         label_path = (root_dir + f"/data/model/train/label/{name}.tif")
@@ -223,7 +223,7 @@ def display_images_side_by_side(name, prediction: bool = False):
     return (fig)
 
 
-fig = display_images_side_by_side('oslo_0_latest_14_7', prediction=False)
+fig = display_images_side_by_side('random', prediction=True)
 
 # %%
 
@@ -285,3 +285,87 @@ with (rasterio.open(image_path) as image,
     plt.show()
     fig.savefig(root_dir + "/figures/pretrain_comparison.png",
                 bbox_inches='tight', pad_inches=0)
+
+
+# %% display image, label and prediction for trondheim in 3 years: 1937, 1999
+# and 2023. 3*3 images with years on the left and image, label and prediction
+# on the right
+
+folder_images = root_dir + "/data/topredict/train/image/"
+folder_labels = root_dir + "/data/topredict/train/label/"
+folder_predictions = root_dir + "/data/topredict/predictions/"
+
+years = ['1937', '1999', '2023']
+filenames = ['trondheim_0.3_1937_1_1_',
+             'trondheim_0.3_2019_1_0_',
+             'trondheim_0.3_2023_1_0_']
+
+
+def display_several_years(folder_images, folder_labels, folder_predictions,
+                          years, filenames, suffix=None):
+    if suffix is None:
+        files_in_folder = [f for f in os.listdir(folder_images) if
+                           f.startswith(filenames[0])]
+        name = files_in_folder[random.randint(0, len(files_in_folder))]
+        suffix = name.split('_')[-2] + '_' + name.split('_')[-1]
+
+    label_path = folder_labels + (filenames[-1] + suffix)
+    label_data = rasterio.open(label_path).read(1)
+
+    # Create a figure with nine subplots
+    fig, axs = plt.subplots(3, 3, figsize=(15, 15))
+
+    for i, year in enumerate(years):
+        if year == '2023':
+            alpha = 1
+        else:
+            alpha = 0.5
+        image_path = folder_images + (filenames[i] + suffix)
+        prediction_path = folder_predictions + (
+            filenames[i] + suffix)
+        # Open the files
+        with (rasterio.open(image_path) as image,
+              rasterio.open(prediction_path) as prediction):
+            # Read the data
+            image_data = image.read([1, 2, 3])
+            prediction_data = prediction.read(1)
+
+            # Display the image
+            axs[i, 0].imshow(image_data.transpose((1, 2, 0)))
+            axs[i, 0].set_xticks([])
+            axs[i, 0].set_yticks([])
+
+            # Display the prediction
+            axs[i, 1].imshow(prediction_data, cmap='gray')
+            axs[i, 1].set_xticks([])
+            axs[i, 1].set_yticks([])
+
+            # Display the label
+            axs[i, 2].imshow(label_data, cmap='gray', alpha = alpha)
+            axs[i, 2].set_xticks([])
+            axs[i, 2].set_yticks([])
+
+        # Add year to the left
+        axs[i, 0].text(-0.1, 0.5, year, fontsize=12, ha='center',
+                       va='center', transform=axs[i, 0].transAxes)
+
+    # Add image prediction label to the top
+    axs[0, 0].text(0.5, 1.05, 'Image', fontsize=12, ha='center',
+                   va='center', transform=axs[0, 0].transAxes)
+    axs[0, 1].text(0.5, 1.05, 'Prediction', fontsize=12, ha='center',
+                   va='center', transform=axs[0, 1].transAxes)
+    axs[0, 2].text(0.5, 1.05, 'Ground Truth (2023)', fontsize=12, ha='center',
+                   va='center', transform=axs[0, 2].transAxes)
+
+    # Add filename as title
+    fig.suptitle(suffix, fontsize=16)
+
+    # Show the figure
+    plt.show()
+    return fig
+
+
+fig = display_several_years(folder_images, folder_labels, folder_predictions,
+                            years, filenames)
+
+# %%
