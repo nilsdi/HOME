@@ -20,13 +20,13 @@ matplotlib.use('tkagg')
 
 # %%
 root_dir = Path(__file__).parents[1]
-data_dir = str(root_dir) + "/data/model/"
-dir_checkpoint = str(grandparent_dir) + '/ISPRS_HD_NET/save_weights/pretrain/'
+data_dir = str(root_dir) + "/data/topredict/"
+dir_checkpoint = str(root_dir) + '/data/model/save_weights/run_1/'
 
 
 batchsize = 16
 num_workers = 16
-read_name = 'HDNet_Mass_best'
+read_name = 'HDNet_NOCI_best'
 Dataset = 'NOCI'
 assert Dataset in ['WHU', 'Inria', 'Mass', 'NOCI']
 net = HighResolutionDecoupledNet(base_channel=48, num_classes=1)
@@ -38,7 +38,8 @@ def predict(net, device, batch_size, data_dir):
         dataset_dir=data_dir,
         training=False,
         txt_name="test.txt",
-        data_name=Dataset)
+        data_name=Dataset,
+        predict=True)
 
     loader = DataLoader(dataset,
                         batch_size=batch_size,
