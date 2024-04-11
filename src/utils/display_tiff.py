@@ -140,28 +140,30 @@ display_rgb_geotiff_subset(file_path, 0, 0, 28000, 17000)
 
 # %% display image, label and prediction side to side
 
-def display_images_side_by_side(name, prediction: bool = False):
+def display_images_side_by_side(
+        name, prediction: bool = False,
+        prediction_folder=root_dir + "/data/model/original/predictions/",
+        image_folder=root_dir + "/data/model/original/train/image/",
+        label_folder=root_dir + "/data/model/original/train/label/"):
+
     if name == 'random':
         if prediction:
-            prediction_folder = root_dir + "/data/model/predictions/"
             files_in_folder = [f for f in os.listdir(prediction_folder)]
             name = files_in_folder[random.randint(0, len(files_in_folder))]
-            image_path = (root_dir + f"/data/model/train/image/{name}")
-            label_path = (root_dir + f"/data/model/train/label/{name}")
-            prediction_path = (root_dir + f"/data/model/predictions/{name}")
+            image_path = image_folder + name
+            label_path = label_folder + name
+            prediction_path = prediction_folder + name
         else:
-            image_folder = root_dir + "/data/model/train/image/"
             files_in_folder = [f for f in os.listdir(image_folder)]
             name = files_in_folder[random.randint(0, len(files_in_folder))]
-            image_path = (root_dir + f"/data/model/train/image/{name}")
-            label_path = (root_dir + f"/data/model/train/label/{name}")
+            image_path = image_folder + name
+            label_path = label_folder + name
         print('name:', name)
     else:
-        image_path = (root_dir + f"/data/model/train/image/{name}.tif")
-        label_path = (root_dir + f"/data/model/train/label/{name}.tif")
+        image_path = image_folder + name
+        label_path = label_folder + name
         if prediction:
-            prediction_path = (
-                root_dir + f"/data/model/predictions/{name}.tif")
+            prediction_path = prediction_folder + name
 
     # Open the files
     if prediction:
@@ -223,7 +225,12 @@ def display_images_side_by_side(name, prediction: bool = False):
     return (fig)
 
 
-fig = display_images_side_by_side('random', prediction=True)
+image_folder = root_dir + "/data/model/original/train/image/"
+prediction_folder = root_dir + "/data/model/original/predictions/"
+
+fig = display_images_side_by_side('oslo_0_0.3_2023_29_29.tif', prediction=True,
+                                  image_folder=image_folder,
+                                  prediction_folder=prediction_folder)
 
 # %%
 
@@ -291,9 +298,9 @@ with (rasterio.open(image_path) as image,
 # and 2023. 3*3 images with years on the left and image, label and prediction
 # on the right
 
-folder_images = root_dir + "/data/topredict/train/image/"
-folder_labels = root_dir + "/data/topredict/train/label/"
-folder_predictions = root_dir + "/data/topredict/predictions/"
+folder_images = root_dir + "/data/model/topredict/train/image/"
+folder_labels = root_dir + "/data/model/topredict/train/label/"
+folder_predictions = root_dir + "/data/model/topredict/predictions/"
 
 years = ['1937', '1999', '2023']
 filenames = ['trondheim_0.3_1937_1_1_',
@@ -341,7 +348,7 @@ def display_several_years(folder_images, folder_labels, folder_predictions,
             axs[i, 1].set_yticks([])
 
             # Display the label
-            axs[i, 2].imshow(label_data, cmap='gray', alpha = alpha)
+            axs[i, 2].imshow(label_data, cmap='gray', alpha=alpha)
             axs[i, 2].set_xticks([])
             axs[i, 2].set_yticks([])
 

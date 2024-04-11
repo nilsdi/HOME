@@ -1,45 +1,51 @@
 # %%
-from torch.utils.data import DataLoader
 import torch
 import matplotlib
 import os
 import logging
 import sys
 from pathlib import Path
+from torch.utils.data import DataLoader
 import cv2
 from tqdm import tqdm
 grandparent_dir = Path(__file__).parents[2]
 sys.path.append(str(grandparent_dir))
 sys.path.append(str(grandparent_dir / 'ISPRS_HD_NET'))
-from ISPRS_HD_NET.utils.dataset import BuildingDataset  # noqa
 from ISPRS_HD_NET.utils.sync_batchnorm.batchnorm import convert_model  # noqa
 from ISPRS_HD_NET.model.HDNet import HighResolutionDecoupledNet  # noqa
+from ISPRS_HD_NET.utils.dataset import BuildingDataset  # noqa
+from ISPRS_HD_NET.eval.eval_HDNet import eval_net  # noqa
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 matplotlib.use('tkagg')
 
 # %%
 root_dir = Path(__file__).parents[1]
-data_dir = str(root_dir) + "/data/topredict/"
+data_dir = str(root_dir) + "/data/model/original/"
 dir_checkpoint = str(root_dir) + '/data/model/save_weights/run_1/'
-
+dir_checkpoint = "../ISPRS_HD_NET/save_weights/pretrain/"
+predict = True
+prediction_folder = 'predictions/Inria'
+image_folder = 'train/image'
 
 batchsize = 16
 num_workers = 16
-read_name = 'HDNet_NOCI_best'
+read_name = 'HDNet_Inria_best'
 Dataset = 'NOCI'
 assert Dataset in ['WHU', 'Inria', 'Mass', 'NOCI']
 net = HighResolutionDecoupledNet(base_channel=48, num_classes=1)
 print('Number of parameters: ', sum(p.numel() for p in net.parameters()))
 
 
-def predict(net, device, batch_size, data_dir):
+def predict_and_eval(net, device, batch_size, data_dir, predict=False,
+                     prediction_folder='predictions',
+                     image_folder='train/image'):
     dataset = BuildingDataset(
         dataset_dir=data_dir,
         training=False,
         txt_name="test.txt",
         data_name=Dataset,
-        predict=True)
+        image_folder=image_folder)
 
     loader = DataLoader(dataset,
                         batch_size=batch_size,
@@ -47,22 +53,30 @@ def predict(net, device, batch_size, data_dir):
                         num_workers=num_workers,
                         drop_last=False)
 
-    for batch in tqdm(loader):
-        imgs = batch['image']
-        imgs = imgs.to(device=device, dtype=torch.float32)
+    if predict:
+        save_path = os.path.join(data_dir, prediction_folder)
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        for batch in tqdm(loader):
+            imgs = batch['image']
+            imgs = imgs.to(device=device, dtype=torch.float32)
 
-        with torch.no_grad():
-            pred = net(imgs)
-        pred1 = (pred[0] > 0).float()
-        label_pred = pred1.squeeze().cpu().int().numpy().astype('uint8') * 255
-        for i in range(len(pred1)):
-            img_name = batch['name'][i].split('/')[-1]
-            save_path = os.path.join(data_dir, 'predictions')
-            os.makedirs(os.path.dirname(save_path), exist_ok=True)
-            # print('Saving to', os.path.join(save_path, img_name))
-            wr = cv2.imwrite(os.path.join(save_path, img_name), label_pred[i])
-            if not wr:
-                print('Save failed!')
+            with torch.no_grad():
+                pred = net(imgs)
+                pred1 = (pred[0] > 0).float()
+                label_pred = pred1.squeeze().cpu().int().numpy().astype(
+                    'uint8') * 255
+
+                for i in range(len(pred1)):
+                    img_name = batch['name'][i].split('/')[-1]
+                    # print('Saving to', os.path.join(save_path, img_name))
+                    wr = cv2.imwrite(os.path.join(
+                        save_path, img_name), label_pred[i])
+                    if not wr:
+                        print('Save failed!')
+    else:
+        best_score = eval_net(net, loader, device,
+                              savename=Dataset + '_' + read_name)  #
+        print('Best iou:', best_score)
 
 
 if __name__ == '__main__':
@@ -81,7 +95,10 @@ if __name__ == '__main__':
     net = convert_model(net)
     net = torch.nn.parallel.DataParallel(net.to(device))
     torch.backends.cudnn.benchmark = True
-    predict(net=net,
-            batch_size=batchsize,
-            device=device,
-            data_dir=data_dir)
+    predict_and_eval(net=net,
+                     batch_size=batchsize,
+                     device=device,
+                     data_dir=data_dir,
+                     predict=predict,
+                     prediction_folder=prediction_folder,
+                     image_folder=image_folder)
