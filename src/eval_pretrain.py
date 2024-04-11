@@ -25,7 +25,7 @@ batchsize = 16
 num_workers = 8
 
 datasets = ['WHU', 'Inria', 'Mass', 'NOCI']
-weights = ['WHU', 'Inria', 'Mass']
+weights = ['WHU', 'Inria', 'Mass', 'NOCI']
 
 
 def eval_HRBR(net,
@@ -47,37 +47,36 @@ def eval_HRBR(net,
     return best_score
 
 
-ious = pd.DataFrame(columns=datasets, index=weights)
+ious = pd.Series(index=weights)
 
 if __name__ == '__main__':
-    for dataset in datasets:
-        for weight in weights:
+    for weight in weights[-1:]:
 
-            read_name = f'HDNet_{weight}_best'
-            Dataset = dataset
-            assert Dataset in ['WHU', 'Inria', 'Mass', 'NOCI']
-            net = HighResolutionDecoupledNet(base_channel=48, num_classes=1)
-            print('Number of parameters: ', sum(p.numel()
-                  for p in net.parameters()))
+        read_name = f'HDNet_{weight}_best'
+        Dataset = weight
+        assert Dataset in ['WHU', 'Inria', 'Mass', 'NOCI']
+        net = HighResolutionDecoupledNet(base_channel=48, num_classes=1)
+        print('Number of parameters: ', sum(p.numel()
+                                            for p in net.parameters()))
 
-            logging.basicConfig(level=logging.INFO,
-                                format='%(levelname)s: %(message)s')
-            device = torch.device(
-                'cuda' if torch.cuda.is_available() else 'cpu')
-            logging.info(f'Using device {device}')
-            if read_name != '':
-                net_state_dict = net.state_dict()
-                state_dict = torch.load(
-                    dir_checkpoint + read_name + '.pth', map_location=device)
-                net_state_dict.update(state_dict)
-                net.load_state_dict(net_state_dict, strict=False)  # 删除了down1-3
-                logging.info('Model loaded from ' + read_name + '.pth')
+        logging.basicConfig(level=logging.INFO,
+                            format='%(levelname)s: %(message)s')
+        device = torch.device(
+            'cuda' if torch.cuda.is_available() else 'cpu')
+        logging.info(f'Using device {device}')
+        if read_name != '':
+            net_state_dict = net.state_dict()
+            state_dict = torch.load(
+                dir_checkpoint + read_name + '.pth', map_location=device)
+            net_state_dict.update(state_dict)
+            net.load_state_dict(net_state_dict, strict=False)  # 删除了down1-3
+            logging.info('Model loaded from ' + read_name + '.pth')
 
-            logging.info('Dataset means std from ' + Dataset)
-            net = convert_model(net)
-            net = torch.nn.parallel.DataParallel(net.to(device))
-            torch.backends.cudnn.benchmark = True
-            ious.loc[weight, dataset] = eval_HRBR(net=net,
-                                                  batch_size=batchsize,
-                                                  device=device)
+        logging.info('Dataset means std from ' + Dataset)
+        net = convert_model(net)
+        net = torch.nn.parallel.DataParallel(net.to(device))
+        torch.backends.cudnn.benchmark = True
+        ious.loc[weight] = eval_HRBR(net=net,
+                                     batch_size=batchsize,
+                                     device=device)
     print(ious)

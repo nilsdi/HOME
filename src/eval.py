@@ -17,7 +17,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 matplotlib.use('tkagg')
 
 root_dir = Path(__file__).parents[1]
-data_dir = str(root_dir) + "/data/model/"
+data_dir = str(root_dir) + "/data/model/original/"
 dir_checkpoint = str(root_dir) + '/data/model/save_weights/run_1/'
 
 
@@ -37,7 +37,9 @@ def eval_HRBR(net,
         dataset_dir=data_dir,
         training=False,
         txt_name="test.txt",
-        data_name=Dataset)
+        data_name=Dataset,
+        image_folder='train_BW/image'
+    )
     test_loader = DataLoader(testdataset,
                              batch_size=batch_size,
                              shuffle=False,
