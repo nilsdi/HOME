@@ -19,7 +19,7 @@ matplotlib.use('tkagg')
 root_dir = Path(__file__).parents[1]
 data_dir = str(root_dir) + "/data/model/original/"
 dir_checkpoint = str(root_dir) + '/data/model/save_weights/run_1/'
-
+image_folder = 'train_poor/image'
 
 batchsize = 16
 num_workers = 8
@@ -32,13 +32,14 @@ print('Number of parameters: ', sum(p.numel() for p in net.parameters()))
 
 def eval_HRBR(net,
               device,
-              batch_size):
+              batch_size,
+              image_folder='train/image'):
     testdataset = BuildingDataset(
         dataset_dir=data_dir,
         training=False,
         txt_name="test.txt",
         data_name=Dataset,
-        image_folder='train_BW/image'
+        image_folder=image_folder
     )
     test_loader = DataLoader(testdataset,
                              batch_size=batch_size,
@@ -69,4 +70,5 @@ if __name__ == '__main__':
     torch.backends.cudnn.benchmark = True
     eval_HRBR(net=net,
               batch_size=batchsize,
-              device=device)
+              device=device,
+              image_folder=image_folder)
