@@ -225,12 +225,12 @@ def display_images_side_by_side(
     return (fig)
 
 
-image_folder = root_dir + "/data/model/original/train/image/"
-prediction_folder = root_dir + "/data/model/original/predictions/"
+image_folder = root_dir + "/data/model/original/train_poor/image/"
+prediction_folder = root_dir + "/data/model/original/predictions/BW_2023/"
 
-fig = display_images_side_by_side('oslo_0_0.3_2023_29_29.tif', prediction=True,
-                                  image_folder=image_folder,
-                                  prediction_folder=prediction_folder)
+fig = display_images_side_by_side('random', prediction=True,
+                                  prediction_folder=prediction_folder,
+                                  image_folder=image_folder)
 
 # %%
 
