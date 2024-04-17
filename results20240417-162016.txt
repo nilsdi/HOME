@@ -1,0 +1,42 @@
+[epoch: 0]
+batch_loss: 3.2959
+epoch_loss: 5574.8919
+val_IoU: 0.794993
+lr: 0.001
+
+
+[epoch: 1]
+batch_loss: 3.1702
+epoch_loss: 5362.5713
+val_IoU: 0.798717
+lr: 0.001
+
+
+[epoch: 2]
+batch_loss: 3.6194
+epoch_loss: 5272.5283
+val_IoU: 0.799926
+lr: 0.001
+
+
+[epoch: 3]
+batch_loss: 3.4991
+epoch_loss: 5232.3462
+val_IoU: 0.821641
+lr: 0.001
+
+
+[epoch: 4]
+batch_loss: 3.6467
+epoch_loss: 5151.3555
+val_IoU: 0.822490
+lr: 0.001
+
+
+[epoch: 5]
+batch_loss: 3.4698
+epoch_loss: 5102.1872
+val_IoU: 0.822731
+lr: 0.001
+
+

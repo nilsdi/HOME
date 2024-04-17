@@ -21,16 +21,16 @@ matplotlib.use('tkagg')
 
 # %%
 root_dir = Path(__file__).parents[1]
-data_dir = str(root_dir) + "/data/model/original/"
-dir_checkpoint = str(root_dir) + '/data/model/save_weights/run_1/'
+data_dir = str(root_dir) + "/data/model/topredict/"
+dir_checkpoint = str(root_dir) + '/data/model/save_weights/run_2/'
 # dir_checkpoint = "../ISPRS_HD_NET/save_weights/pretrain/"
 predict = True
-prediction_folder = 'predictions/BW_2023'
-image_folder = 'train_poor/image'
+prediction_folder = 'predictions/BW_1937'
+image_folder = 'train/image'
 
 batchsize = 16
 num_workers = 16
-read_name = 'HDNet_NOCI_best'
+read_name = 'HDNet_NOCI_BW_best'
 Dataset = 'NOCI'
 assert Dataset in ['WHU', 'Inria', 'Mass', 'NOCI']
 net = HighResolutionDecoupledNet(base_channel=48, num_classes=1)
@@ -43,9 +43,10 @@ def predict_and_eval(net, device, batch_size, data_dir, predict=False,
     dataset = BuildingDataset(
         dataset_dir=data_dir,
         training=False,
-        txt_name="test.txt",
+        txt_name="old.txt",
         data_name=Dataset,
-        image_folder=image_folder)
+        image_folder=image_folder,
+        predict=predict)
 
     loader = DataLoader(dataset,
                         batch_size=batch_size,
