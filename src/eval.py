@@ -18,12 +18,12 @@ matplotlib.use('tkagg')
 
 root_dir = Path(__file__).parents[1]
 data_dir = str(root_dir) + "/data/model/original/"
-dir_checkpoint = str(root_dir) + '/data/model/save_weights/run_1/'
+dir_checkpoint = str(root_dir) + '/data/model/save_weights/run_2/'
 image_folder = 'train_poor/image'
 
 batchsize = 16
 num_workers = 8
-read_name = 'HDNet_NOCI_best'
+read_name = 'HDNet_NOCI_BW_best'
 Dataset = 'NOCI'
 assert Dataset in ['WHU', 'Inria', 'Mass', 'NOCI']
 net = HighResolutionDecoupledNet(base_channel=48, num_classes=1)
@@ -37,7 +37,7 @@ def eval_HRBR(net,
     testdataset = BuildingDataset(
         dataset_dir=data_dir,
         training=False,
-        txt_name="test.txt",
+        txt_name="train.txt",
         data_name=Dataset,
         image_folder=image_folder
     )
