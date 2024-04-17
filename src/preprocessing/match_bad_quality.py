@@ -41,7 +41,7 @@ root_dir = Path(__file__).parents[2]
 path_old_data = root_dir / 'data/model/topredict/train/image'
 path_txt_file = root_dir / 'data/model/topredict/dataset/old.txt'
 input_dir = root_dir / 'data/model/original/train/image'
-output_dir = root_dir / 'data/model/original/train_poor/image'
+output_dir = root_dir / 'data/model/original/train_poor2/image'
 
 # create txt file with all files in folder with 1937 in name
 with open(path_txt_file, 'w') as f:
@@ -51,20 +51,26 @@ with open(path_txt_file, 'w') as f:
 
 # %%
 mean_old, std_old = calculate_mean_std(path_old_data, path_txt_file)
-mean_old, std_old = mean_old[0]*255, std_old[0]*255
+mean_old, std_old = int(mean_old[0]*255), int(std_old[0]*255)
+
+# %% 
+input_dir_BW = root_dir / 'data/model/original/train_BW/image'
+path_txt_train = root_dir / 'data/model/original/dataset/train.txt'
+mean_train, std_train = calculate_mean_std(input_dir_BW, path_txt_train)
+mean_train, std_train = int(mean_train[0]*255), int(std_train[0]*255)
+
+contrast_factor = std_old / std_train
+brightness_factor = mean_old / mean_train
 
 # %% Transform all images in the input directory
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
 for filename in tqdm(os.listdir(input_dir)):
-    if filename.endswith(('.tif', '.jpg', '.jpeg')):
+    if filename.endswith(('.tif')):
         input_path = os.path.join(input_dir, filename)
         output_path = os.path.join(output_dir, filename)
-        image = Image.open(input_path)
-        contrast, brightness = calculate_contrast_brightness(image)
-        contrast_factor = std_old / contrast
-        brightness_factor = mean_old / brightness
+        image = Image.open(input_path).convert('RGB')
         image_poor = transform_image(image, contrast_factor, brightness_factor)
         image_poor.save(output_path)
 # %%
