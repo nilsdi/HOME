@@ -1,6 +1,6 @@
 # %% Imports
 from PIL import Image, ImageEnhance, ImageStat
-from F_mean_std_calculation import calculate_mean_std
+from preprocessing.step_06_mean_std_calculation import calculate_mean_std
 from pathlib import Path
 import os
 from tqdm import tqdm
