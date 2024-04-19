@@ -1,6 +1,6 @@
 # %% Imports
 from PIL import Image, ImageEnhance, ImageStat
-from mean_std_calculation import calculate_mean_std
+from F_mean_std_calculation import calculate_mean_std
 from pathlib import Path
 import os
 from tqdm import tqdm
@@ -53,7 +53,7 @@ with open(path_txt_file, 'w') as f:
 mean_old, std_old = calculate_mean_std(path_old_data, path_txt_file)
 mean_old, std_old = int(mean_old[0]*255), int(std_old[0]*255)
 
-# %% 
+# %%
 input_dir_BW = root_dir / 'data/model/original/train_BW/image'
 path_txt_train = root_dir / 'data/model/original/dataset/train.txt'
 mean_train, std_train = calculate_mean_std(input_dir_BW, path_txt_train)
