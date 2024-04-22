@@ -8,6 +8,7 @@ from pyproj import Transformer
 import rasterio
 import os
 import random
+import scipy.io
 
 root_dir = str(Path(__file__).resolve().parents[2])
 # %%
@@ -383,63 +384,122 @@ fig = display_several_years(folder_images, folder_labels, folder_predictions,
 # %% Function to plot side by side image and different predictions
 
 
-def display_predictions(image_folder, prediction_folders: list,
-                        prediction_names: list,
-                        label_folder=None, name='random'):
+def display_any(folders: list,
+                names: list,
+                name='random',
+                show_name=False):
     if name == 'random':
-        files_in_folder = [f for f in os.listdir(prediction_folders[-1])]
+        files_in_folder = [f for f in os.listdir(folders[-1])]
         name = files_in_folder[random.randint(0, len(files_in_folder))]
-        image_path = image_folder + name
-        if label_folder is not None:
-            label_path = label_folder + name
     # Open the files
-    with rasterio.open(image_path) as image:
+    fig, axs = plt.subplots(1, len(folders), figsize=(5*len(folders), 5))
+    for i, folder in enumerate(folders):
+        path = folder + name
+        with rasterio.open(path) as image:
+            # Read the data
+            num_channels = image.count
+            if num_channels == 1:
+                data = image.read(1)
+                cmap = 'gray'
+            else:
+                data = image.read([1, 2, 3])
+                data = data.transpose((1, 2, 0))
+                cmap = None
+            axs[i].imshow(data, cmap=cmap)
+            axs[i].set_title(f'{names[i]}')
+            axs[i].set_xticks([])
+            axs[i].set_yticks([])
+
+        # display name of the image
+        if show_name:
+            fig.suptitle(name, fontsize=16)
+
+    # Show the figure
+    plt.show()
+
+
+folders = [root_dir + "/data/model/topredict/train/image/",
+           root_dir + "/data/model/topredict/predictions/",
+                      root_dir + "/data/model/topredict/predictions/BW_1937/"]
+names = ['Image', 'Original training', 'B&W training']
+
+display_any(folders, names)
+
+# %%
+
+folders = [root_dir + "/data/model/original/train/image/",
+           root_dir + "/data/model/original/train_BW/image/",
+           root_dir + "/data/model/original/train_poor/image/"]
+
+names = ['Original', 'B&W', 'Contrast and brightness']
+
+display_any(folders, names, name='oslo_1_0.3_2023_15_27.tif')
+
+# %%
+
+folders = [root_dir + "/data/model/topredict/train/image/",
+           root_dir + "/data/model/topredict/train_augmented/image/"]
+
+names = ['Original 1937', 'Contrast and brightness']
+
+display_any(folders, names)
+
+# %%
+
+
+folders = [root_dir + "/data/model/topredict/train/image/",
+           root_dir + "/data/model/topredict/predictions/",
+                      root_dir + "/data/model/topredict/predictions/BW_1937/"]
+names = ['Image', 'Original training', 'B&W training']
+
+
+# %%
+
+
+def display_label_and_distmap(label_dir, distmap_dir,
+                              name='random'):
+    if name == 'random':
+        files_in_folder = [f for f in os.listdir(label_dir)]
+        name = files_in_folder[random.randint(0, len(files_in_folder))].strip(
+            '.tif')
+    else:
+        name = name.strip('.tif')
+    # Open the files
+    fig, axs = plt.subplots(1, 3, figsize=(10, 5))
+    label_path = label_dir + (name + '.tif')
+    distmap_path = distmap_dir + (name + '.mat')
+    with rasterio.open(label_path) as label:
         # Read the data
-        image_data = image.read([1, 2, 3])
-
-        # Create a figure with two subplots
-        fig, axs = plt.subplots(1, len(prediction_folders) + 2 if label_folder
-                                is not None else len(prediction_folders) + 1,
-                                figsize=(5 * len(prediction_folders), 5))
-
-        # Display the image
-        axs[0].imshow(image_data.transpose((1, 2, 0)))
-        axs[0].set_title('Image')
+        label_data = label.read(1)
+        axs[0].imshow(label_data, cmap='gray')
+        axs[0].set_title('Label')
         axs[0].set_xticks([])
         axs[0].set_yticks([])
 
-        k = 1
-        if label_folder is not None:
-            with rasterio.open(label_path) as label:
-                # Read the data
-                label_data = label.read(1)
-                axs[1].imshow(label_data, cmap='gray')
-                axs[1].set_title('Ground Truth')
-                axs[1].set_xticks([])
-                axs[1].set_yticks([])
-            k = 2
+    distmap = scipy.io.loadmat(distmap_path)
+    # Read the data
+    distmap_data = distmap["depth"].astype(np.int32)
+    axs[1].imshow(distmap_data, cmap='hot')
+    axs[1].set_title('Distance Map')
+    axs[1].set_xticks([])
+    axs[1].set_yticks([])
 
-        for i, prediction_folder in enumerate(prediction_folders):
-            prediction_path = prediction_folder + name
-            with rasterio.open(prediction_path) as prediction:
-                # Read the data
-                prediction_data = prediction.read(1)
-                axs[i + k].imshow(prediction_data, cmap='gray')
-                axs[i + k].set_title(f'Prediction {prediction_names[i]}')
-                axs[i + k].set_xticks([])
-                axs[i + k].set_yticks([])
+    # Display boundary map calculated from distance map
+    edge_data = ((distmap_data < 3) & (distmap_data > 0))
+    axs[2].imshow(edge_data, cmap='gray')
+    axs[2].set_title('Boundary')
+    axs[2].set_xticks([])
+    axs[2].set_yticks([])
 
-        # display name of the image
-        fig.suptitle(name, fontsize=16)
-
-        # Show the figure
-        plt.show()
+    # Show the figure
+    plt.show()
+    return fig
 
 
-image_folder = root_dir + "/data/model/topredict/train/image/"
-prediction_folders = [root_dir + "/data/model/topredict/predictions/",
-                      root_dir + "/data/model/topredict/predictions/BW_1937/"]
-prediction_names = ['Original training', 'B&W training']
+label_dir = root_dir + "/data/model/original/train/label/"
+distmap_dir = root_dir + "/data/model/original/boundary/"
+fig = display_label_and_distmap(label_dir, distmap_dir,
+                                name='oslo_1_0.3_2023_15_27.tif')
 
-display_predictions(image_folder, prediction_folders, prediction_names)
+
 # %%

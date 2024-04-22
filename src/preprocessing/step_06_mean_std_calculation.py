@@ -57,7 +57,7 @@ def calculate_mean_std(dataset_path, txt_path=None, batch_size=32):
 # Usage
 if __name__ == '__main__':
     root_dir = Path(__file__).parents[2]
-    path_train_data = root_dir / 'data/model/original/train_poor/image/'
+    path_train_data = root_dir / 'data/model/original/train_BW/image/'
     path_train_txt = root_dir / 'data/model/original/dataset/train.txt'
 
     mean, std = calculate_mean_std(path_train_data, path_train_txt)

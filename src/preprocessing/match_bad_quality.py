@@ -1,6 +1,6 @@
 # %% Imports
 from PIL import Image, ImageEnhance, ImageStat
-from preprocessing.step_06_mean_std_calculation import calculate_mean_std
+from src.preprocessing.step_06_mean_std_calculation import calculate_mean_std
 from pathlib import Path
 import os
 from tqdm import tqdm
@@ -62,7 +62,7 @@ mean_train, std_train = int(mean_train[0]*255), int(std_train[0]*255)
 contrast_factor = std_old / std_train
 brightness_factor = mean_old / mean_train
 
-# %% Transform all images in the input directory
+# %% Make training images worse
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
@@ -73,4 +73,23 @@ for filename in tqdm(os.listdir(input_dir)):
         image = Image.open(input_path).convert('RGB')
         image_poor = transform_image(image, contrast_factor, brightness_factor)
         image_poor.save(output_path)
+# %% Make old images "better"
+
+contrast_factor = std_train / std_old
+brightness_factor = mean_train / mean_old
+
+input_dir = path_old_data
+output_dir = root_dir / 'data/model/topredict/train_augmented/image'
+
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
+
+for filename in tqdm(os.listdir(input_dir)):
+    if filename.endswith(('.tif')) and '1937' in filename:
+        input_path = os.path.join(input_dir, filename)
+        output_path = os.path.join(output_dir, filename)
+        image_poor = Image.open(input_path).convert('RGB')
+        image = transform_image(image_poor, contrast_factor, brightness_factor)
+        image.save(output_path)
+
 # %%
