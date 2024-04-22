@@ -48,9 +48,8 @@ plt.show()
 
 # %%
 
+
 # Define a function to format the ticks
-
-
 def format_ticks(x, pos):
     return f'{x * 1e4:.0f}e-04'
 
@@ -92,7 +91,7 @@ host.axis["left"].major_ticklabels.set_color('b')
 par1.axis["left"].major_ticklabels.set_color('r')
 par2.axis["right"].major_ticklabels.set_color('g')
 
-plt.title('Batch Loss, IoU, and Learning Rate over Epochs')
+# plt.title('Batch Loss, IoU, and Learning Rate over Epochs')
 plt.tight_layout()
 plt.show()
 # %%
