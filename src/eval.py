@@ -18,14 +18,14 @@ matplotlib.use('tkagg')
 
 root_dir = Path(__file__).parents[1]
 data_dir = str(root_dir) + "/data/model/original/"
-dir_checkpoint = str(root_dir) + '/data/model/save_weights/run_2/'
-image_folder = 'train_poor/image'
+dir_checkpoint = str(root_dir) + '/data/model/save_weights/run_4/'
+image_folder = 'train/image'
 
 batchsize = 16
 num_workers = 8
-read_name = 'HDNet_NOCI_BW_best'
+read_name = 'HDNet_NOCI_best'
 Dataset = 'NOCI'
-assert Dataset in ['WHU', 'Inria', 'Mass', 'NOCI']
+# assert Dataset in ['WHU', 'Inria', 'Mass', 'NOCI']
 net = HighResolutionDecoupledNet(base_channel=48, num_classes=1)
 print('Number of parameters: ', sum(p.numel() for p in net.parameters()))
 
