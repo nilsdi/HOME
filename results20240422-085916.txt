@@ -1,0 +1,35 @@
+[epoch: 0]
+batch_loss: 5.6427
+epoch_loss: 9093.7713
+val_IoU: 0.291575
+lr: 0.001
+
+
+[epoch: 1]
+batch_loss: 4.5603
+epoch_loss: 7555.5127
+val_IoU: 0.575940
+lr: 0.001
+
+
+[epoch: 2]
+batch_loss: 4.6007
+epoch_loss: 7011.8424
+val_IoU: 0.686722
+lr: 0.001
+
+
+[epoch: 3]
+batch_loss: 5.2236
+epoch_loss: 6764.7403
+val_IoU: 0.700454
+lr: 0.001
+
+
+[epoch: 4]
+batch_loss: 4.1602
+epoch_loss: 6566.0084
+val_IoU: 0.731153
+lr: 0.001
+
+
