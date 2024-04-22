@@ -19,7 +19,7 @@ matplotlib.use('tkagg')
 root_dir = Path(__file__).parents[1]
 data_dir = str(root_dir) + "/data/model/original/"
 dir_checkpoint = str(root_dir) + '/data/model/save_weights/run_4/'
-image_folder = 'train/image'
+image_folder = 'train_poor/image'
 
 batchsize = 16
 num_workers = 8
@@ -37,7 +37,7 @@ def eval_HRBR(net,
     testdataset = BuildingDataset(
         dataset_dir=data_dir,
         training=False,
-        txt_name="train.txt",
+        txt_name="test.txt",
         data_name=Dataset,
         image_folder=image_folder
     )
