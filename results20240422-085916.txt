@@ -33,3 +33,31 @@ val_IoU: 0.731153
 lr: 0.001
 
 
+[epoch: 5]
+batch_loss: 4.5510
+epoch_loss: 6407.1015
+val_IoU: 0.689277
+lr: 0.001
+
+
+[epoch: 6]
+batch_loss: 4.5660
+epoch_loss: 6294.2460
+val_IoU: 0.716542
+lr: 0.001
+
+
+[epoch: 7]
+batch_loss: 4.4375
+epoch_loss: 6237.3962
+val_IoU: 0.707007
+lr: 0.001
+
+
+[epoch: 8]
+batch_loss: 4.1244
+epoch_loss: 6088.6908
+val_IoU: 0.732028
+lr: 0.001
+
+
