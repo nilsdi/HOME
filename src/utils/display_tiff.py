@@ -385,51 +385,65 @@ fig = display_several_years(folder_images, folder_labels, folder_predictions,
 
 
 def display_any(folders: list,
-                names: list,
+                column_names: list,
+                row_names: list = None,
                 name='random',
                 show_name=False):
     if name == 'random':
-        files_in_folder = [f for f in os.listdir(folders[-1])]
+        files_in_folder = [f for f in os.listdir(folders[-1][-1])]
         name = files_in_folder[random.randint(0, len(files_in_folder))]
     # Open the files
-    fig, axs = plt.subplots(1, len(folders), figsize=(5*len(folders), 5))
-    for i, folder in enumerate(folders):
-        path = folder + name
-        with rasterio.open(path) as image:
-            # Read the data
-            num_channels = image.count
-            if num_channels == 1:
-                data = image.read(1)
-                cmap = 'gray'
-            else:
-                data = image.read([1, 2, 3])
-                data = data.transpose((1, 2, 0))
-                cmap = None
-            axs[i].imshow(data, cmap=cmap)
-            axs[i].set_title(f'{names[i]}')
-            axs[i].set_xticks([])
-            axs[i].set_yticks([])
+    num_rows = len(folders)
+    num_cols = len(folders[0])
+    fig, axs = plt.subplots(
+        num_rows, num_cols, figsize=(5*num_cols, 5*num_rows))
+    axs = np.atleast_2d(axs)
+    for i, row in enumerate(folders):
+        for j, folder in enumerate(row):
+            path = folder + name
+            with rasterio.open(path) as image:
+                # Read the data
+                num_channels = image.count
+                if num_channels == 1:
+                    data = image.read(1)
+                    cmap = 'gray'
+                else:
+                    data = image.read([1, 2, 3])
+                    data = data.transpose((1, 2, 0))
+                    cmap = None
+                axs[i, j].imshow(data, cmap=cmap)
+                axs[i, j].set_title(f'{column_names[j]}')
+                axs[i, j].set_xticks([])
+                axs[i, j].set_yticks([])
 
         # display name of the image
         if show_name:
             fig.suptitle(name, fontsize=16)
 
+        # display row name if provided
+        if row_names is not None:
+            axs[i, 0].set_ylabel(row_names[i], fontsize=16)
+
     # Show the figure
+    plt.tight_layout()
     plt.show()
 
+    return fig
 
-folders = [root_dir + "/data/model/topredict/train/image/",
+
+# %%
+folders = [[root_dir + "/data/model/topredict/train/image/",
            root_dir + "/data/model/topredict/predictions/",
-                      root_dir + "/data/model/topredict/predictions/BW_1937/"]
+           root_dir + "/data/model/topredict/predictions/BW_1937/"]]
 names = ['Image', 'Original training', 'B&W training']
 
 display_any(folders, names)
 
 # %%
 
-folders = [root_dir + "/data/model/original/train/image/",
+folders = [[root_dir + "/data/model/original/train/image/",
            root_dir + "/data/model/original/train_BW/image/",
-           root_dir + "/data/model/original/train_poor/image/"]
+           root_dir + "/data/model/original/train_poor/image/"]]
 
 names = ['Original', 'B&W', 'Contrast and brightness']
 
@@ -437,8 +451,8 @@ display_any(folders, names, name='oslo_1_0.3_2023_15_27.tif')
 
 # %%
 
-folders = [root_dir + "/data/model/topredict/train/image/",
-           root_dir + "/data/model/topredict/train_augmented/image/"]
+folders = [[root_dir + "/data/model/topredict/train/image/",
+           root_dir + "/data/model/topredict/train_augmented/image/"]]
 
 names = ['Original 1937', 'Contrast and brightness']
 
@@ -447,11 +461,28 @@ display_any(folders, names)
 # %%
 
 
-folders = [root_dir + "/data/model/topredict/train/image/",
+folders = [[root_dir + "/data/model/topredict/train/image/",
            root_dir + "/data/model/topredict/predictions/",
-                      root_dir + "/data/model/topredict/predictions/BW_1937/"]
+                      root_dir + "/data/model/topredict/predictions/BW_1937/"]]
 names = ['Image', 'Original training', 'B&W training']
+display_any(folders, names)
 
+
+# %% Plot Inria, WHU, Mass predictions, then normal and from Inria predictions
+
+folders = [[root_dir + "/data/model/original/train/image/",
+            root_dir + "/data/model/original/train/label/",
+            root_dir + "/data/model/original/predictions/Inria/",
+            root_dir + "/data/model/original/predictions/WHU/",
+            root_dir + "/data/model/original/predictions/Mass/",
+            root_dir + "/data/model/original/predictions/from_scratch/",
+            root_dir + "/data/model/original/predictions/from_Inria/"]]
+
+names = ['Image', 'Ground truth', 'Inria', 'WHU', 'Mass', 'From scratch',
+         'From Inria']
+fig = display_any(folders, names, name='bergen_0_0.3_2022_0_38.tif')
+fig.savefig(root_dir + "figures/predictions_comparison.png",
+            bbox_inches='tight', pad_inches=0)
 
 # %%
 
