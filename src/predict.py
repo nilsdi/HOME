@@ -21,18 +21,18 @@ matplotlib.use('tkagg')
 
 # %%
 root_dir = Path(__file__).parents[1]
-data_dir = str(root_dir) + "/data/model/topredict/"
-dir_checkpoint = str(root_dir) + '/data/model/save_weights/run_2/'
+data_dir = str(root_dir) + "/data/model/original/"
+dir_checkpoint = str(root_dir) + '/data/model/save_weights/run_3/'
 # dir_checkpoint = "../ISPRS_HD_NET/save_weights/pretrain/"
 predict = True
-prediction_folder = 'predictions/BW_1937'
+prediction_folder = 'predictions/from_Inria/'
 image_folder = 'train/image'
 
-batchsize = 16
+batchsize = 2
 num_workers = 16
-read_name = 'HDNet_NOCI_BW_best'
+read_name = 'HDNet_NOCI_best'
 Dataset = 'NOCI'
-assert Dataset in ['WHU', 'Inria', 'Mass', 'NOCI']
+# assert Dataset in ['WHU', 'Inria', 'Mass', 'NOCI']
 net = HighResolutionDecoupledNet(base_channel=48, num_classes=1)
 print('Number of parameters: ', sum(p.numel() for p in net.parameters()))
 
@@ -43,7 +43,7 @@ def predict_and_eval(net, device, batch_size, data_dir, predict=False,
     dataset = BuildingDataset(
         dataset_dir=data_dir,
         training=False,
-        txt_name="old.txt",
+        txt_name="test single.txt",
         data_name=Dataset,
         image_folder=image_folder,
         predict=predict)
@@ -56,6 +56,7 @@ def predict_and_eval(net, device, batch_size, data_dir, predict=False,
 
     if predict:
         save_path = os.path.join(data_dir, prediction_folder)
+        print("Saving predictions in ", save_path)
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         for batch in tqdm(loader):
             imgs = batch['image']
