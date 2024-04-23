@@ -46,4 +46,4 @@ while not all_jobs_complete:
     else:
         print("Not all jobs are complete. Waiting for 20 minutes before" +
               " checking again.")
-        time.sleep(1200)  # Wait for 10 minutes
+        time.sleep(1200)  # Wait for 20 minutes
