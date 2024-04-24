@@ -1,6 +1,7 @@
 import requests
 import json
 import time
+import os
 from pathlib import Path
 
 
@@ -18,9 +19,20 @@ def status_export(JobID: int) -> tuple[bool, str]:
     '''
     rest_status_url = 'https://tjenester.norgeibilder.no/rest/' + \
         'exportStatus.ashx'
-    status_payload = {
-        "Username": "UNTNU_MULDAN",
-        "Password": "GeoNorge2024",
+    # Get the directory of the current script file
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Construct the path to the JSON file
+    json_file_path = os.path.join(script_dir, 'geonorge_login.json')
+
+    # Open the JSON file
+    with open(json_file_path, 'r') as file:
+        # Load the JSON data
+        login = json.load(file)
+
+    status_payload  = {
+    "Username": login['Username'],
+    "Password": login['Password'],
         "JobID": JobID
     }
     status_payload_json = json.dumps(status_payload)
@@ -50,7 +62,7 @@ def save_download_url(download_url: str, project: str, resolution: float,
     # current time for the file name
     current_time = time.strftime("%Y%m%d-%H%M%S")
     file_name = f"Download_{project.lower()}_{current_time}.json"
-    file_path = grandparent_dir / "data/temp/urls/" / file_name
+    file_path = grandparent_dir / "data/temp/norgeibilder/urls/" / file_name
 
     # this entire block should be changed - we should have a different
     # variable for the compresssion name.

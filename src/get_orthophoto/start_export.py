@@ -8,6 +8,7 @@ def start_export(project:str, resolution:float, format:int = 4, compression_meth
     '''
     Request an export of the orthophoto project specified.
     The export JobID returned can be used to fetch the status of the export.
+    User and password are taken from the geonorge_login.json file.
 
     Arguments:
     - project: The project ID of the orthophoto to be exported.
@@ -22,9 +23,20 @@ def start_export(project:str, resolution:float, format:int = 4, compression_meth
     '''
     rest_export_url = "https://tjenester.norgeibilder.no/rest/startExport.ashx"
 
+    # Get the directory of the current script file
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Construct the path to the JSON file
+    json_file_path = os.path.join(script_dir, 'geonorge_login.json')
+
+    # Open the JSON file
+    with open(json_file_path, 'r') as file:
+        # Load the JSON data
+        login = json.load(file)
+
     export_payload  = {
-    "Username": "UNTNU_MULDAN",
-    "Password": "GeoNorge2024",
+    "Username": login['Username'],
+    "Password": login['Password'],
     'CopyEmail': 'nils.dittrich@ntnu.no',
     "Format": format,
     'Resolution': resolution,
@@ -71,7 +83,7 @@ def save_export_job(JobID:int, project:str, resolution:float,
     # current time for the file name
     current_time = time.strftime("%Y%m%d-%H%M%S")
     file_name = f"Export_{project.lower()}_{current_time}.json"
-    file_path =  grandparent_dir + f"/data/temp/jobids/" + file_name 
+    file_path =  grandparent_dir + f"/data/temp/norgeibilder/jobids/" + file_name 
 
     if compression_method != 5:
         raise Exception("Only LZW compression (type 5) is supported in saving the job at the moment.")
