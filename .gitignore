@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# login credentials
+geonorge_login.json
+
 # data folders
 data/
 archive/
