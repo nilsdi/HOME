@@ -2,10 +2,7 @@ import rasterio
 from rasterio.windows import Window
 import numpy as np
 from pathlib import Path
-import sys
-parent_dir = Path(__file__).parent
-sys.path.append(str(parent_dir))
-from utils.bbox_to_meters import convert_bbox_to_meters  # noqa
+from src.utils.bbox_to_meters import convert_bbox_to_meters  # noqa
 
 
 def cut_geotiff(geotiff_path, bbox: list, pixel_size: float) -> np.array:
