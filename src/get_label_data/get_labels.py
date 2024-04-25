@@ -3,10 +3,7 @@ from rasterio.transform import from_bounds
 from rasterio.features import geometry_mask
 import numpy as np
 from pathlib import Path
-import sys
-parent_dir = Path(__file__).parent
-sys.path.append(str(parent_dir))
-from utils.bbox_to_meters import convert_bbox_to_meters  # noqa
+from src.utils.bbox_to_meters import convert_bbox_to_meters  # noqa
 
 
 def get_labels(fkb_omrade_gdf, bbox: list,
