@@ -21,11 +21,11 @@ matplotlib.use('tkagg')
 
 # %%
 root_dir = Path(__file__).parents[1]
-data_dir = str(root_dir) + "/data/model/original/"
+data_dir = str(root_dir) + "/data/model/topredict/"
 dir_checkpoint = str(root_dir) + '/data/model/save_weights/run_3/'
 # dir_checkpoint = "../ISPRS_HD_NET/save_weights/pretrain/"
 predict = True
-prediction_folder = 'predictions/from_Inria/'
+prediction_folder = 'predictions/BW_RGB_training/'
 image_folder = 'train/image'
 
 batchsize = 2
@@ -43,7 +43,7 @@ def predict_and_eval(net, device, batch_size, data_dir, predict=False,
     dataset = BuildingDataset(
         dataset_dir=data_dir,
         training=False,
-        txt_name="test single.txt",
+        txt_name="test_augmented.txt",
         data_name=Dataset,
         image_folder=image_folder,
         predict=predict)

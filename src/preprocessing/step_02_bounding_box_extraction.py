@@ -3,10 +3,9 @@ from pathlib import Path
 import geopandas as gpd
 import sys
 import json
-grandparent_dir = Path(__file__).parents[1]
-sys.path.append(str(grandparent_dir))
-from get_label_data.get_labels import get_labels, save_labels  # noqa
-from get_label_data.cut_images import cut_geotiff, save_cut_geotiff  # noqa
+from src.get_label_data.get_labels import get_labels, save_labels  # noqa
+from src.get_label_data.cut_images import cut_geotiff, save_cut_geotiff  # noqa
+import os
 
 # %%
 root_dir = Path(__file__).parents[2]
@@ -44,15 +43,18 @@ def make_training_data(city):
                                           " matching training data")
             filename = f"{city}_{i}_{res}_{year}"
 
-            data, transform = get_labels(gdf_omrade, bbox_coordinates, res)
-            if data.size != 0:
-                save_labels(data, filename, transform)
+            if not os.path.exists(root_dir / f"data/temp/pretrain/images/{filename}.tif"):
+                data, transform = get_labels(
+                    gdf_omrade, bbox_coordinates, res)
+                if data.size != 0:
+                    save_labels(data, filename, transform)
 
-            geotiff_path = subfolders[0] / "i_lzw_25" / "Eksport-nib.tif"
-            image, transform = cut_geotiff(geotiff_path, bbox_coordinates, res)
-            if image.size != 0:
-                save_cut_geotiff(image, filename, transform)
-
+                geotiff_path = subfolders[0] / \
+                    "i_lzw_25" / "Eksport-nib.tif"
+                image, transform = cut_geotiff(geotiff_path, bbox_coordinates,
+                                               res)
+                if image.size != 0:
+                    save_cut_geotiff(image, filename, transform)
         else:
             for res in [0.3, 0.5]:
                 subfolders = list(
@@ -65,15 +67,18 @@ def make_training_data(city):
                     geotiffs = list((subfolder / "i_lzw_25").glob("*.tif"))
 
                     for j, geotiff_path in enumerate(geotiffs):
-                        filename = f"{city}_{res}_{year}_{i}_{j}"
-                        image, transform = cut_geotiff(
-                            geotiff_path, bbox_coordinates, res)
 
-                        # save the image
-                        if image.size != 0:
-                            save_cut_geotiff(
-                                image, filename, transform,
-                                save_folder="data/temp/prepred/images/")
+                        filename = f"{city}_{res}_{year}_{i}_{j}"
+
+                        if not os.path.exists(root_dir / f"data/temp/prepred/images/{filename}.tif"):
+                            image, transform = cut_geotiff(
+                                geotiff_path, bbox_coordinates, res)
+
+                            # save the image
+                            if image.size != 0:
+                                save_cut_geotiff(
+                                    image, filename, transform,
+                                    save_folder="data/temp/prepred/images/")
 
     return None
 

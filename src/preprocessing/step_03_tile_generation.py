@@ -3,6 +3,7 @@ import os
 import numpy as np
 from tqdm import tqdm
 from pathlib import Path
+import shutil
 # Increase the maximum number of pixels OpenCV can handle
 os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2, 40))
 import cv2  # noqa
@@ -20,6 +21,12 @@ def partition_and_crop_images(input_dir_images, input_dir_labels,
     # Create output directories if they don't exist
     os.makedirs(output_dir_images, exist_ok=True)
     os.makedirs(output_dir_labels, exist_ok=True)
+
+    # Create archive directories if they don't exist
+    archive_dir_images = os.path.join(input_dir_images, 'archive')
+    archive_dir_labels = os.path.join(input_dir_labels, 'archive')
+    os.makedirs(archive_dir_images, exist_ok=True)
+    os.makedirs(archive_dir_labels, exist_ok=True)
 
     # Get list of all image files in the input directory
     image_files = [f for f in os.listdir(
@@ -123,13 +130,19 @@ def partition_and_crop_images(input_dir_images, input_dir_labels,
                     cv2.imwrite(label_tile_path, label_tile)
                     pbar.update(1)
 
+            # Move the processed image and label to the archive directory
+            shutil.move(os.path.join(input_dir_images, image_file),
+                        os.path.join(archive_dir_images, image_file))
+            shutil.move(os.path.join(input_dir_labels, image_file),
+                        os.path.join(archive_dir_labels, image_file))
+
     print(f"Skipped {skipped} tiles due to class imbalance")
 
 
 input_dir_images = root_dir + '/data/temp/pretrain/images/'
 input_dir_labels = root_dir + '/data/temp/pretrain/labels'
-output_dir_images = root_dir + '/data/model/train/image/'
-output_dir_labels = root_dir + '/data/model/train/label/'
+output_dir_images = root_dir + '/data/model/original/train/image/'
+output_dir_labels = root_dir + '/data/model/original/train/label/'
 
 print("Partitioning and cropping images with labels")
 partition_and_crop_images(input_dir_images, input_dir_labels,
@@ -144,6 +157,10 @@ def tile_images_no_labels(input_dir_images,
                           image_size=None):
     # Create output directories if they don't exist
     os.makedirs(output_dir_images, exist_ok=True)
+
+    # Create archive directories if they don't exist
+    archive_dir_images = os.path.join(input_dir_images, 'archive')
+    os.makedirs(archive_dir_images, exist_ok=True)
 
     # Get list of all image files in the input directory
     image_files = [f for f in os.listdir(
@@ -207,9 +224,13 @@ def tile_images_no_labels(input_dir_images,
 
                     pbar.update(1)
 
+            # Move the processed image to the archive directory
+            shutil.move(os.path.join(input_dir_images, image_file),
+                        os.path.join(archive_dir_images, image_file))
+
 
 input_dir_images = root_dir + '/data/temp/prepred/images/'
-output_dir_images = root_dir + '/data/topredict/train/image/'
+output_dir_images = root_dir + '/data/model/topredict/train/image/'
 
 print("Partitioning and cropping images without labels")
 tile_images_no_labels(input_dir_images,
@@ -291,7 +312,7 @@ def tile_labels_no_images(input_dir_labels,
 
 
 input_dir_labels = root_dir + '/data/temp/prepred/labels/'
-output_dir_labels = root_dir + '/data/topredict/train/label/'
+output_dir_labels = root_dir + '/data/model/topredict/train/label/'
 
 print("Partitioning and cropping labels without images")
 tile_labels_no_images(input_dir_labels,
