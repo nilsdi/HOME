@@ -6,6 +6,9 @@ import os
 from tqdm import tqdm
 
 # %%
+year_old = '1992'
+
+# %%
 
 
 def calculate_contrast_brightness(image):
@@ -41,12 +44,12 @@ root_dir = Path(__file__).parents[2]
 path_old_data = root_dir / 'data/model/topredict/train/image'
 path_txt_file = root_dir / 'data/model/topredict/dataset/old.txt'
 input_dir = root_dir / 'data/model/original/train/image'
-output_dir = root_dir / 'data/model/original/train_poor2/image'
+
 
 # create txt file with all files in folder with 1937 in name
 with open(path_txt_file, 'w') as f:
     for file in os.listdir(path_old_data):
-        if '1937' in file:
+        if year_old in file:
             f.write(file.replace('.tif', '') + '\n')
 
 # %%
@@ -63,6 +66,7 @@ contrast_factor = std_old / std_train
 brightness_factor = mean_old / mean_train
 
 # %% Make training images worse
+output_dir = root_dir / 'data/model/original/train_poor/image'
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
@@ -85,7 +89,7 @@ if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
 for filename in tqdm(os.listdir(input_dir)):
-    if filename.endswith(('.tif')) and '1937' in filename:
+    if filename.endswith(('.tif')) and year_old in filename:
         input_path = os.path.join(input_dir, filename)
         output_path = os.path.join(output_dir, filename)
         image_poor = Image.open(input_path).convert('RGB')
