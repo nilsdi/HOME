@@ -22,7 +22,7 @@ matplotlib.use('tkagg')
 # %% 
 root_dir = Path(__file__).parents[1]
 # data_dir = str(root_dir) + "/data/model/topredict/"
-data_dir = str(root_dir) + "/data/model/trondheim_1937/"
+data_dir = str(root_dir) + "/data/model/trondheim_1979/"
 
 dir_checkpoint = str(root_dir) + '/data/model/save_weights/run_3/'
 # dir_checkpoint = "../ISPRS_HD_NET/save_weights/pretrain/"

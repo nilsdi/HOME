@@ -19,9 +19,28 @@ root_dir = Path(__file__).parents[2]
 current_dir = Path(__file__).parents[0]
 
 # Directory containing the TIFF files
-orig_tif = root_dir / 'data/model/test_full_pic/tiles/reassembled_tile/test.tif'
+path_data = root_dir / 'data/model'
 
-segimg = root_dir / 'data/model/test_full_pic/predictions/test_33/test_33.tif'
+dir_2023 = path_data / 'test_full_pic'
+dir_1937 = path_data / 'trondheim_1937'
+dir_1979 = path_data / 'trondheim_1979'
+
+#img_select = 'trondheim_0.3_1979_1_0_2_14.tif'
+#img_select = 'trondheim_0.3_2023_1_0_2_14.tif'
+img_select = 'trondheim_0.3_1937_1_1_2_14.tif'
+
+orig_tif_2023 = dir_2023 / 'tiles/images' / img_select
+prediction_2023 = dir_2023 / 'predictions/test' / img_select
+
+orig_tif_1937 = dir_1937 / 'tiles/images' / img_select
+prediction_1937 = dir_1937 / 'predictions/test' / img_select
+
+orig_tif_1979 = dir_1979 / 'tiles/images' / img_select
+prediction_1979 = dir_1979 / 'predictions/test' / img_select
+
+segimg = prediction_1937
+orig_tif = orig_tif_1937
+#segimg = root_dir / 'data/model/test_full_pic/predictions/test_33/test_33.tif'
 src_ds = gdal.Open( str(segimg), GA_ReadOnly )
 
 srcband=src_ds.GetRasterBand(1)
@@ -40,11 +59,31 @@ for vec in rasterio.features.shapes(myarray):
 
 #filtering out the very large polygons (just to avoid that the frame is 
 # considered as a polygon, not necessary when we will apply on full pic)
-filtered_polygons = [polygon for polygon in mypoly if polygon.area < 450*450]  
+filtered_polygons = [polygon for polygon in mypoly if polygon.area < 450*450 and polygon.area>15*15]  
 
 #%%
 print(len(mypoly))
 print(len(filtered_polygons))
+
+geoms = list(mypoly)
+gdf = gpd.GeoDataFrame({'geometry': geoms})
+
+# Plot the GeoDataFrame
+# Plot the GeoDataFrame with custom style
+plt.figure(figsize=(10, 10))  # Set the figure size and background color
+plt.gca().set_facecolor('black')  # Set the background color
+
+# Plot filled polygons with red color
+gdf.plot(ax=plt.gca(),facecolor='none', edgecolor='red')
+
+# Remove axes
+plt.axis('off')
+
+# Show plot
+plt.show()
+
+plt.savefig('figname.png', facecolor=fig.get_facecolor(), transparent=True)
+
 #%%
 # Simplify the shapes to minimize the edges
 simplified_polygons = [polygon.simplify(5, preserve_topology=True) for polygon in filtered_polygons]  # Adjust the tolerance value as needed
@@ -62,8 +101,8 @@ gdf = gpd.GeoDataFrame({'geometry': geoms})
 
 # Plot the GeoDataFrame
 # Plot the GeoDataFrame with custom style
-#plt.figure(figsize=(10, 10))  # Set the figure size and background color
-plt.gca().set_facecolor('black')  # Set the background color
+plt.figure(figsize=(10, 10))  # Set the figure size and background color
+#plt.gca().set_facecolor('black')  # Set the background color
 
 # Plot filled polygons with red color
 gdf.plot(ax=plt.gca(),facecolor='none', edgecolor='red')
@@ -107,19 +146,21 @@ with rasterio.open(orig_tif) as src:
 
     # Plot the TIFF file as a background image
     plt.figure(figsize=(10, 10))
-    plt.imshow(data[0], cmap='gray', alpha = 0.8 )#, extent=(src.bounds.left, src.bounds.right, src.bounds.bottom, src.bounds.top), alpha=0.5)
+    plt.imshow(data[0], cmap='gray', alpha = 0.4 )#, extent=(src.bounds.left, src.bounds.right, src.bounds.bottom, src.bounds.top), alpha=0.5)
 
     # Plot the filled polygons on top
-    gdf.plot(ax=plt.gca(), facecolor='none', edgecolor='red')
+    gdf.plot(ax=plt.gca(), facecolor='none', edgecolor='gold',linewidth=5)
     plt.axis('off')
+   
     # Set background color
     #plt.gca().set_facecolor('black')
 
     # Show plot
     plt.show()
 
+
 #%%
-segimg = 'data/model/original/predictions/BW_2023/oslo_0_0.3_2023_0_29.tif'
+"""segimg = 'data/model/original/predictions/BW_2023/oslo_0_0.3_2023_0_29.tif'
 src_ds = gdal.Open(segimg, GA_ReadOnly )
 srcband=src_ds.GetRasterBand(1)
 myarray=srcband.ReadAsArray() 
@@ -133,6 +174,6 @@ for vec in rasterio.features.shapes(myarray):
 
 geoms = list(mypoly)
 p = gpd.GeoSeries(mypoly[0])
-p.plot()
+p.plot()"""
 
 
