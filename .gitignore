@@ -9,7 +9,7 @@ geonorge_login.json
 # data folders
 data/
 archive/
-
+project_density_maps/
 # C extensions
 *.so
 
