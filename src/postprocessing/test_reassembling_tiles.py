@@ -18,12 +18,12 @@ def parse_filename(filename):
 
 root_dir = Path(__file__).parents[2]
 current_dir = Path(__file__).parents[0]
-test_file = open(root_dir / 'data/model/trondheim_1937/test.txt', 'w')
-data_path = root_dir / 'data/model/trondheim_1937/tiles/images'
+test_file = open(root_dir / 'data/model/trondheim_1979/test.txt', 'w')
+data_path = root_dir / 'data/model/trondheim_1979/tiles/images'
 # Directory containing the TIFF files
-input_dir = root_dir / 'data/model/trondheim_1937/predictions/test'
-output_file = root_dir / 'data/model/trondheim_1937/predictions/reassembled_tile/test.tif'
-file_list_path = root_dir / 'data/model/trondheim_1937/dataset/test.txt'
+input_dir = root_dir / 'data/model/trondheim_1979/predictions/test'
+output_file = root_dir / 'data/model/trondheim_1979/predictions/reassembled_tile/test.tif'
+file_list_path = root_dir / 'data/model/trondheim_1979/dataset/test.txt'
 
 # Read filenames from the text file
 with open(file_list_path, 'r') as file:
@@ -295,7 +295,7 @@ ordered_files = order_files_by_xy(file_list)
 
 sorted_columns = get_columns_from_ordered_files(ordered_files)
 
-output_base_path = root_dir / 'data/model/trondheim_1937/predictions/reassembled_tile'
+output_base_path = root_dir / 'data/model/trondheim_1979/predictions/reassembled_tile'
 
 for i, column in enumerate(sorted_columns):
     output_file = output_base_path / f'reassembled_tile_{i}.tif'
