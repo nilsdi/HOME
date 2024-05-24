@@ -21,7 +21,7 @@ def get_all_projects()->list[str]:
 
     return projects
 
-def get_project_metadata(project:str)->dict:
+def get_project_metadata(projects:list[str], geometry:bool = False)->dict:
     '''
     Get the metadata of the orthophoto project specified.
     Seems to not work as of now (05.03.2024) - not clear if the purpose of this service
@@ -29,23 +29,31 @@ def get_project_metadata(project:str)->dict:
     search criteria.
 
     Arguments:
-    - project: The project ID of the orthophoto to get metadata from.
+    - projects: a list of project IDs of the orthophoto to get metadata from.
 
     Returns:
     - A dictionary containing the metadata of the orthophoto project.
+      Note that the coordinates come in the default system of 25833.
     '''
-    rest_metatdata_url = "http://tjenester.norgeibilder.no/rest/projectMetadata.ashx" 
-    metadata_payload = {
-        "Project": project,
-        "ReturnMedata":'True'
+    # Base URL
+    base_url = "https://tjenester.norgeibilder.no/rest/projectMetadata.ashx"
+
+    if len(projects) > 100:
+        raise ValueError("Maximum number of projects is 100")
+    projects_str = ",".join(projects)
+    if geometry:
+        params = {
+            "request": "{Projects:'%s',ReturnMetadata:true,ReturnGeometry:true}" % projects_str
         }
-    metadata_payload_json = json.dumps(metadata_payload)
-    metadata_query = {"json": metadata_payload_json}
-    meta_data_response = requests.get(rest_metatdata_url, params = metadata_query)
-
-    if meta_data_response.status_code != 200:
-        raise Exception(f"Metadata request failed with status code {meta_data_response.status_code}.")
     else:
-        metadata = meta_data_response.json()
+        params = {
+            "request": "{Projects:'%s',ReturnMetadata:true}" % projects_str
+        }
 
-    return metadata
+    # Send the request
+    response = requests.get(base_url, params=params)
+
+    if response.status_code != 200:
+        raise Exception(f"Request failed with status code {response.status_code}")
+
+    return response.json()
