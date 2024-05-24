@@ -387,11 +387,14 @@ fig = display_several_years(folder_images, folder_labels, folder_predictions,
 def display_any(folders: list,
                 column_names: list,
                 row_names: list = None,
-                name='random',
-                show_name=False):
-    if name == 'random':
-        files_in_folder = [f for f in os.listdir(folders[-1][-1])]
-        name = files_in_folder[random.randint(0, len(files_in_folder))]
+                filenames: list = 'random'):
+    if filenames == 'random':
+        filenames = []
+        for i, row in enumerate(folders):
+            files_in_folder = [f for f in os.listdir(row[-1])]
+            filenames.append(
+                files_in_folder[random.randint(0, len(files_in_folder))])
+
     # Open the files
     num_rows = len(folders)
     num_cols = len(folders[0])
@@ -399,8 +402,9 @@ def display_any(folders: list,
         num_rows, num_cols, figsize=(5*num_cols, 5*num_rows))
     axs = np.atleast_2d(axs)
     for i, row in enumerate(folders):
+        filename = filenames[i]
         for j, folder in enumerate(row):
-            path = folder + name
+            path = folder + filename
             with rasterio.open(path) as image:
                 # Read the data
                 num_channels = image.count
@@ -417,8 +421,7 @@ def display_any(folders: list,
                 axs[i, j].set_yticks([])
 
         # display name of the image
-        if show_name:
-            fig.suptitle(name, fontsize=16)
+        print(filename)
 
         # display row name if provided
         if row_names is not None:
@@ -433,11 +436,11 @@ def display_any(folders: list,
 
 # %%
 folders = [[root_dir + "/data/model/topredict/train/image/",
-           root_dir + "/data/model/topredict/predictions/",
+           root_dir + "/data/model/topredict/predictions/BW_RGB_training/",
            root_dir + "/data/model/topredict/predictions/BW_1937/"]]
 names = ['Image', 'Original training', 'B&W training']
 
-display_any(folders, names)
+fig = display_any(folders, names)
 
 # %%
 
@@ -447,26 +450,27 @@ folders = [[root_dir + "/data/model/original/train/image/",
 
 names = ['Original', 'B&W', 'Contrast and brightness']
 
-display_any(folders, names, name='oslo_1_0.3_2023_15_27.tif')
+fig = display_any(folders, names, filenames=['oslo_1_0.3_2023_15_27.tif'])
 
 # %%
 
 folders = [[root_dir + "/data/model/topredict/train/image/",
-           root_dir + "/data/model/topredict/train_augmented/image/"]]
+           root_dir + "/data/model/topredict/train_augmented/image/",
+           root_dir + "/data/model/topredict/predictions/BW_1937/"]]
 
-names = ['Original 1937', 'Contrast and brightness']
+names = ['Original', 'Contrast and brightness',
+         "poor quality B&W training"]
 
-display_any(folders, names)
+fig = display_any(folders, names)
 
 # %%
 
 
 folders = [[root_dir + "/data/model/topredict/train/image/",
-           root_dir + "/data/model/topredict/predictions/",
+           root_dir + "/data/model/topredict/predictions/BW_RGB_training/",
                       root_dir + "/data/model/topredict/predictions/BW_1937/"]]
 names = ['Image', 'Original training', 'B&W training']
-display_any(folders, names)
-
+fig = display_any(folders, names)
 
 # %% Plot Inria, WHU, Mass predictions, then normal and from Inria predictions
 
@@ -480,8 +484,41 @@ folders = [[root_dir + "/data/model/original/train/image/",
 
 names = ['Image', 'Ground truth', 'Inria', 'WHU', 'Mass', 'From scratch',
          'From Inria']
-fig = display_any(folders, names, name='bergen_0_0.3_2022_0_38.tif')
-fig.savefig(root_dir + "figures/predictions_comparison.png",
+fig = display_any(folders, names, filenames=['bergen_0_0.3_2022_0_38.tif'])
+fig.savefig(root_dir + "/figures/predictions_comparison.png",
+            bbox_inches='tight', pad_inches=0)
+
+
+# %% Plot 1937, 1979, 1992 images, "augmented images", RGB prediction,
+# BW prediction with poor training, BW prediction with augmented image
+
+folders = [[root_dir + "/data/model/topredict/train/image/",
+            root_dir + "/data/model/topredict/train_augmented/image/",
+            root_dir + "/data/model/topredict/predictions/BW_RGB_training/",
+            root_dir + "/data/model/topredict/predictions/BW_poor_training/",
+            root_dir + "/data/model/topredict/predictions/BW_augmented/"],
+           [root_dir + "/data/model/topredict/train/image/",
+            root_dir + "/data/model/topredict/train_augmented/image/",
+            root_dir + "/data/model/topredict/predictions/BW_RGB_training/",
+            root_dir + "/data/model/topredict/predictions/BW_poor_training/",
+            root_dir + "/data/model/topredict/predictions/BW_augmented/"],
+           [root_dir + "/data/model/topredict/train/image/",
+            root_dir + "/data/model/topredict/train_augmented/image/",
+            root_dir + "/data/model/topredict/predictions/BW_RGB_training/",
+            root_dir + "/data/model/topredict/predictions/BW_poor_training/",
+            root_dir + "/data/model/topredict/predictions/BW_augmented/"]]
+
+names = ['Original', 'Augmented image', 'RGB training',
+         'Poor quality B&W training', 'B&W training + augmented image']
+
+row_names = ['1937', '1979', '1992']
+
+fig = display_any(folders, names, row_names,
+                  filenames=['trondheim_0.3_1937_1_1_4_14.tif',
+                             'trondheim_0.3_1979_1_0_5_7.tif',
+                             'trondheim_0.3_1992_1_2_3_11.tif'])
+
+fig.savefig(root_dir + "/figures/B&W_training_comparisons.png",
             bbox_inches='tight', pad_inches=0)
 
 # %%

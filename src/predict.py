@@ -19,31 +19,53 @@ from ISPRS_HD_NET.eval.eval_HDNet import eval_net  # noqa
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 matplotlib.use('tkagg')
 
-# %%
+# %% 
 root_dir = Path(__file__).parents[1]
-data_dir = str(root_dir) + "/data/model/original/"
+# data_dir = str(root_dir) + "/data/model/topredict/"
+data_dir = str(root_dir) + "/data/model/trondheim_1937/"
+
 dir_checkpoint = str(root_dir) + '/data/model/save_weights/run_3/'
 # dir_checkpoint = "../ISPRS_HD_NET/save_weights/pretrain/"
 predict = True
-prediction_folder = 'predictions/from_Inria/'
-image_folder = 'train/image'
+#prediction_folder = 'predictions/BW_RGB_training/'
+#image_folder = 'train/image'
+
+prediction_folder = 'predictions/test/'
+image_folder = 'tiles/images'
 
 batchsize = 2
 num_workers = 16
 read_name = 'HDNet_NOCI_best'
-Dataset = 'NOCI'
+# Dataset = 'NOCI'
+Dataset = 'Inria'
 # assert Dataset in ['WHU', 'Inria', 'Mass', 'NOCI']
 net = HighResolutionDecoupledNet(base_channel=48, num_classes=1)
 print('Number of parameters: ', sum(p.numel() for p in net.parameters()))
 
+dataset = BuildingDataset(
+    dataset_dir=data_dir,
+    training=False,
+    txt_name="test.txt",
+    data_name=Dataset,
+    image_folder=image_folder,
+    predict=predict)
 
+#%%
+txt_path =  os.path.join(data_dir, 'dataset', "test.txt")
+with open(os.path.join(txt_path), "r") as f:
+                file_names = [x for x in f.readlines() if len(x.strip()) > 0]
+                
+print(len(file_names))
+# 
+                
+#%%
 def predict_and_eval(net, device, batch_size, data_dir, predict=False,
-                     prediction_folder='predictions',
-                     image_folder='train/image'):
+                     prediction_folder=prediction_folder,
+                     image_folder=image_folder):
     dataset = BuildingDataset(
         dataset_dir=data_dir,
         training=False,
-        txt_name="test single.txt",
+        txt_name="test.txt",
         data_name=Dataset,
         image_folder=image_folder,
         predict=predict)
