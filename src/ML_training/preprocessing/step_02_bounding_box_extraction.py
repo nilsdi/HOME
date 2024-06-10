@@ -1,7 +1,6 @@
 # %%
 from pathlib import Path
 import geopandas as gpd
-import sys
 import json
 from src.ML_training.preprocessing.get_label_data.get_labels import (
     get_labels,
@@ -14,7 +13,7 @@ from src.ML_training.preprocessing.get_label_data.cut_images import (
 import os
 
 # %%
-root_dir = Path(__file__).parents[2]
+root_dir = Path(__file__).parents[3]
 current_dir = Path(__file__).parents[0]
 
 # Read bbox from bbox.json
