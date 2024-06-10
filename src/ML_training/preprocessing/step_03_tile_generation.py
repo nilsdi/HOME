@@ -156,3 +156,5 @@ partition_and_crop_images(
     tile_size=512,
     overlap_rate=0.01,
 )
+
+# %%
