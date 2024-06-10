@@ -89,9 +89,8 @@ def display_rgb_geotiff_subset(file_path, x_start, y_start, width=None,
     plt.show()
 
 
-file_path = ("data/raw/orthophoto/res_0.3/trondheim_strinda_1937/i_lzw_25/" +
-             "Eksport-nib.tif")
-display_rgb_geotiff_subset(file_path, 0, 0, 10000, 10000, dpi=300)
+file_path = (root_dir + "/data/raw/orthophoto/res_0.3/trondheim_1999/i_lzw_25/Eksport-nib-2.tif")
+display_rgb_geotiff_subset(file_path, 0, 0, dpi=150)
 
 # %% display size and resolution of the image
 
