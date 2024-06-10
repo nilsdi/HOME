@@ -10,6 +10,9 @@ geonorge_login.json
 data/
 archive/
 project_density_maps/
+
+# individual difficult files
+developing_plots.ipynb
 # C extensions
 *.so
 
