@@ -36,11 +36,12 @@ class ProjectDensityGrid():
         region_shape (str): path to a geopanda readable shape of the region
         '''
         self.metadata_all_projects = metadata_all_projects
-        self.region_shape_utm = gpd.read_file(region_shape_file).to_crs('EPSG:25833')
+        self.region_shape_utm = gpd.read_file(region_shape_file).to_crs('EPSG:32633')
         
         self.resolution = resolution
         self.region = region
-        self.region_grid, self.transform, self.raster_width, self.raster_height = self.create_region_grid()
+        self.region_grid, self.bounds, \
+        self.transform, self.raster_width, self.raster_height =  self.create_region_grid()
 
         self.density_grid = self.get_density_grid()
         self.oldest_grid = self.get_oldest_project_grid()
@@ -57,19 +58,23 @@ class ProjectDensityGrid():
 
         # creaty empty grid
         raster = np.zeros((height, width), dtype=np.uint8)
-        return raster, transform, width, height
+        return raster, bounds, transform, width, height
     
     def _get_region_transform(self):
         ''' 
         transform to match other geodata onto the region grid
         '''
-        bounds = self.region_shape_utm.total_bounds
+        oj_bounds = self.region_shape_utm.total_bounds
+        print(oj_bounds)
         buffer = 10**5 # 100 km buffer
-        bounds[0] -= buffer
-        bounds[1] -= buffer
-        bounds[2] += buffer
-        bounds[3] += buffer
+        bounds = [
+        oj_bounds[0] - buffer,
+        oj_bounds[1] - buffer,
+        oj_bounds[2] + buffer,
+        oj_bounds[3] + buffer
+        ]
         #print(bounds)
+        # calculate size in pixels for the given dimensions
         width = int(np.ceil((bounds[2] - bounds[0]) / self.resolution))
         height = int(np.ceil((bounds[3] - bounds[1]) / self.resolution))
         transform = from_origin(bounds[0], bounds[3], self.resolution, self.resolution)
@@ -165,47 +170,43 @@ class ProjectDensityGrid():
             fig, ax = plt.subplots(figsize=figsize)
         else:
             fig, ax = plt.subplots(figsize=(15, 15))
+            
+        # calculate the extend of the raster so we can pass it to imshow
         if ignore_zero:
-            '''
             # Create a colormap
             cmap = plt.get_cmap(cmap)
-            # Set the color of the zero values to white
-            cmap.set_bad('white',0)
-            # Create a normalized color map
-            norm = colors.Normalize(vmin=np.min(raster[raster > 0]), vmax=np.max(raster))
-            #show(raster, transform=transform, ax=ax, cmap=cmap, norm = norm)
             # Mask the zero values in the raster
-            raster = np.ma.masked_where(raster == 0, raster)
-            # Use imshow with raster.filled() to apply the set_bad color to masked values
-            ax.imshow(raster.filled(), cmap=cmap, norm=norm)
-            '''
-            # Create a colormap
-            cmap = plt.get_cmap(cmap)
-            # Create a new colormap that maps zero values to white and non-zero values to the original colormap
-            colors = ['white'] + [cmap(i) for i in range(1, cmap.N)]
-            cmap = ListedColormap(colors)
-            # Create a normalized color map
-            norm = Normalize(vmin=np.min(raster[raster > 0]), vmax=np.max(raster))
-            # Mask the zero values in the raster
-            raster = np.ma.masked_where(raster == 0, raster)
-            # Use imshow with raster.filled() to apply the set_bad color
-            ax.imshow(raster.filled(), cmap=cmap, norm=norm)
+            masked = np.ma.masked_where(raster == 0, raster)
+            # Use imshow with the masked raster
+            ax.imshow(masked, cmap=cmap, extent = self.bounds, aspect = 'equal')
+            print(f'the extent that we pass to the plot is {self.bounds}')
         else:
             #show(raster, transform=transform, ax=ax, cmap=cmap)
             ax.imshow(raster, cmap=cmap) # doesnt work with the boundaries 
         if plot_boundaries:
-            self.region_shape_utm.boundary.plot(ax=ax, color = 'darkgrey', linewidth=0.5)
-            
+            for geom in self.region_shape_utm.geometry:
+                if geom.geom_type == 'Polygon':
+                    px, py = geom.exterior.xy
+                    # Apply the Affine transformation to each coordinate pair
+                    #px, py = zip(*[transform * (x_, y_) for x_, y_ in zip(x, y)])
+                    ax.plot(px, py, color='darkgrey', linewidth=0.5)
+                elif geom.geom_type == 'MultiPolygon':
+                    for poly in geom.geoms:
+                        px, py = poly.exterior.xy
+                        # Apply the Affine transformation to each coordinate pair
+                        #px, py = zip(*[transform * (x_, y_) for x_, y_ in zip(x, y)])
+                        ax.plot(px, py, color='darkgrey', linewidth=0.5)
         if plot_colorbar:
             if ignore_zero:
+                norm = colors.Normalize(vmin=np.min(raster[raster > 0]), vmax=np.max(raster))
                 sm = cm.ScalarMappable(cmap=cmap, norm=norm)
                 cb_ticks = [int(n) for n in np.linspace(np.min(raster[raster > 0]), np.max(raster), 5)]
             else:
                 max_value = np.max(raster)
                 min_value = np.min(raster)
+                norm=plt.Normalize(vmin=min_value, vmax=max_value)
                 # Create a ScalarMappable instance
-                sm = cm.ScalarMappable(cmap=cmap, 
-                                                        norm=plt.Normalize(vmin=min_value, vmax=max_value))
+                sm = cm.ScalarMappable(cmap=cmap, norm=norm)
                 cb_ticks = [int(n) for n in np.linspace(np.min(raster), np.max(raster), 5)]
 
             # Create a colorbar
