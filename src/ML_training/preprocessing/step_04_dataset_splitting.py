@@ -16,7 +16,7 @@ with open(current_dir / "bbox.json", "r") as f:
     bbox = json.load(f)
 cities = list(bbox.keys())
 
-data_path = root_dir / "data/ML_training/images"
+data_path = root_dir / "data/ML_training/train/image"
 
 train_file = open(root_dir / "data/ML_training/dataset/train.txt", "w")
 val_file = open(root_dir / "data/ML_training/dataset/val.txt", "w")

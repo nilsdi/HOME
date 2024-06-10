@@ -9,7 +9,7 @@ import shutil
 os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2, 40))
 import cv2  # noqa
 
-root_dir = str(Path(__file__).parents[2])
+root_dir = str(Path(__file__).parents[3])
 
 # %%
 

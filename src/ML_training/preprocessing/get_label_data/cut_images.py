@@ -3,6 +3,7 @@ from rasterio.windows import Window
 import numpy as np
 from pathlib import Path
 from src.utils.bbox_to_meters import convert_bbox_to_meters  # noqa
+from pathlib import Path
 
 
 def cut_geotiff(geotiff_path, bbox: list, pixel_size: float) -> np.array:
@@ -17,7 +18,7 @@ def cut_geotiff(geotiff_path, bbox: list, pixel_size: float) -> np.array:
     Returns:
     np.array : subset of the image
     """
-    target_crs = 'EPSG:25833'
+    target_crs = "EPSG:25833"
     # Define the bounding box and the resolution
     [left, bottom, right, top] = convert_bbox_to_meters(bbox)
 
@@ -28,8 +29,9 @@ def cut_geotiff(geotiff_path, bbox: list, pixel_size: float) -> np.array:
     with rasterio.open(geotiff_path) as src:
 
         # if the crs of the tiff is not the target crs, warn us
-        assert src.crs == target_crs, \
-            f"The crs of the geotiff is not ETRS89, but {src.crs}"
+        assert (
+            src.crs == target_crs
+        ), f"The crs of the geotiff is not ETRS89, but {src.crs}"
         # Convert the bounding box to pixel coordinates
         left_col, top_row = src.index(left, top)
         right_col, bottom_row = src.index(right, bottom)
@@ -49,9 +51,12 @@ def cut_geotiff(geotiff_path, bbox: list, pixel_size: float) -> np.array:
     return subset, subset_transform
 
 
-def save_cut_geotiff(data: np.ndarray, file_name: str,
-                     transform: np.ndarray,
-                     save_folder: str = "data/temp/pretrain/images/") -> None:
+def save_cut_geotiff(
+    data: np.ndarray,
+    file_name: str,
+    transform: np.ndarray,
+    save_folder: str = "data/temp/pretrain/images/",
+) -> None:
     """
     Function to save the subset of the geotiff to a new file
 
@@ -64,19 +69,19 @@ def save_cut_geotiff(data: np.ndarray, file_name: str,
     """
     # Set up the metadata
     meta = {
-        'driver': 'GTiff',
-        'dtype': rasterio.uint8,
-        'count': 3,
-        'width': data.shape[2],
-        'height': data.shape[1],
-        'crs': 'EPSG:25833',
-        'transform': transform
+        "driver": "GTiff",
+        "dtype": rasterio.uint8,
+        "count": 3,
+        "width": data.shape[2],
+        "height": data.shape[1],
+        "crs": "EPSG:25833",
+        "transform": transform,
         # 'transform': transform # lets pray it doens't need a transform
     }
-    root_dir = Path(__file__).parents[2]
+    root_dir = Path(__file__).parents[4]
     file_path = root_dir / save_folder / f"{file_name}.tif"
     # Write the data to a new GeoTIFF file
-    with rasterio.open(file_path, 'w', **meta) as dst:
+    with rasterio.open(file_path, "w", **meta) as dst:
         dst.write(data)
 
     return
