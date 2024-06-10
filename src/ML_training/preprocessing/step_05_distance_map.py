@@ -3,6 +3,7 @@
 # import cv2
 # import torch
 import argparse
+
 # import subprocess
 import numpy as np
 from glob import glob
@@ -13,11 +14,10 @@ from tqdm import tqdm
 from scipy.ndimage import distance_transform_edt, distance_transform_cdt
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--datadir", dest='datadir',
-                    default='data/model/original/')
-parser.add_argument("--outname", default='boundary')
+parser.add_argument("--datadir", dest="datadir", default="data/ML_training/")
+parser.add_argument("--outname", default="boundary")
 # parser.add_argument('--split', nargs='+', default=['train', 'test'])
-parser.add_argument('--metric', default='euc', choices=['euc', 'taxicab'])
+parser.add_argument("--metric", default="euc", choices=["euc", "taxicab"])
 args = parser.parse_args()
 
 label_list = [0, 255]
@@ -37,8 +37,10 @@ def process(inp):
     """
     (indir, outdir, basename) = inp
     # print(inp)
-    labelmap = np.array(Image.open(osp.join(indir, basename)
-                                   ).convert("P")).astype(np.int16)/255
+    labelmap = (
+        np.array(Image.open(osp.join(indir, basename)).convert("P")).astype(np.int16)
+        / 255
+    )
     a = np.sum(labelmap == 0)
     labelmap = _encode_label(labelmap)
     labelmap = labelmap + 1
@@ -50,10 +52,10 @@ def process(inp):
         labelmap_i[labelmap_i != id] = 0
         labelmap_i[labelmap_i == id] = 1
         # label: 1 background: 0
-        if args.metric == 'euc':
+        if args.metric == "euc":
             depth_i = distance_transform_edt(labelmap_i)
-        elif args.metric == 'taxicab':
-            depth_i = distance_transform_cdt(labelmap_i, metric='taxicab')
+        elif args.metric == "taxicab":
+            depth_i = distance_transform_cdt(labelmap_i, metric="taxicab")
         else:
             raise RuntimeError
         depth_map += depth_i
@@ -79,11 +81,13 @@ def process(inp):
     )
 
 
-indir = osp.join(args.datadir, 'train', 'label')
+indir = osp.join(args.datadir, "train", "label")
 outdir = osp.join(args.datadir, args.outname)
-args_to_apply = [(indir, outdir, osp.basename(basename))
-                 for basename in glob(osp.join(indir, "*.tif"))
-                 if "fredrikstad" not in osp.basename(basename)]
-print('Processing {} files'.format(len(args_to_apply)))
+args_to_apply = [
+    (indir, outdir, osp.basename(basename))
+    for basename in glob(osp.join(indir, "*.tif"))
+    if "fredrikstad" not in osp.basename(basename)
+]
+print("Processing {} files".format(len(args_to_apply)))
 for i in tqdm(range(0, len(args_to_apply))):
     process(args_to_apply[i])
