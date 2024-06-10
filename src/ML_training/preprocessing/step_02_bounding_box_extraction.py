@@ -78,7 +78,7 @@ def make_training_data(city):
                         filename = f"{city}_{res}_{year}_{i}_{j}"
 
                         if not os.path.exists(
-                            root_dir / f"data/temp/prepred/images/{filename}.tif"
+                            root_dir / f"data/temp/pretrain/images/{filename}.tif"
                         ):
                             image, transform = cut_geotiff(
                                 geotiff_path, bbox_coordinates, res
@@ -90,7 +90,7 @@ def make_training_data(city):
                                     image,
                                     filename,
                                     transform,
-                                    save_folder="data/temp/prepred/images/",
+                                    save_folder="data/temp/pretrain/images/",
                                 )
 
     return None
