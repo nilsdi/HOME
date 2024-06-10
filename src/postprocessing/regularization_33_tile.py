@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 import os
 from shapely.ops import unary_union
 from pathlib import Path
-
+import pandas as pd
+import pickle
 #%%
 
 #TEST FOR ONE 3*3 TILE 
@@ -26,8 +27,8 @@ dir_1937 = path_data / 'trondheim_1937'
 dir_1979 = path_data / 'trondheim_1979'
 
 #img_select = 'trondheim_0.3_1979_1_0_2_14.tif'
-#img_select = 'trondheim_0.3_2023_1_0_2_14.tif'
-img_select = 'trondheim_0.3_1937_1_1_2_14.tif'
+img_select = 'trondheim_0.3_2023_1_0_2_14.tif'
+#img_select = 'trondheim_0.3_1937_1_1_2_14.tif'
 
 orig_tif_2023 = dir_2023 / 'tiles/images' / img_select
 prediction_2023 = dir_2023 / 'predictions/test' / img_select
@@ -38,8 +39,8 @@ prediction_1937 = dir_1937 / 'predictions/test' / img_select
 orig_tif_1979 = dir_1979 / 'tiles/images' / img_select
 prediction_1979 = dir_1979 / 'predictions/test' / img_select
 
-segimg = prediction_1937
-orig_tif = orig_tif_1937
+segimg = prediction_2023
+orig_tif = orig_tif_2023
 #segimg = root_dir / 'data/model/test_full_pic/predictions/test_33/test_33.tif'
 src_ds = gdal.Open( str(segimg), GA_ReadOnly )
 
@@ -82,7 +83,7 @@ plt.axis('off')
 # Show plot
 plt.show()
 
-plt.savefig('figname.png', facecolor=fig.get_facecolor(), transparent=True)
+#plt.savefig('figname.png', facecolor=fig.get_facecolor(), transparent=True)
 
 #%%
 # Simplify the shapes to minimize the edges
@@ -112,11 +113,6 @@ plt.axis('off')
 
 # Show plot
 plt.show()
-
-#%%
-# Assuming gdf is your GeoDataFrame containing the polygons
-
-print(gpd.GeoDataFrame({'geometry':mypoly}).area.max())
 
 #%%
 # Overlay with the TIFF file (prediction)
@@ -177,3 +173,70 @@ p = gpd.GeoSeries(mypoly[0])
 p.plot()"""
 
 
+# %%
+from osgeo import gdal
+from osgeo.gdalconst import GA_ReadOnly
+import rasterio.features
+from shapely.geometry import shape
+import geopandas as gpd
+import matplotlib.pyplot as plt
+from pathlib import Path
+import pickle
+
+#%%
+# Set the paths
+root_dir = Path(__file__).parents[2]
+path_data = root_dir / 'data/model'
+
+# Directories containing the TIFF files
+dir_2023 = path_data / 'test_full_pic'
+dir_1937 = path_data / 'trondheim_1937'
+dir_1979 = path_data / 'trondheim_1979'
+
+# List of image selections
+img_selects = [
+    'trondheim_0.3_2023_1_0_2_14.tif',
+    'trondheim_0.3_1937_1_1_2_14.tif',
+    'trondheim_0.3_1979_1_0_2_14.tif'
+]
+
+# Function to process a single image
+def process_image(img_select, dir_path):
+    segimg = dir_path / 'predictions/test' / img_select
+    src_ds = gdal.Open(str(segimg), GA_ReadOnly)
+    srcband = src_ds.GetRasterBand(1)
+    myarray = srcband.ReadAsArray()
+
+    mypoly = []
+    for vec in rasterio.features.shapes(myarray):
+        mypoly.append(shape(vec[0]))
+
+    filtered_polygons = [polygon for polygon in mypoly if polygon.area < 450*450 and polygon.area > 15*15]
+    simplified_polygons = [polygon.simplify(5, preserve_topology=True) for polygon in filtered_polygons]
+    rounded_polygons = [polygon.buffer(1, join_style=3, single_sided=True) for polygon in simplified_polygons]
+    rounded_polygons_ext = [polygon.exterior for polygon in rounded_polygons]
+    geoms = list(rounded_polygons_ext)
+    gdf = gpd.GeoDataFrame({'geometry': geoms})
+    return gdf
+
+# Process all images and combine GeoDataFrames
+all_gdfs = []
+for img_select, dir_path in zip(img_selects, [dir_2023, dir_1937, dir_1979]):
+    gdf = process_image(img_select, dir_path)
+    all_gdfs.append(gdf)
+
+# Combine all GeoDataFrames into one
+combined_gdf = gpd.GeoDataFrame(pd.concat(all_gdfs, ignore_index=True))
+
+# Pickle the combined GeoDataFrame
+pickle_file_path = root_dir / "combined_geodata.pkl"
+with open(pickle_file_path, 'wb') as f:
+    pickle.dump(combined_gdf, f)
+
+print(f"Combined GeoDataFrame has been pickled to {pickle_file_path}")
+
+# Plot the combined GeoDataFrame for visualization
+plt.figure(figsize=(10, 10))
+combined_gdf.plot(ax=plt.gca(), facecolor='none', edgecolor='red')
+plt.axis('off')
+plt.show()

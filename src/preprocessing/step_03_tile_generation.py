@@ -1,4 +1,169 @@
 # %%
+
+import os
+from osgeo import gdal
+import numpy as np
+from pathlib import Path
+
+# Function to parse filename and extract its coordinates
+def parse_filename(filename):
+    parts = filename.split('_')
+    row = int(parts[-2])
+    col = int(parts[-1].split('.')[0])
+    return row, col
+
+root_dir = Path(__file__).parents[2]
+current_dir = Path(__file__).parents[0]
+test_file = open(root_dir / 'data/model/trondheim_1979/test.txt', 'w')
+data_path = root_dir / 'data/model/trondheim_1979/tiles/images'
+# Directory containing the TIFF files
+input_dir = root_dir / 'data/model/trondheim_1979/tiles/images'
+output_file = root_dir / 'data/model/trondheim_1979/tiles/reassembled_tile/test.tif'
+file_list_path = root_dir / 'data/model/trondheim_1979/dataset/test.txt'
+
+# Read filenames from the text file
+with open(file_list_path, 'r') as file:
+    filenames = [line.strip() for line in file]
+
+# Determine grid size
+cols, rows = 0, 0
+for filename in filenames:
+    col, row = parse_filename(filename)
+    if row + 1 > rows:
+        rows = row + 1
+    if col + 1 > cols:
+        cols = col + 1
+
+def extract_tile_numbers(filename):
+    parts = filename.split('_')
+    row = int(parts[-2])
+    col = int(parts[-1].split('.')[0])
+    return row, col
+
+def order_files_by_xy(files):
+    file_info = [extract_tile_numbers(filename) for filename in files]
+    ordered_files = sorted(files, key=lambda x: (file_info[files.index(x)][0], file_info[files.index(x)][1]))
+    return ordered_files
+
+def get_columns_from_ordered_files(ordered_files):
+    columns = {}
+    for filename in ordered_files:
+        x, y = extract_tile_numbers(filename)
+        if x not in columns:
+            columns[x] = []
+        columns[x].append(filename)
+    sorted_columns = [columns[key] for key in sorted(columns.keys())]
+    return sorted_columns
+
+def combine_column_tiles(file_list, column, output_file, num_rows=32, overlap_rate=0.01):
+    sample_path = os.path.join(input_dir, file_list[0])
+    sample_dataset = gdal.Open(sample_path)
+
+    if not sample_dataset:
+        raise FileNotFoundError(f"Unable to open sample TIFF file: {sample_path}")
+
+    tile_width = sample_dataset.RasterXSize
+    tile_height = sample_dataset.RasterYSize
+    geo_transform = sample_dataset.GetGeoTransform()
+    projection = sample_dataset.GetProjection()
+
+    effective_tile_height = int(tile_height * (1 - overlap_rate))
+
+    driver = gdal.GetDriverByName('GTiff')
+    combined_dataset = driver.Create(
+        str(output_file),
+        tile_width,
+        effective_tile_height * num_rows + (tile_height - effective_tile_height),
+        sample_dataset.RasterCount,
+        sample_dataset.GetRasterBand(1).DataType
+    )
+
+    combined_dataset.SetGeoTransform(geo_transform)
+    combined_dataset.SetProjection(projection)
+
+    white_tile = np.full((tile_height, tile_width, sample_dataset.RasterCount), 255, dtype=np.uint8)
+    tile_dict = {extract_tile_numbers(filename): filename for filename in file_list}
+
+    for y in range(num_rows):
+        tile_pos = (column, y)
+        y_offset = y * effective_tile_height
+
+        if tile_pos in tile_dict:
+            tile_path = tile_dict[tile_pos]
+            tile_path = os.path.join(input_dir, tile_path)
+            tile_dataset = gdal.Open(tile_path)
+            if tile_dataset:
+                for band in range(1, tile_dataset.RasterCount + 1):
+                    data = tile_dataset.GetRasterBand(band).ReadAsArray()
+                    combined_dataset.GetRasterBand(band).WriteArray(data, 0, y_offset)
+        else:
+            for band in range(1, sample_dataset.RasterCount + 1):
+                combined_dataset.GetRasterBand(band).WriteArray(white_tile[:, :, band - 1], 0, y_offset)
+
+    sample_dataset = None
+    combined_dataset = None
+
+    print(f"Combined column image saved as {output_file}")
+
+def stitch_columns_together(column_files, output_file, overlap_rate=0.01):
+    sample_dataset = gdal.Open(column_files[0])
+
+    tile_width = sample_dataset.RasterXSize
+    tile_height = sample_dataset.RasterYSize
+    effective_tile_width = int(tile_width * (1 - overlap_rate))
+
+    final_width = effective_tile_width * len(column_files) + (tile_width - effective_tile_width)
+    final_height = tile_height
+
+    driver = gdal.GetDriverByName('GTiff')
+    combined_dataset = driver.Create(
+        str(output_file),
+        final_width,
+        final_height,
+        sample_dataset.RasterCount,
+        sample_dataset.GetRasterBand(1).DataType
+    )
+
+    combined_dataset.SetGeoTransform(sample_dataset.GetGeoTransform())
+    combined_dataset.SetProjection(sample_dataset.GetProjection())
+
+    for i, column_file in enumerate(column_files):
+        column_dataset = gdal.Open(column_file)
+        if column_dataset:
+            for band in range(1, column_dataset.RasterCount + 1):
+                data = column_dataset.GetRasterBand(band).ReadAsArray()
+                x_offset = i * effective_tile_width
+                y_offset = 0
+                combined_dataset.GetRasterBand(band).WriteArray(data, x_offset, y_offset)
+
+    sample_dataset = None
+    combined_dataset = None
+
+    print(f"Final stitched image saved as {output_file}")
+
+# Example usage on the prediction
+with open(file_list_path, 'r') as file:
+    file_list = [line.strip() for line in file]
+
+file_list = [filename if filename.endswith('.tif') else f"{filename}.tif" for filename in file_list]
+ordered_files = order_files_by_xy(file_list)
+sorted_columns = get_columns_from_ordered_files(ordered_files)
+
+output_base_path = root_dir / 'data/model/trondheim_1979/tiles/reassembled_tile'
+
+for i, column in enumerate(sorted_columns):
+    output_file = output_base_path / f'reassembled_tile_{i}.tif'
+    if not output_file.exists():
+        combine_column_tiles(column, i, output_file)
+        print(f"Created {output_file}")
+
+column_files = [str(output_base_path / f'reassembled_tile_{i}.tif') for i in range(len(sorted_columns))]
+output_file = output_base_path / 'final_stitched_image.tif'
+stitch_columns_together(column_files, output_file)
+
+
+
+"""# %%
 import os
 import numpy as np
 from tqdm import tqdm
@@ -321,3 +486,4 @@ tile_labels_no_images(input_dir_labels,
                       overlap_rate=0.01)
 
 # %%
+"""
