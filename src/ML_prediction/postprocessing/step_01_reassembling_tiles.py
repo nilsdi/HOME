@@ -4,6 +4,16 @@ import os
 from osgeo import gdal
 import numpy as np
 from pathlib import Path
+import cv2
+#%%
+
+#test_tif = '/scratch/mueller_andco/demolition_footprints/demolition_footprints/data/ML_model/trondheim_1979/tiles/images/trondheim_0.3_1979_1_0_18_2.tif'
+test_tif = '/scratch/mueller_andco/demolition_footprints/demolition_footprints/data/temp/prepred/images/archive/trondheim_0.3_2023_1_0.tif'
+test_test = gdal.Open(test_tif)
+#print(test_test.GetGeoTransform())
+print(test_test.GetProjection())
+image = cv2.imread(test_tif)
+#image.shape
 
 #%%
 
@@ -15,16 +25,26 @@ overlap_rate = 0.01
 """ 
 - there will be one folder per project with all the tiles of prediction 
 - + one text file with the path + names of the tiles? 
+- need the original ortophoto geotif (to get the coordinates + resolution), this I have yet to do
 
 """
-
-#test_file = open(root_dir / 'data/model/trondheim_1979/test.txt', 'w')
-
-"""# path to the raw tiles (useless??)
-data_path = root_dir / 'data/model/trondheim_1979/tiles/images'"""
-
 # path to the prediction tiles
 input_dir = root_dir / 'data/model/trondheim_1979/predictions/test'
+
+#path to the original orthophoto
+ortho_path = root_dir / 'nananinana'
+
+# retrieve metadata from it (resolution + coordinates of the top left pixel)
+orig_ortho = gdal.Open(ortho_path)
+
+metadata_ortho = orig_ortho.GetGeoTransform()
+#resolution in meters
+resolution = metadata_ortho[1]
+#coord of the upper left corner of the upper left pixel
+x_coord = metadata_ortho[0]
+y_coord = metadata_ortho[3]
+# coord system
+orig_ortho.GetProjection()
 
 # output location for the reassembled tile: in a diff folder 
 # bc we make multiple reassembled tiles per project (5km x 5km with 500m overlap)
@@ -36,6 +56,16 @@ output_file = root_dir / 'data/model/trondheim_1979/predictions/reassembled_tile
 file_list_path = root_dir / 'data/model/trondheim_1979/dataset/test.txt'
 
 #%%
+
+"""
+- first we extract the nb of rows and cols 
+- then we order the files
+- then we create a list of ordered columns
+- then we combine the tiles into columns + stitch the columns together
+"""
+
+#%%
+
 # Function to parse filename and extract its coordinates: row and col
 def extract_tile_numbers(filename):
     """
@@ -53,18 +83,21 @@ def extract_tile_numbers(filename):
     col = int(parts[-1].split('.')[0])
     return row, col
 
-# Read filenames from the text file
-with open(file_list_path, 'r') as file:
-    filenames = [line.strip() for line in file]
+def get_nb_row_col(file_list_path):
+    # Read filenames from the text file
+    with open(file_list_path, 'r') as file:
+        filenames = [line.strip() for line in file]
+    # Determine grid size
+    cols, rows = 0, 0
+    for filename in filenames:
+        col, row = extract_tile_numbers(filename)
+        if row + 1 > rows:
+            rows = row + 1
+        if col + 1 > cols:
+            cols = col + 1
+    return rows, cols
 
-# Determine grid size
-cols, rows = 0, 0
-for filename in filenames:
-    col, row = extract_tile_numbers(filename)
-    if row + 1 > rows:
-        rows = row + 1
-    if col + 1 > cols:
-        cols = col + 1
+rows, cols = get_nb_row_col(file_list_path)
 
 #%%
 
@@ -110,63 +143,18 @@ def get_columns_from_ordered_files(ordered_files):
 
 #%%
 
-def combine_tiles(ordered_files, output_file):
+def combine_column_tiles(file_list, column, output_file, num_rows=rows, overlap_rate=0.01):
     """
-    Combines tiles in the right order into a single image.
-    
-    Args:
-        file_list (list of str): List of filenames representing tiles.
-        output_file (str): Path to save the combined image.
-    """
-    # Open one of the files to get the tile size and georeference info
-    sample_path = os.path.join(input_dir, ordered_files[0])
-    # Open the first tile to get size and other information
-    sample_dataset = gdal.Open(sample_path)
-
-    # Create a new raster dataset for the combined image
-    driver = gdal.GetDriverByName('GTiff')
-    combined_dataset = driver.Create(
-        str(output_file),
-        sample_dataset.RasterXSize * len(set(x for x, _ in map(extract_tile_numbers, ordered_files))),
-        sample_dataset.RasterYSize * len(set(y for _, y in map(extract_tile_numbers, ordered_files))),
-        sample_dataset.RasterCount,
-        sample_dataset.GetRasterBand(1).DataType
-    )
-
-    # Copy georeference information
-    combined_dataset.SetGeoTransform(sample_dataset.GetGeoTransform())
-    combined_dataset.SetProjection(sample_dataset.GetProjection())
-
-    # Paste each tile into the combined dataset
-    for i, filename in enumerate(ordered_files):
-        tile_dataset = gdal.Open(filename)
-        if tile_dataset:
-            for band in range(1, tile_dataset.RasterCount + 1):
-                data = tile_dataset.GetRasterBand(band).ReadAsArray()
-                x_offset = (i % len(set(x for x, _ in map(extract_tile_numbers, ordered_files)))) * sample_dataset.RasterXSize
-                y_offset = (i // len(set(x for x, _ in map(extract_tile_numbers, ordered_files)))) * sample_dataset.RasterYSize
-                combined_dataset.GetRasterBand(band).WriteArray(data, x_offset, y_offset)
-
-    # Close the datasets
-    sample_dataset = None
-    combined_dataset = None
-
-    print(f"Combined image saved as {output_file}")
-    
-#%%
-
-def combine_column_tiles(file_list, column, output_file, num_rows=rows):
-    """
-    Combines tiles in one column into a single image, filling missing tiles with white squares.
+    Combines tiles in one column into a single image, removing vertical overlap and filling missing tiles with white squares.
     
     Args:
         file_list (list of str): List of filenames representing tiles.
         column (int): The column number to combine.
         output_file (str): Path to save the combined image.
         num_rows (int): Number of rows each column should have.
+        overlap_rate (float): The overlap rate to account for.
     """
     # Open one of the files to get the tile size and georeference info
-
     sample_path = os.path.join(input_dir, file_list[0])
     sample_dataset = gdal.Open(sample_path)
 
@@ -178,12 +166,15 @@ def combine_column_tiles(file_list, column, output_file, num_rows=rows):
     geo_transform = sample_dataset.GetGeoTransform()
     projection = sample_dataset.GetProjection()
 
+    # Calculate the effective height of each tile without the overlap
+    effective_tile_height = int(tile_height * (1 - overlap_rate))
+
     # Create a new raster dataset for the combined image
     driver = gdal.GetDriverByName('GTiff')
     combined_dataset = driver.Create(
         str(output_file),
         tile_width,
-        tile_height * num_rows,
+        effective_tile_height * num_rows,
         sample_dataset.RasterCount,
         sample_dataset.GetRasterBand(1).DataType
     )
@@ -201,7 +192,7 @@ def combine_column_tiles(file_list, column, output_file, num_rows=rows):
     # Paste each tile into the combined dataset
     for y in range(num_rows):
         tile_pos = (column, y)
-        y_offset = y * tile_height
+        y_offset = y * effective_tile_height
 
         if tile_pos in tile_dict:
             tile_path = tile_dict[tile_pos]
@@ -210,11 +201,13 @@ def combine_column_tiles(file_list, column, output_file, num_rows=rows):
             if tile_dataset:
                 for band in range(1, tile_dataset.RasterCount + 1):
                     data = tile_dataset.GetRasterBand(band).ReadAsArray()
-                    combined_dataset.GetRasterBand(band).WriteArray(data, 0, y_offset)
+                    # Remove the overlap by slicing the array
+                    effective_data = data[:effective_tile_height, :]
+                    combined_dataset.GetRasterBand(band).WriteArray(effective_data, 0, y_offset)
         else:
             # Write the white tile where there is no tile file
             for band in range(1, sample_dataset.RasterCount + 1):
-                combined_dataset.GetRasterBand(band).WriteArray(white_tile[:, :, band - 1], 0, y_offset)
+                combined_dataset.GetRasterBand(band).WriteArray(white_tile[:effective_tile_height, :, band - 1], 0, y_offset)
 
     # Close the datasets
     sample_dataset = None
@@ -223,23 +216,32 @@ def combine_column_tiles(file_list, column, output_file, num_rows=rows):
     print(f"Combined column image saved as {output_file}")
 
 
+
 #%%
 
-def stitch_columns_together(column_files, output_file):
+def stitch_columns_together(column_files, output_file, overlap_rate=0.01):
     """
-    Stitches together multiple column images into a single image.
+    Stitches together multiple column images into a single image, removing horizontal overlap.
     
     Args:
         column_files (list of str): List of paths to the column images.
         output_file (str): Path to save the final stitched image.
+        overlap_rate (float): The overlap rate to account for.
     """
     # Open the first column image to get size and other information
     sample_dataset = gdal.Open(column_files[0])
 
-    # Determine the width and height of the final stitched image
+    if not sample_dataset:
+        raise FileNotFoundError(f"Unable to open sample TIFF file: {column_files[0]}")
+
     tile_width = sample_dataset.RasterXSize
     tile_height = sample_dataset.RasterYSize
-    final_width = tile_width * len(column_files)
+
+    # Calculate the effective width of each tile without the overlap
+    effective_tile_width = int(tile_width * (1 - overlap_rate))
+
+    # Determine the width and height of the final stitched image
+    final_width = effective_tile_width * len(column_files)
     final_height = tile_height
 
     # Create a new raster dataset for the final stitched image
@@ -262,15 +264,18 @@ def stitch_columns_together(column_files, output_file):
         if column_dataset:
             for band in range(1, column_dataset.RasterCount + 1):
                 data = column_dataset.GetRasterBand(band).ReadAsArray()
-                x_offset = i * tile_width
+                # Remove the overlap by slicing the array
+                effective_data = data[:, :effective_tile_width]
+                x_offset = i * effective_tile_width
                 y_offset = 0
-                combined_dataset.GetRasterBand(band).WriteArray(data, x_offset, y_offset)
+                combined_dataset.GetRasterBand(band).WriteArray(effective_data, x_offset, y_offset)
 
     # Close the datasets
     sample_dataset = None
     combined_dataset = None
 
     print(f"Final stitched image saved as {output_file}")
+
 
 #%%
 # Example usage on the prediction
