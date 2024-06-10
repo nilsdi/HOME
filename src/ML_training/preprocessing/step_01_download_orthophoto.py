@@ -5,7 +5,7 @@ import shutil
 import sys
 
 
-from src.get_orthophoto.download_project import download_project  # noqa
+from src.data_acquisition.get_orthophoto.download_project import download_project  # noqa
 
 root_directory = Path(__file__).parents[2]
 possible_downloads = root_directory.glob("data/temp/norgeibilder/urls/*")

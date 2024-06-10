@@ -4,8 +4,8 @@ This script is responsible for initializing the download process for orthophotos
 It takes in donwload details from downloads at `data/temp/norgeibilder/download_que/'
 The downloads that are specified there are then started using the `start_export` function.
 The JobID of the download is then saved at `data/temp/norgeibilder/jobids/`
-We then check the status of all processing jobs using the `status_export` function. 
-If the job is complete, it saves the download URL using the `save_download_url` function, 
+We then check the status of all processing jobs using the `status_export` function.
+If the job is complete, it saves the download URL using the `save_download_url` function,
 and moves the job file to the `used_jobids` directory.
 
 This script continues to check the status of all jobs in a loop until all jobs are complete.
@@ -15,8 +15,8 @@ Dependencies: (if optional files are not provided, the script doesn't do anythin
 - JSON file with download details in `data/temp/norgeibilder/download_que/` dir (optional)
 - JSON files with job details in `data/temp/norgeibilder/jobids/` directory (optional)
 """
-from src.get_orthophoto.start_export import start_export, save_export_job
-from src.get_orthophoto.status_export import status_export, save_download_url
+from src.data_acquisition.get_orthophoto.start_export import start_export, save_export_job
+from src.data_acquisition.get_orthophoto.status_export import status_export, save_download_url
 from pathlib import Path
 import os
 import json
