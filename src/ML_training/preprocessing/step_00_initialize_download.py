@@ -15,8 +15,15 @@ Dependencies: (if optional files are not provided, the script doesn't do anythin
 - JSON file with download details in `data/temp/norgeibilder/download_que/` dir (optional)
 - JSON files with job details in `data/temp/norgeibilder/jobids/` directory (optional)
 """
-from src.data_acquisition.get_orthophoto.start_export import start_export, save_export_job
-from src.data_acquisition.get_orthophoto.status_export import status_export, save_download_url
+
+from src.data_acquisition.orthophoto_api.start_export import (
+    start_export,
+    save_export_job,
+)
+from src.data_acquisition.orthophoto_api.status_export import (
+    status_export,
+    save_download_url,
+)
 from pathlib import Path
 import os
 import json
@@ -25,7 +32,9 @@ import time
 
 root_dir = Path(__file__).resolve().parents[2]
 export_que_dir = root_dir / "data/temp/norgeibilder/exports/"
-exports = [d for d in os.listdir(export_que_dir) if ".json" in d] # get all plain json files
+exports = [
+    d for d in os.listdir(export_que_dir) if ".json" in d
+]  # get all plain json files
 for current_export in exports:
     export_path = export_que_dir / current_export
     with open(export_path, "r") as f:
@@ -33,19 +42,19 @@ for current_export in exports:
     JobID = start_export(**export_details)
     save_export_job(JobID, **export_details)
     # move the job to jobids directory
-    shutil.move(export_path, export_que_dir/"used_exports/" / current_export)
+    shutil.move(export_path, export_que_dir / "used_exports/" / current_export)
 
 
 jobids_dir = root_dir / "data/temp/norgeibilder/jobids/"
 jobs = [j for j in os.listdir(jobids_dir) if "." in j]
-print(f'available jobs: {jobs}.')
+print(f"available jobs: {jobs}.")
 all_jobs_complete = True
 for current_job in jobs:
     job_path = jobids_dir / current_job
     with open(job_path, "r") as f:
         job_details = json.load(f)
     complete, url = status_export(job_details["JobID"])
-    print(f'The job is done: {complete}, the url is {url}.')
+    print(f"The job is done: {complete}, the url is {url}.")
     if complete:
         print("Export complete, JobID moved to archive")
         job_details.pop("JobID")
@@ -65,7 +74,7 @@ while not all_jobs_complete:
         with open(job_path, "r") as f:
             job_details = json.load(f)
         complete, url = status_export(job_details["JobID"])
-        print(f'The job is done: {complete}, the url is {url}.')
+        print(f"The job is done: {complete}, the url is {url}.")
         if complete:
             print("Export complete, JobID moved to archive")
             job_details.pop("JobID")
@@ -75,6 +84,8 @@ while not all_jobs_complete:
         else:
             all_jobs_complete = False
     else:
-        print("Not all jobs are complete. Waiting for 20 minutes before" +
-              " checking again.")
+        print(
+            "Not all jobs are complete. Waiting for 20 minutes before"
+            + " checking again."
+        )
         time.sleep(1200)  # Wait for 20 minutes
