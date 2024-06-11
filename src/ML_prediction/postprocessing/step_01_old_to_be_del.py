@@ -7,39 +7,35 @@ from pathlib import Path
 
 #%%
 
-# Function to parse filename and extract its coordinates
-def parse_filename(filename):
-    parts = filename.split('_')
-    row = int(parts[-2])
-    col = int(parts[-1].split('.')[0])
-    return row, col
-
-#%%
-
 root_dir = Path(__file__).parents[2]
 current_dir = Path(__file__).parents[0]
-test_file = open(root_dir / 'data/model/trondheim_1979/test.txt', 'w')
-data_path = root_dir / 'data/model/trondheim_1979/tiles/images'
-# Directory containing the TIFF files
+
+overlap_rate = 0.01
+
+""" 
+- there will be one folder per project with all the tiles of prediction 
+- + one text file with the path + names of the tiles? 
+
+"""
+
+#test_file = open(root_dir / 'data/model/trondheim_1979/test.txt', 'w')
+
+"""# path to the raw tiles (useless??)
+data_path = root_dir / 'data/model/trondheim_1979/tiles/images'"""
+
+# path to the prediction tiles
 input_dir = root_dir / 'data/model/trondheim_1979/predictions/test'
+
+# output location for the reassembled tile: in a diff folder 
+# bc we make multiple reassembled tiles per project (5km x 5km with 500m overlap)
 output_file = root_dir / 'data/model/trondheim_1979/predictions/reassembled_tile/test.tif'
+
+# text file with (hopefully) all the file names of the tiles of the project
+# assuming we keep the same format for tile names (include row and column)
 file_list_path = root_dir / 'data/model/trondheim_1979/dataset/test.txt'
 
-# Read filenames from the text file
-with open(file_list_path, 'r') as file:
-    filenames = [line.strip() for line in file]
-
-# Determine grid size
-cols, rows = 0, 0
-for filename in filenames:
-    col, row = parse_filename(filename)
-    if row + 1 > rows:
-        rows = row + 1
-    if col + 1 > cols:
-        cols = col + 1
-
 #%%
-
+# Function to parse filename and extract its coordinates: row and col
 def extract_tile_numbers(filename):
     """
     Extracts the x and y (row and col) from a filename 
@@ -51,19 +47,23 @@ def extract_tile_numbers(filename):
     Returns:
         tuple: row, col part extracted from the filename.
     """
-    # Split the filename by underscores
     parts = filename.split('_')
-    
-    # Extract the numbers and convert them to integers
     row = int(parts[-2])
     col = int(parts[-1].split('.')[0])
-
     return row, col
 
-# Example usage
-filename = 'trondheim_0.3_2023_1_0_1_1.tif'
-tile_info = extract_tile_numbers(filename)
-print(tile_info)
+# Read filenames from the text file
+with open(file_list_path, 'r') as file:
+    filenames = [line.strip() for line in file]
+
+# Determine grid size
+cols, rows = 0, 0
+for filename in filenames:
+    col, row = extract_tile_numbers(filename)
+    if row + 1 > rows:
+        rows = row + 1
+    if col + 1 > cols:
+        cols = col + 1
 
 #%%
 
@@ -84,12 +84,6 @@ def order_files_by_xy(files):
     ordered_files = sorted(files, key=lambda x: (file_info[files.index(x)][0], file_info[files.index(x)][1]))
     
     return ordered_files
-
-# Example usage
-file_list = ['trondheim_0.3_2023_1_0_18_19.tif','trondheim_0.3_2023_1_0_17_15.tif','trondheim_0.3_2023_1_0_17_1.tif', 'trondheim_0.3_2023_1_0_18_15.tif', 'trondheim_0.3_2023_1_0_18_20.tif']
-ordered_files = order_files_by_xy(file_list)
-
-print(ordered_files)
 
 
 def get_columns_from_ordered_files(ordered_files):
