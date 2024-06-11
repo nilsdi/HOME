@@ -36,6 +36,14 @@ class ProjectDensityGrid():
         region_shape (str): path to a geopanda readable shape of the region
         '''
         self.metadata_all_projects = metadata_all_projects
+        gdf = gpd.read_file(region_shape_file)
+        gdf = gdf[gdf.geometry.notnull()]
+        gdf = gdf[gdf.geometry.notnull()]
+        gdf = gdf[gdf.is_valid]
+        print(f'the crs of the shape file is {gdf.crs}')
+        gdf.geometry = gdf.geometry.simplify(tolerance=0.001, preserve_topology=True)
+        gdf = gdf.to_crs('EPSG:32633')
+        self.region_shape_utm = gdf
         self.region_shape_utm = gpd.read_file(region_shape_file).to_crs('EPSG:32633')
         
         self.resolution = resolution
@@ -228,7 +236,7 @@ root_directory = Path().resolve().parents[1]
 path_to_shape = root_directory / 'data'/'raw'/'maps'/'Norway_boundaries'/'NOR_adm0.shp'
 
 # load the metadata
-metadata_file = 'metadata_all_projects_20240523000926.json'
+metadata_file = 'metadata_all_projects_20240610192146.json'
 path_to_data = root_directory / 'data' / 'raw' / 'orthophoto'
 
 with open(path_to_data / metadata_file, 'r') as f:
