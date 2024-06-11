@@ -4,12 +4,13 @@ import numpy as np
 from tqdm import tqdm
 from pathlib import Path
 import shutil
+import argparse
 
 # Increase the maximum number of pixels OpenCV can handle
 os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2, 40))
 import cv2  # noqa
 
-root_dir = str(Path(__file__).parents[2])
+root_dir = str(Path(__file__).parents[3])
 
 
 # %%
@@ -19,13 +20,16 @@ def tile_images_no_labels(
     tile_size=512,
     overlap_rate=0.01,
     image_size=None,
+    move_to_archive=False,
+    project_name=None,
 ):
     # Create output directories if they don't exist
     os.makedirs(output_dir_images, exist_ok=True)
 
     # Create archive directories if they don't exist
-    archive_dir_images = os.path.join(input_dir_images, "archive")
-    os.makedirs(archive_dir_images, exist_ok=True)
+    if move_to_archive:
+        archive_dir_images = os.path.join(input_dir_images, "archive")
+        os.makedirs(archive_dir_images, exist_ok=True)
 
     # Get list of all image files in the input directory
     image_files = [f for f in os.listdir(input_dir_images) if f.endswith(".tif")]
@@ -74,7 +78,12 @@ def tile_images_no_labels(
                     image_tile = image[y : y + tile_size, x : x + tile_size]
 
                     # Save the image tile to the output directory
-                    image_tile_filename = f"{image_file[:-4]}_{i}_{j}.tif"
+                    if project_name:
+                        image_tile_filename = (
+                            f"{project_name}_{image_file[-5:-4]}_{i}_{j}.tif"
+                        )
+                    else:
+                        image_tile_filename = f"{image_file[:-4]}_{i}_{j}.tif"
                     image_tile_path = os.path.join(
                         output_dir_images, image_tile_filename
                     )
@@ -83,19 +92,17 @@ def tile_images_no_labels(
                     pbar.update(1)
 
             # Move the processed image to the archive directory
-            shutil.move(
-                os.path.join(input_dir_images, image_file),
-                os.path.join(archive_dir_images, image_file),
-            )
+            if project_name:
+                shutil.move(
+                    os.path.join(input_dir_images, image_file),
+                    os.path.join(input_dir_images, f"{project_name}_{image_file[-5:]}"),
+                )
+            elif move_to_archive:
+                shutil.move(
+                    os.path.join(input_dir_images, image_file),
+                    os.path.join(archive_dir_images, image_file),
+                )
 
-
-input_dir_images = root_dir + "/data/temp/prepred/images/"
-output_dir_images = root_dir + "/data/model/topredict/train/image/"
-
-print("Partitioning and cropping images without labels")
-tile_images_no_labels(
-    input_dir_images, output_dir_images, tile_size=512, overlap_rate=0.01
-)
 
 # %% Similar functions but for labels without images
 
@@ -169,10 +176,41 @@ def tile_labels_no_images(
 input_dir_labels = root_dir + "/data/temp/prepred/labels/"
 output_dir_labels = root_dir + "/data/model/topredict/train/label/"
 
-# print("Partitioning and cropping labels without images")
-# tile_labels_no_images(input_dir_labels,
-#                       output_dir_labels,
-#                       tile_size=512,
-#                       overlap_rate=0.01)
 
 # %%
+def tile_raw_images(project_name, res=0.3, compression="i_lzw_25"):
+
+    input_dir_images = (
+        root_dir + f"/data/raw/orthophoto/res_{res}/{project_name}/{compression}/"
+    )
+    output_dir_images = (
+        root_dir
+        + f"/data/ML_prediction/topredict/image/res_{res}/{project_name}/{compression}/"
+    )
+
+    print(
+        f"Tiling images, project {project_name}, resolution {res}, "
+        + f"compression {compression}"
+    )
+
+    tile_images_no_labels(
+        input_dir_images,
+        output_dir_images,
+        tile_size=512,
+        overlap_rate=0.01,
+        project_name=project_name,
+    )
+    return
+
+
+# %%
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Tile raw orthophotos for prediction with ML model"
+    )
+    parser.add_argument("--project_name", required=True, type=str)
+    parser.add_argument("--res", required=False, type=float, default=0.3)
+    parser.add_argument("--compression", required=False, type=str, default="i_lzw_25")
+    args = parser.parse_args()
+    tile_raw_images(args.project_name, args.res, args.compression)
