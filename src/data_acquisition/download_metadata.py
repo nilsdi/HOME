@@ -1,5 +1,6 @@
 '''
-File is meant to be run in interactive window
+File is meant to be run in interactive window and downloads metadata for all projects in 
+the orthophoto API into a local json.
 '''
 #%% imports
 import json
