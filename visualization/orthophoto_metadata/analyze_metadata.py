@@ -34,7 +34,7 @@ type_definitions = {
     4: 'Orto N50',
     5: 'Orto Skog',
     6: 'Satellittbilde',
-    7: 'Infrarödt',
+    7: 'Infrarødt',
     8: 'Rektifiserte flybilder',
     9: 'Ortofoto',
     10: 'Sant ortofoto',
@@ -74,12 +74,56 @@ plt.xlabel('Year')
 plt.ylabel('Number of projects')
 plt.title('Year histogram')
 
+#%% simple histogram of the covered area of the projects
+print(f'we have the following attributes: {metadata_all_projects['ProjectMetadata'][0]['properties'].keys()}')
+#print(f'with the following values for the first project: {metadata_all_projects['ProjectMetadata'][0]['properties'].values()}')
+print(f'the st_area(shape) is the area of the project, and looks like this: {metadata_all_projects['ProjectMetadata'][0]['properties']['st_area(shape)']}') 
+
+
+areas = np.array([float(m['properties']['st_area(shape)']) for m in metadata_all_projects['ProjectMetadata']])
+
+plt.figure()
+
+# Generate logarithmically spaced bins
+log_bins = np.logspace(np.log10(areas.min()), np.log10(areas.max()), num=50)
+
+plt.hist(areas, bins=log_bins)
+plt.xticks(rotation=90)
+plt.xscale('log')  # Set x-axis to log scale
+plt.xlabel('Area')
+plt.ylabel('Frequency')
+plt.title('Histogram of Areas on Log Scale')
+plt.show()
+
+#print(f'we have a total area of {area0}  for the 0th projects')
 #%% scatter plot of resolution and time
 # we make a scatter plot, but we'll slightly move the individual points randomly
 #  so we see each individual point
 from matplotlib.patches import Patch
 time = [i.year for i in time_list]
 resolution = resolution_list
+dot_size = [np.log(a)**1.7/3 for a in areas]
+def map_array(array, new_min, new_max, scale='log'):
+    if scale == 'log':
+        # Convert array to logarithmic scale, adding a small value to avoid log(0)
+        log_array = np.log(np.array(array) + 1e-100)
+        
+        # Normalize to [0, 1]
+        min_log = log_array.min()
+        max_log = log_array.max()
+        normalized = (log_array - min_log) / (max_log - min_log)
+        
+        # Scale to new range [new_min, new_max]
+        scaled = normalized * (new_max - new_min) + new_min
+    else:
+        # Linear scaling (as a fallback or alternative option)
+        min_val = min(array)
+        max_val = max(array)
+        normalized = (np.array(array) - min_val) / (max_val - min_val)
+        scaled = normalized * (new_max - new_min) + new_min
+    
+    return scaled
+dot_size = map_array(areas, 5, 45, scale='log')
 types = [int(t) for t in ortofoto_type_list]
 
 # Assuming you have a dictionary called type_dict that maps integers to strings
@@ -94,7 +138,7 @@ time_jittered = time + 0.05 * np.random.rand(len(time)) - 0.025
 
 plt.figure(figsize=(12, 8))
 plt.scatter(time_jittered, resolution_jittered, c=type_colors, cmap='Paired', 
-                marker='o', s=15, alpha=0.5)
+                marker='o', s=dot_size, alpha=0.5)
 plt.ylabel('Resolution')
 plt.yscale('log')
 plt.xlabel('Time')
