@@ -16,3 +16,4 @@ dependencies:
   - rasterio
   - geopandas
   - ipykernel
+  - opencv

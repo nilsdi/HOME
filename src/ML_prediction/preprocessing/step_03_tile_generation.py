@@ -5,6 +5,7 @@ from tqdm import tqdm
 from pathlib import Path
 import shutil
 import argparse
+from osgeo import gdal
 
 # Increase the maximum number of pixels OpenCV can handle
 os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2, 40))
@@ -22,6 +23,8 @@ def tile_images_no_labels(
     image_size=None,
     move_to_archive=False,
     project_name=None,
+    res=0.3,
+    show_progress=False
 ):
     skipped_tiles = 0
     # Create output directories if they don't exist
@@ -39,7 +42,8 @@ def tile_images_no_labels(
 
     # Calculate the image size if not given
     total_iterations = 0
-    if image_size is None:
+
+    if show_progress:
         for file in image_files:
             image_path = os.path.join(input_dir_images, file)
             image = cv2.imread(image_path)
@@ -49,13 +53,28 @@ def tile_images_no_labels(
             num_tiles_y = int(np.ceil((height - tile_size) / (effective_tile_size))) + 1
             total_iterations += num_tiles_x * num_tiles_y
     else:
-        height, width = image_size, image_size
+        total_iterations=0
 
     with tqdm(total=total_iterations, desc="Processing") as pbar:
         for image_file in image_files:
-            # Load the image
             image_path = os.path.join(input_dir_images, image_file)
+            # Load the image
+            dataset = gdal.Open()
+            geotransform = dataset.GetGeoTransform()
+
+            # Calculate the coordinates of the top left corner
+            top_left_x = geotransform[0]
+            top_left_y = geotransform[3]
+
+            offset_x = abs(top_left_x) % res 
+            offset_y = abs(top_left_y) % res
+            coord_top_left_x = top_left_x // res 
+            coord_top_left_y = top_left_y // res
+
+            # Pad the image with zeros to ensure that the tiles lie on the grid 
             image = cv2.imread(image_path)
+            padded_image = cv2.copyMakeBorder(image, int(offset_y), 0, int(offset_x), 0, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+
             height, width, _ = image.shape
 
             num_tiles_x = int(np.ceil((width - tile_size) / (effective_tile_size))) + 1
@@ -207,6 +226,7 @@ def tile_raw_images(project_name, res=0.3, compression="i_lzw_25"):
         tile_size=512,
         overlap_rate=0.00,
         project_name=project_name,
+        res=res,
     )
     return
 
