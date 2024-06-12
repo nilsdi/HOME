@@ -1,4 +1,5 @@
 import requests
+from pathlib import Path
 import json
 import os
 import time
@@ -24,10 +25,10 @@ def start_export(project:str, resolution:float, format:int = 4, compression_meth
     rest_export_url = "https://tjenester.norgeibilder.no/rest/startExport.ashx"
 
     # Get the directory of this file
-    parent_dir = os.path.dirname(os.path.abspath(__file__))
+    current_dir = Path(__file__).resolve().parents[0]
 
     # Construct the path to the JSON file
-    json_file_path = os.path.join(parent_dir, 'geonorge_login.json')
+    json_file_path = os.path.join(current_dir, 'geonorge_login.json')
 
     # Open the JSON file
     with open(json_file_path, 'r') as file:
@@ -54,6 +55,9 @@ def start_export(project:str, resolution:float, format:int = 4, compression_meth
     if export_response.status_code != 200:
         raise Exception(f"Export request failed with status code {export_response.status_code}.")
     else:
+        print(f"Export request successful with status code {export_response.status_code}.")
+        response_json = export_response.json()
+        print(response_json)
         JobID = export_response.json()['JobID']
 
     return JobID
@@ -78,12 +82,12 @@ def save_export_job(JobID:int, project:str, resolution:float,
     Returns:
     - None
     '''
-    greatgrandparent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.getcwd())))
+    greatgrandparent_dir = Path(__file__).resolve().parents[3]
 
     # current time for the file name
     current_time = time.strftime("%Y%m%d-%H%M%S")
     file_name = f"Export_{project.lower()}_{current_time}.json"
-    file_path =  greatgrandparent_dir + f"/data/temp/norgeibilder/jobids/" + file_name 
+    file_path =  os.path.join(greatgrandparent_dir, f"data/temp/norgeibilder/jobids/{file_name}")
 
     if compression_method != 5:
         raise Exception("Only LZW compression (type 5) is supported in saving the job at the moment.")
