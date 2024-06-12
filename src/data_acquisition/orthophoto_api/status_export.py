@@ -57,12 +57,12 @@ def save_download_url(download_url: str, project: str, resolution: float,
     '''
     Save the download url to a file for later reference.
     '''
-    grandparent_dir = Path(__file__).resolve().parents[2]
+    greatgrandparent_dir = Path(__file__).resolve().parents[3]
 
     # current time for the file name
     current_time = time.strftime("%Y%m%d-%H%M%S")
     file_name = f"Download_{project.lower()}_{current_time}.json"
-    file_path = grandparent_dir / "data/temp/norgeibilder/urls/" / file_name
+    file_path = os.path.join(greatgrandparent_dir,f"data/temp/norgeibilder/urls/{file_name}")
 
     # this entire block should be changed - we should have a different
     # variable for the compresssion name.
