@@ -16,6 +16,8 @@ from matplotlib import colors
 from matplotlib.colors import ListedColormap
 from matplotlib.colors import Normalize
 
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
 from pathlib import Path
 
 class ProjectDensityGrid():
@@ -73,7 +75,7 @@ class ProjectDensityGrid():
         transform to match other geodata onto the region grid
         '''
         oj_bounds = self.region_shape_utm.total_bounds
-        print(oj_bounds)
+        #print(oj_bounds)
         buffer = 10**5 # 100 km buffer
         bounds = [
         oj_bounds[0] - buffer,
@@ -167,18 +169,20 @@ class ProjectDensityGrid():
                                     plot_colorbar:bool = True,
                                     color_bar_label:str = None,
                                     ignore_zero:bool = False,
+                                    axis_off:bool = True,
                                     show_plot:bool = True, 
                                     save_as:str = None,
+                                    fig:plt.figure = None, ax:plt.Axes = None,
                                     figsize:tuple = None) -> None:
-
         '''
         Display any raster
         '''
-        if figsize:
+        if fig and ax:
+            pass
+        elif figsize:
             fig, ax = plt.subplots(figsize=figsize)
         else:
             fig, ax = plt.subplots(figsize=(15, 15))
-            
         # calculate the extend of the raster so we can pass it to imshow
         if ignore_zero:
             # Create a colormap
@@ -186,25 +190,48 @@ class ProjectDensityGrid():
             # Mask the zero values in the raster
             masked = np.ma.masked_where(raster == 0, raster)
             # Use imshow with the masked raster
-            ax.imshow(masked, cmap=cmap, extent = self.bounds, aspect = 'equal')
-            print(f'the extent that we pass to the plot is {self.bounds}')
+            im = ax.imshow(masked, cmap=cmap, 
+                        extent = [self.bounds[0], self.bounds[2], self.bounds[1], self.bounds[3]], 
+                        aspect = 'equal')
+            #print(f'the extent that we pass to the plot is {self.bounds}')
         else:
             #show(raster, transform=transform, ax=ax, cmap=cmap)
-            ax.imshow(raster, cmap=cmap) # doesnt work with the boundaries 
+            im = ax.imshow(raster, cmap=cmap, 
+                        extent = [self.bounds[0], self.bounds[2], self.bounds[1], self.bounds[3]], 
+                        aspect = 'equal') # doesnt work with the boundaries 
+
         if plot_boundaries:
+            max_geom_extent = [10**10, 10**10, -10**10, -10**10]
+            def extend_max_extend(x, y, max_extent):
+                max_extent[0] = min(max_extent[0], min(x))
+                max_extent[1] = min(max_extent[1], min(y))
+                max_extent[2] = max(max_extent[2], max(x))
+                max_extent[3] = max(max_extent[3], max(y))
+                return max_extent
             for geom in self.region_shape_utm.geometry:
                 if geom.geom_type == 'Polygon':
                     px, py = geom.exterior.xy
                     # Apply the Affine transformation to each coordinate pair
                     #px, py = zip(*[transform * (x_, y_) for x_, y_ in zip(x, y)])
                     ax.plot(px, py, color='darkgrey', linewidth=0.5)
+                    max_geom_extent = extend_max_extend(px, py, max_geom_extent)
                 elif geom.geom_type == 'MultiPolygon':
                     for poly in geom.geoms:
                         px, py = poly.exterior.xy
-                        # Apply the Affine transformation to each coordinate pair
-                        #px, py = zip(*[transform * (x_, y_) for x_, y_ in zip(x, y)])
                         ax.plot(px, py, color='darkgrey', linewidth=0.5)
+                        max_geom_extent = extend_max_extend(px, py, max_geom_extent)
+            #print(f'the extent of the geometry is {max_geom_extent}')
+        
         if plot_colorbar:
+            if self.region.lower() == 'norway':
+                axins = inset_axes(ax, width="5%", height="50%", loc='lower right',
+                   bbox_to_anchor=(0.05, 0.2, 0.65, 0.8),
+                   bbox_transform=ax.transAxes,
+                   borderpad=0)
+            else: 
+                print(f'no specific location for colorbar for country {self.region} defined yet.')
+                axins = inset_axes(ax, width="5%", height="50%", loc='upper right',
+                   bbox_to_anchor=(0.05, 0., 0.8, 0.8), bbox_transform=ax.transAxes, borderpad=0)
             if ignore_zero:
                 norm = colors.Normalize(vmin=np.min(raster[raster > 0]), vmax=np.max(raster))
                 sm = cm.ScalarMappable(cmap=cmap, norm=norm)
@@ -218,15 +245,22 @@ class ProjectDensityGrid():
                 cb_ticks = [int(n) for n in np.linspace(np.min(raster), np.max(raster), 5)]
 
             # Create a colorbar
-            cbar = plt.colorbar(sm, ax=ax, orientation='vertical', ticks=cb_ticks)
+            cbar = plt.colorbar(sm, cax=axins, orientation='vertical', 
+                                            pad=0.02,
+                                            fraction = 0.02,
+                                            ticks=cb_ticks)
+            cbar.ax.tick_params(labelsize=12)
             if color_bar_label:
-                cbar.set_label(color_bar_label) # 'Project coverage - # of projects'
-
+                cbar.set_label(color_bar_label, fontsize = 16, labelpad = 10) # 'Project coverage - # of projects'
+        if axis_off:
+            ax.axis('off')
         if save_as:
-            plt.savefig(save_as, dpi = 300)
+            plt.savefig(f'project_density_maps/{save_as}', dpi = 300)
         if show_plot:
-            plt.show() 
-        return
+            plt.show()
+        #plt.close()
+        #plt.clf()
+        return fig, ax
 
 #%% actually plot
 
@@ -243,15 +277,32 @@ with open(path_to_data / metadata_file, 'r') as f:
     metadata_all_projects = json.load(f)
 
 # create the density grid
+resolution = 500
+figsize = (10,10)
 Norway_density = ProjectDensityGrid(metadata_all_projects['ProjectMetadata'], 
                                                             region_shape_file = path_to_shape, 
-                                                            resolution=10000)
+                                                            resolution=resolution, region='Norway')
+fig, axs = plt.subplots(1, 2, figsize=(14, 9))
+plt.subplots_adjust(wspace=0)
 # plot the density grid
-Norway_density._display_raster(Norway_density.density_grid, Norway_density.transform, 
-                                                    cmap='gist_heat_r', plot_boundaries=False, plot_colorbar=True, 
-                                                    color_bar_label='Project coverage - # of projects')
-Norway_density._display_raster(Norway_density.oldest_grid, Norway_density.transform,
-                                                    cmap='viridis', plot_boundaries=False, plot_colorbar=True, 
-                                                    ignore_zero=True,
-                                                    color_bar_label='Oldest project year', figsize=(15, 15))
+density_cmap = 'gist_heat_r'
+fig, ax = Norway_density._display_raster(Norway_density.density_grid, Norway_density.transform, 
+                                                    cmap=density_cmap, plot_boundaries=False, plot_colorbar=True,
+                                                    #save_as=f'density_project_map_res{resolution}_cmap{density_cmap}.png',
+                                                    color_bar_label='# of projects', 
+                                                    fig = fig, ax = axs[0], show_plot=False)
+axs[0].text(0.04, 0.96, 'a)', transform=axs[0].transAxes, fontsize=16, verticalalignment='top')
+
+# plot the oldest project grid
+oldest_cmap =  'copper'#'pink'#'copper'
+fig, ax = Norway_density._display_raster(Norway_density.oldest_grid, Norway_density.transform,
+                                                    cmap=oldest_cmap, plot_boundaries=False, plot_colorbar=True, 
+                                                    ignore_zero=True, 
+                                                    #save_as=f'oldest_project_map_res{resolution}_cmap{oldest_cmap}.png',
+                                                    color_bar_label='Oldest project', 
+                                                    fig = fig, ax = axs[1], show_plot=False)
+axs[1].text(0.04, 0.96, 'b)', transform=axs[1].transAxes, fontsize=14, verticalalignment='top')
+plt.savefig(f'project_density_maps/Norway_coverage_map_res{resolution}_cmaps_{density_cmap}_{oldest_cmap}.png', 
+                    dpi = 300, bbox_inches='tight')
+plt.show()
 # %%

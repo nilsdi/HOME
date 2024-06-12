@@ -1,5 +1,7 @@
 # creates a folder 'Norway_boundaries' in the 'maps' folder in the 'raw' folder in 
 # the 'data' folder in the root directory of the project that is used for some maps
+# the data is publicly available at the stanford libraries, see
+# https://earthworks.stanford.edu/catalog/stanford-jm135gj5367
 # => needs to be run locally once only.
 #%% imports and direct download
 import requests
