@@ -18,7 +18,7 @@ def tile_images_no_labels(
     input_dir_images,
     output_dir_images,
     tile_size=512,
-    overlap_rate=0.01,
+    overlap_rate=0.00,
     image_size=None,
     move_to_archive=False,
     project_name=None,
@@ -119,7 +119,7 @@ def tile_labels_no_images(
     input_dir_labels,
     output_dir_labels,
     tile_size=512,
-    overlap_rate=0.01,
+    overlap_rate=0.00,
     image_size=None,
 ):
     # Create output directories if they don't exist
@@ -205,7 +205,7 @@ def tile_raw_images(project_name, res=0.3, compression="i_lzw_25"):
         input_dir_images,
         output_dir_images,
         tile_size=512,
-        overlap_rate=0.01,
+        overlap_rate=0.00,
         project_name=project_name,
     )
     return
