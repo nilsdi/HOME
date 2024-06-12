@@ -24,7 +24,6 @@ matplotlib.use("tkagg")
 # %%
 root_dir = Path(__file__).parents[3]
 data_dir = str(root_dir) + "/data/ML_prediction/"
-dir_checkpoint = str(root_dir) + "/data/ML_model/save_weights/run_3/"
 predict = True
 
 
@@ -86,21 +85,26 @@ def predict_and_eval(
         print("Best iou:", best_score)
 
 
-def predict_project(project_name, res=0.3, compression="i_lzw_25"):
+def predict_project(project_name, res=0.3, compression="i_lzw_25", BW=False):
+    if BW:
+        dir_checkpoint = str(root_dir) + "/data/ML_model/save_weights/run_2/"
+        Dataset = "NOCI_BW"
+        read_name = "HDNet_NOCI_BW_best"
+    else:
+        dir_checkpoint = str(root_dir) + "/data/ML_model/save_weights/run_3/"
+        Dataset = "NOCI"
+        read_name = "HDNet_NOCI_best"
+
     pred_name = f"pred_{project_name}_{res}_{compression}.txt"
     prediction_folder = "predictions/test/"
 
-    Dataset = "NOCI"
     prediction_folder = root_dir / "data/ML_prediction/predictions"
     batchsize = 16
     num_workers = 8
-    read_name = "HDNet_NOCI_best"
+
     image_folder = "topredict/image/"
 
     net = HighResolutionDecoupledNet(base_channel=48, num_classes=1)
-    net = convert_model(net)
-    net = torch.nn.parallel.DataParallel(net.to(device))
-    torch.backends.cudnn.benchmark = True
 
     if read_name != "":
         net_state_dict = net.state_dict()
@@ -111,11 +115,14 @@ def predict_project(project_name, res=0.3, compression="i_lzw_25"):
         net.load_state_dict(net_state_dict, strict=False)
         logging.info("Model loaded from " + read_name + ".pth")
 
+    net = convert_model(net)
+    net = torch.nn.parallel.DataParallel(net.to(device))
+    torch.backends.cudnn.benchmark = True
+
     print("Number of parameters: ", sum(p.numel() for p in net.parameters()))
 
     predict_and_eval(
         net=net,
-        batch_size=batchsize,
         device=device,
         data_dir=data_dir,
         predict=True,
@@ -125,6 +132,7 @@ def predict_project(project_name, res=0.3, compression="i_lzw_25"):
         num_workers=num_workers,
         Dataset=Dataset,
         batchsize=batchsize,
+        read_name=read_name,
     )
 
 
@@ -140,5 +148,11 @@ if __name__ == "__main__":
     parser.add_argument("--project_name", required=True, type=str)
     parser.add_argument("--res", required=False, type=float, default=0.3)
     parser.add_argument("--compression", required=False, type=str, default="i_lzw_25")
+    parser.add_argument("--BW", required=False, type=bool, default=False)
     args = parser.parse_args()
-    predict_project(args.project_name, args.res, args.compression)
+    predict_project(
+        project_name=args.project_name,
+        res=args.res,
+        compression=args.compression,
+        BW=args.BW,
+    )

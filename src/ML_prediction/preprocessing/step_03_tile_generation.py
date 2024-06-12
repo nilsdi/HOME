@@ -23,6 +23,7 @@ def tile_images_no_labels(
     move_to_archive=False,
     project_name=None,
 ):
+    skipped_tiles = 0
     # Create output directories if they don't exist
     os.makedirs(output_dir_images, exist_ok=True)
 
@@ -77,18 +78,22 @@ def tile_images_no_labels(
                     # Crop the tile from the image
                     image_tile = image[y : y + tile_size, x : x + tile_size]
 
-                    # Save the image tile to the output directory
-                    if project_name:
-                        image_tile_filename = (
-                            f"{project_name}_{image_file[-5:-4]}_{i}_{j}.tif"
-                        )
-                    else:
-                        image_tile_filename = f"{image_file[:-4]}_{i}_{j}.tif"
-                    image_tile_path = os.path.join(
-                        output_dir_images, image_tile_filename
-                    )
-                    cv2.imwrite(image_tile_path, image_tile)
+                    if image_tile.sum() != 0:
 
+                        # Save the image tile to the output directory
+                        if project_name:
+                            image_tile_filename = (
+                                f"{project_name}_{image_file[-5:-4]}_{i}_{j}.tif"
+                            )
+                        else:
+                            image_tile_filename = f"{image_file[:-4]}_{i}_{j}.tif"
+                        image_tile_path = os.path.join(
+                            output_dir_images, image_tile_filename
+                        )
+                        cv2.imwrite(image_tile_path, image_tile)
+
+                    else:
+                        skipped_tiles += 1
                     pbar.update(1)
 
             # Move the processed image to the archive directory
@@ -102,6 +107,9 @@ def tile_images_no_labels(
                     os.path.join(input_dir_images, image_file),
                     os.path.join(archive_dir_images, image_file),
                 )
+    print(f"Skipped {skipped_tiles} tiles with no information")
+
+    return
 
 
 # %% Similar functions but for labels without images
