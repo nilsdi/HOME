@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import argparse
 from osgeo import gdal
+import pandas as pd
 
 # Increase the maximum number of pixels OpenCV can handle
 os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2, 40))
@@ -24,7 +25,16 @@ def tile_images_no_labels(
     project_name=None,
     res=0.3,
     show_progress=False,
+    prediction_mask=None,
 ):
+    if prediction_mask is None:
+        prediction_mask = pd.read_csv(
+            root_dir + "/data/ML_prediction/prediction_mask/prediction_mask.csv",
+            index_col=0,
+        )
+        prediction_mask.columns = prediction_mask.columns.astype(int)
+        prediction_mask.index = prediction_mask.index.astype(int)
+
     skipped_tiles = 0
     # Create output directories if they don't exist
     os.makedirs(output_dir_images, exist_ok=True)
@@ -39,85 +49,86 @@ def tile_images_no_labels(
 
     effective_tile_size = tile_size * (1 - overlap_rate)
 
-    # Calculate the image size if not given
-    total_iterations = 0
+    total_tiles = 0
 
-    if show_progress:
-        for file in image_files:
-            image_path = os.path.join(input_dir_images, file)
-            image = cv2.imread(image_path)
-            height, width, _ = image.shape
+    print(f"Processing {len(image_files)} images")
+    for image_file in image_files:
+        image_path = os.path.join(input_dir_images, image_file)
+        # Load the image
+        dataset = gdal.Open(image_path)
+        geotransform = dataset.GetGeoTransform()
 
-            num_tiles_x = int(np.ceil((width - tile_size) / (effective_tile_size))) + 1
-            num_tiles_y = int(np.ceil((height - tile_size) / (effective_tile_size))) + 1
-            total_iterations += num_tiles_x * num_tiles_y
-    else:
-        total_iterations = 0
+        # Calculate the coordinates of the top left corner
+        top_left_x = geotransform[0]
+        top_left_y = geotransform[3]
 
-    with tqdm(total=total_iterations, desc="Processing") as pbar:
-        for image_file in image_files:
-            image_path = os.path.join(input_dir_images, image_file)
-            # Load the image
-            dataset = gdal.Open(image_path)
-            geotransform = dataset.GetGeoTransform()
+        # Calculate the offset and the coordinates of the top left corner of the first tile
+        pixel_size = res * effective_tile_size
 
-            # Calculate the coordinates of the top left corner
-            top_left_x = geotransform[0]
-            top_left_y = geotransform[3]
+        offset_x = abs(top_left_x) % (pixel_size)
+        offset_y = pixel_size - abs(top_left_y) % (pixel_size)
 
-            # Calculate the offset and the coordinates of the top left corner of the first tile
-            offset_x = abs(top_left_x) % (res * effective_tile_size)
-            offset_y = res * effective_tile_size - abs(top_left_y) % (
-                res * effective_tile_size
-            )
-            coord_top_left_x = int(top_left_x // (res * effective_tile_size))
-            coord_top_left_y = int(top_left_y // (res * effective_tile_size) + 1)
+        coord_top_left_x = int(np.floor(top_left_x / pixel_size))
+        coord_top_left_y = int(np.ceil(top_left_y / pixel_size))
 
-            # Pad the image to ensure that the top right point lies on the grid
-            image = cv2.imread(image_path)
-            image = cv2.copyMakeBorder(
-                image,
-                int(np.ceil(offset_y)),
-                0,
-                int(np.ceil(offset_x)),
-                0,
-                cv2.BORDER_CONSTANT,
-                value=[0, 0, 0],
-            )
+        # Pad the image to ensure that the top right point lies on the grid
+        image = cv2.imread(image_path)
+        image = cv2.copyMakeBorder(
+            image,
+            int(np.ceil(offset_y)),
+            0,
+            int(np.ceil(offset_x)),
+            0,
+            cv2.BORDER_CONSTANT,
+            value=[0, 0, 0],
+        )
 
-            height, width, _ = image.shape
+        height, width, _ = image.shape
 
-            num_tiles_x = int(np.ceil((width - tile_size) / (effective_tile_size))) + 1
-            num_tiles_y = int(np.ceil((height - tile_size) / (effective_tile_size))) + 1
+        num_tiles_x = int(np.ceil((width - tile_size) / (effective_tile_size))) + 1
+        num_tiles_y = int(np.ceil((height - tile_size) / (effective_tile_size))) + 1
 
-            # Calculate the required padding
-            padding_x = (num_tiles_x - 1) * effective_tile_size + tile_size - width
-            padding_y = (num_tiles_y - 1) * effective_tile_size + tile_size - height
+        # Calculate the required padding
+        padding_x = (num_tiles_x - 1) * effective_tile_size + tile_size - width
+        padding_y = (num_tiles_y - 1) * effective_tile_size + tile_size - height
 
-            # Pad the image to make sure it contains an integer number of tiles
-            image = np.pad(image, ((0, int(padding_y)), (0, int(padding_x)), (0, 0)))
+        # Pad the image to make sure it contains an integer number of tiles
+        image = np.pad(image, ((0, int(padding_y)), (0, int(padding_x)), (0, 0)))
 
-            # Iterate over each tile
+        # Iterate over each tile
+        total_iterations = num_tiles_x * num_tiles_y
+        total_tiles += total_iterations
+        with tqdm(total=total_iterations, desc="Processing") as pbar:
             for i in range(num_tiles_x):
                 for j in range(num_tiles_y):
-                    # Calculate the tile coordinates
-                    x = int(i * effective_tile_size)
-                    y = int(j * effective_tile_size)
+                    # Calculate the tile coordinates within Norway
+                    grid_x = coord_top_left_x + i
+                    grid_y = coord_top_left_y - j
 
-                    # Crop the tile from the image
-                    image_tile = image[y : y + tile_size, x : x + tile_size]
+                    # Only keep that tile if it's in the prediction mask
+                    if prediction_mask.loc[grid_y, grid_x]:
 
-                    if image_tile.sum() != 0:
+                        # Calculate the tile coordinates within the image
+                        x = int(i * effective_tile_size)
+                        y = int(j * effective_tile_size)
 
-                        # Save the image tile to the output directory
-                        if project_name:
-                            image_tile_filename = f"{project_name}_{image_file[-5:-4]}_{coord_top_left_x + i}_{coord_top_left_y - j}.tif"
+                        # Crop the tile from the image
+                        image_tile = image[y : y + tile_size, x : x + tile_size]
+
+                        if image_tile.sum() != 0:
+
+                            # Save the image tile to the output directory
+                            if project_name:
+                                image_tile_filename = f"{project_name}_{image_file[-5:-4]}_{coord_top_left_x + i}_{coord_top_left_y - j}.tif"
+                            else:
+                                image_tile_filename = f"{image_file[:-4]}_{coord_top_left_x + i}_{coord_top_left_y - j}.tif"
+                            image_tile_path = os.path.join(
+                                output_dir_images, image_tile_filename
+                            )
+                            cv2.imwrite(image_tile_path, image_tile)
+
                         else:
-                            image_tile_filename = f"{image_file[:-4]}_{coord_top_left_x + i}_{coord_top_left_y - j}.tif"
-                        image_tile_path = os.path.join(
-                            output_dir_images, image_tile_filename
-                        )
-                        cv2.imwrite(image_tile_path, image_tile)
+                            skipped_tiles += 1
 
                     else:
                         skipped_tiles += 1
@@ -134,7 +145,7 @@ def tile_images_no_labels(
                     os.path.join(input_dir_images, image_file),
                     os.path.join(archive_dir_images, image_file),
                 )
-    print(f"Skipped {skipped_tiles} tiles with no information")
+    print(f"Skipped {skipped_tiles} out of {total_tiles} tiles with no information")
 
     return
 
@@ -213,7 +224,9 @@ def tile_images_no_labels(
 
 
 # %%
-def tile_raw_images(project_name, res=0.3, compression="i_lzw_25"):
+def tile_generation(
+    project_name, res=0.3, compression="i_lzw_25", prediction_mask=None
+):
 
     input_dir_images = (
         root_dir + f"/data/raw/orthophoto/res_{res}/{project_name}/{compression}/"
@@ -235,6 +248,7 @@ def tile_raw_images(project_name, res=0.3, compression="i_lzw_25"):
         overlap_rate=0.00,
         project_name=project_name,
         res=res,
+        prediction_mask=prediction_mask,
     )
     return
 
@@ -249,4 +263,4 @@ if __name__ == "__main__":
     parser.add_argument("--res", required=False, type=float, default=0.3)
     parser.add_argument("--compression", required=False, type=str, default="i_lzw_25")
     args = parser.parse_args()
-    tile_raw_images(args.project_name, args.res, args.compression)
+    tile_generation(args.project_name, args.res, args.compression)

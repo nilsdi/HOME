@@ -26,6 +26,8 @@ veg_omrader = gpd.read_file(FKB_veg_path, layer='fkb_veg_omrade')
 #bygg_grenser = gpd.read_file(FKB_bygning_path, layer='fkb_bygning_grense')
 
 #%% simple plot in small bounding box
+import folium
+from shapely.geometry import box
 bbox = [10.4081, 63.4305, 10.4101, 63.4325]
 #bbox = [270202.737422,7041627.464458, 270250.921554,7041681.901292 ] # _25833
 veg_grenser_4326 = veg_grenser.to_crs( 'EPSG:4326')
@@ -39,3 +41,18 @@ for _, row in bbox_veg_grenser.iterrows():
     folium.GeoJson(row.geometry, style_function = lambda x: {'color': 'red'}).add_to(m)
 m
 #%%
+import folium
+from shapely.geometry import box
+bbox = [10.4081, 63.4305, 10.4101, 63.4325]
+#bbox = [270202.737422,7041627.464458, 270250.921554,7041681.901292 ] # _25833
+veg_omrader_4326 = veg_omrader.to_crs( 'EPSG:4326')
+bbox_veg_omrader =veg_omrader_4326.cx[bbox[0]:bbox[2], bbox[1]:bbox[3]]
+
+# plot in simple folium map
+m = folium.Map(location=[63.4305, 10.3951], zoom_start=13)
+# Add a rectangle for the bounding box
+folium.GeoJson(box(*bbox), style_function=lambda x: {'color': 'blue', 'fill': False}).add_to(m)
+for _, row in bbox_veg_omrader.iterrows():
+    folium.GeoJson(row.geometry, style_function = lambda x: {'color': 'red'}).add_to(m)
+m
+# %%
