@@ -86,6 +86,11 @@ def predict_and_eval(
 
 
 def predict(project_name, res=0.3, compression="i_lzw_25", BW=False):
+
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    logging.info(f"Using device {device}")
+
     if BW:
         dir_checkpoint = str(root_dir) + "/data/ML_model/save_weights/run_2/"
         Dataset = "NOCI_BW"
@@ -137,10 +142,6 @@ def predict(project_name, res=0.3, compression="i_lzw_25", BW=False):
 
 
 if __name__ == "__main__":
-
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    logging.info(f"Using device {device}")
 
     parser = argparse.ArgumentParser(
         description="Tile raw orthophotos for prediction with ML model"
