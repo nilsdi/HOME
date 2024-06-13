@@ -20,11 +20,10 @@ def tile_images_no_labels(
     output_dir_images,
     tile_size=512,
     overlap_rate=0.00,
-    image_size=None,
     move_to_archive=False,
     project_name=None,
     res=0.3,
-    show_progress=False
+    show_progress=False,
 ):
     skipped_tiles = 0
     # Create output directories if they don't exist
@@ -53,27 +52,38 @@ def tile_images_no_labels(
             num_tiles_y = int(np.ceil((height - tile_size) / (effective_tile_size))) + 1
             total_iterations += num_tiles_x * num_tiles_y
     else:
-        total_iterations=0
+        total_iterations = 0
 
     with tqdm(total=total_iterations, desc="Processing") as pbar:
         for image_file in image_files:
             image_path = os.path.join(input_dir_images, image_file)
             # Load the image
-            dataset = gdal.Open()
+            dataset = gdal.Open(image_path)
             geotransform = dataset.GetGeoTransform()
 
             # Calculate the coordinates of the top left corner
             top_left_x = geotransform[0]
             top_left_y = geotransform[3]
 
-            offset_x = abs(top_left_x) % res 
-            offset_y = abs(top_left_y) % res
-            coord_top_left_x = top_left_x // res 
-            coord_top_left_y = top_left_y // res
+            # Calculate the offset and the coordinates of the top left corner of the first tile
+            offset_x = abs(top_left_x) % (res * effective_tile_size)
+            offset_y = res * effective_tile_size - abs(top_left_y) % (
+                res * effective_tile_size
+            )
+            coord_top_left_x = int(top_left_x // (res * effective_tile_size))
+            coord_top_left_y = int(top_left_y // (res * effective_tile_size) + 1)
 
-            # Pad the image with zeros to ensure that the tiles lie on the grid 
+            # Pad the image to ensure that the top right point lies on the grid
             image = cv2.imread(image_path)
-            padded_image = cv2.copyMakeBorder(image, int(offset_y), 0, int(offset_x), 0, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+            image = cv2.copyMakeBorder(
+                image,
+                int(np.ceil(offset_y)),
+                0,
+                int(np.ceil(offset_x)),
+                0,
+                cv2.BORDER_CONSTANT,
+                value=[0, 0, 0],
+            )
 
             height, width, _ = image.shape
 
@@ -84,7 +94,7 @@ def tile_images_no_labels(
             padding_x = (num_tiles_x - 1) * effective_tile_size + tile_size - width
             padding_y = (num_tiles_y - 1) * effective_tile_size + tile_size - height
 
-            # Pad the image and label
+            # Pad the image to make sure it contains an integer number of tiles
             image = np.pad(image, ((0, int(padding_y)), (0, int(padding_x)), (0, 0)))
 
             # Iterate over each tile
@@ -101,11 +111,9 @@ def tile_images_no_labels(
 
                         # Save the image tile to the output directory
                         if project_name:
-                            image_tile_filename = (
-                                f"{project_name}_{image_file[-5:-4]}_{i}_{j}.tif"
-                            )
+                            image_tile_filename = f"{project_name}_{image_file[-5:-4]}_{coord_top_left_x + i}_{coord_top_left_y - j}.tif"
                         else:
-                            image_tile_filename = f"{image_file[:-4]}_{i}_{j}.tif"
+                            image_tile_filename = f"{image_file[:-4]}_{coord_top_left_x + i}_{coord_top_left_y - j}.tif"
                         image_tile_path = os.path.join(
                             output_dir_images, image_tile_filename
                         )
@@ -132,76 +140,76 @@ def tile_images_no_labels(
 
 
 # %% Similar functions but for labels without images
+# Probably shouldn't be used anymore
+
+# def tile_labels_no_images(
+#     input_dir_labels,
+#     output_dir_labels,
+#     tile_size=512,
+#     overlap_rate=0.00,
+#     image_size=None,
+# ):
+#     # Create output directories if they don't exist
+#     os.makedirs(output_dir_labels, exist_ok=True)
+
+#     # Get list of all image files in the input directory
+#     label_files = [f for f in os.listdir(input_dir_labels) if f.endswith(".tif")]
+
+#     effective_tile_size = tile_size * (1 - overlap_rate)
+
+#     # Calculate the image size if not given
+#     total_iterations = 0
+#     if image_size is None:
+#         for file in label_files:
+#             label_path = os.path.join(input_dir_labels, file)
+#             label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
+#             height, width = label.shape
+
+#             num_tiles_x = int(np.ceil((width - tile_size) / (effective_tile_size))) + 1
+#             num_tiles_y = int(np.ceil((height - tile_size) / (effective_tile_size))) + 1
+#             total_iterations += num_tiles_x * num_tiles_y
+#     else:
+#         height, width = image_size, image_size
+
+#     with tqdm(total=total_iterations, desc="Processing") as pbar:
+#         for label_file in label_files:
+#             # Load the label
+#             label_path = os.path.join(input_dir_labels, label_file)
+#             label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
+#             height, width = label.shape
+
+#             num_tiles_x = int(np.ceil((width - tile_size) / (effective_tile_size))) + 1
+#             num_tiles_y = int(np.ceil((height - tile_size) / (effective_tile_size))) + 1
+
+#             # Calculate the required padding
+#             padding_x = (num_tiles_x - 1) * effective_tile_size + tile_size - width
+#             padding_y = (num_tiles_y - 1) * effective_tile_size + tile_size - height
+
+#             # Pad the image and label
+#             label = np.pad(label, ((0, int(padding_y)), (0, int(padding_x))))
+
+#             # Iterate over each tile
+#             for i in range(num_tiles_x):
+#                 for j in range(num_tiles_y):
+#                     # Calculate the tile coordinates
+#                     x = int(i * effective_tile_size)
+#                     y = int(j * effective_tile_size)
+
+#                     # Crop the tile from the label
+#                     label_tile = label[y : y + tile_size, x : x + tile_size]
+
+#                     # Save the label tile to the output directory
+#                     label_tile_filename = f"{label_file[:-4]}_{i}_{j}.tif"
+#                     label_tile_path = os.path.join(
+#                         output_dir_labels, label_tile_filename
+#                     )
+#                     cv2.imwrite(label_tile_path, label_tile)
+
+#                     pbar.update(1)
 
 
-def tile_labels_no_images(
-    input_dir_labels,
-    output_dir_labels,
-    tile_size=512,
-    overlap_rate=0.00,
-    image_size=None,
-):
-    # Create output directories if they don't exist
-    os.makedirs(output_dir_labels, exist_ok=True)
-
-    # Get list of all image files in the input directory
-    label_files = [f for f in os.listdir(input_dir_labels) if f.endswith(".tif")]
-
-    effective_tile_size = tile_size * (1 - overlap_rate)
-
-    # Calculate the image size if not given
-    total_iterations = 0
-    if image_size is None:
-        for file in label_files:
-            label_path = os.path.join(input_dir_labels, file)
-            label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
-            height, width = label.shape
-
-            num_tiles_x = int(np.ceil((width - tile_size) / (effective_tile_size))) + 1
-            num_tiles_y = int(np.ceil((height - tile_size) / (effective_tile_size))) + 1
-            total_iterations += num_tiles_x * num_tiles_y
-    else:
-        height, width = image_size, image_size
-
-    with tqdm(total=total_iterations, desc="Processing") as pbar:
-        for label_file in label_files:
-            # Load the label
-            label_path = os.path.join(input_dir_labels, label_file)
-            label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
-            height, width = label.shape
-
-            num_tiles_x = int(np.ceil((width - tile_size) / (effective_tile_size))) + 1
-            num_tiles_y = int(np.ceil((height - tile_size) / (effective_tile_size))) + 1
-
-            # Calculate the required padding
-            padding_x = (num_tiles_x - 1) * effective_tile_size + tile_size - width
-            padding_y = (num_tiles_y - 1) * effective_tile_size + tile_size - height
-
-            # Pad the image and label
-            label = np.pad(label, ((0, int(padding_y)), (0, int(padding_x))))
-
-            # Iterate over each tile
-            for i in range(num_tiles_x):
-                for j in range(num_tiles_y):
-                    # Calculate the tile coordinates
-                    x = int(i * effective_tile_size)
-                    y = int(j * effective_tile_size)
-
-                    # Crop the tile from the label
-                    label_tile = label[y : y + tile_size, x : x + tile_size]
-
-                    # Save the label tile to the output directory
-                    label_tile_filename = f"{label_file[:-4]}_{i}_{j}.tif"
-                    label_tile_path = os.path.join(
-                        output_dir_labels, label_tile_filename
-                    )
-                    cv2.imwrite(label_tile_path, label_tile)
-
-                    pbar.update(1)
-
-
-input_dir_labels = root_dir + "/data/temp/prepred/labels/"
-output_dir_labels = root_dir + "/data/model/topredict/train/label/"
+# input_dir_labels = root_dir + "/data/temp/prepred/labels/"
+# output_dir_labels = root_dir + "/data/model/topredict/train/label/"
 
 
 # %%

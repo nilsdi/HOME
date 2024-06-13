@@ -1,3 +1,6 @@
+'''
+Handles download of orthophoto data from the API, including unzipping and adjusting crs.
+'''
 import requests
 import os
 import zipfile
@@ -5,7 +8,7 @@ from pathlib import Path
 from osgeo import gdal, osr
 from tqdm import tqdm
 
-root_dir = Path(__file__).parents[2]
+root_dir = Path(__file__).parents[3]
 
 
 def download_project(download_url: str, project: str, resolution: float,
@@ -43,9 +46,6 @@ def download_project(download_url: str, project: str, resolution: float,
                     file.write(chunk)
                     pbar.update(len(chunk))
 
-    # with open(file_path, 'wb') as file:
-    #     file.write(response.content)
-
     # Unzip the file
     unzip_folder = extract_path / file_name.split(".")[0]
     os.makedirs(unzip_folder, exist_ok=True)
@@ -61,13 +61,16 @@ def download_project(download_url: str, project: str, resolution: float,
         dataset = gdal.Open(str(unzip_folder / tif_file))
         srs = osr.SpatialReference(wkt=dataset.GetProjection())
 
-        # Check if the CRS is already EPSG:25833
-        if srs.GetAuthorityCode(None) != "25833":
+        # Assert CRS is EPSG:25833
+        assert srs.GetAuthorityCode(None) == "25833"
 
-            output_path = str(unzip_folder / tif_file)
-            # Warp the file to EPSG:25833
-            warp_options = gdal.WarpOptions(dstSRS='EPSG:25833')
-            gdal.Warp(output_path, dataset, options=warp_options)
-            # Remove the original file
-            # os.remove(unzip_folder / "/Eksport-nib.tif")
+    # save the proejct for prediction in a text file in temp
+    with open(root_dir / "data/temp/prepred/newly_downloaded_projects.txt", "w") as file:
+        # add a line to the txt file with the project details
+        project_details = {"project": project, "resolution": resolution, 
+                                    'compression_name' : compression_name, 
+                                    'compression_value': compression_value}
+        print(project_details)
+        # write the project details to the file
+        file.write(str(project_details) + "\n")
     return
