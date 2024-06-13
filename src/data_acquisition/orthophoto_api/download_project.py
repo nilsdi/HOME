@@ -65,9 +65,9 @@ def download_project(download_url: str, project: str, resolution: float,
         assert srs.GetAuthorityCode(None) == "25833"
 
     # save the proejct for prediction in a text file in temp
-    with open(root_dir / "data/temp/prepred/newly_downloaded_projects.txt", "w") as file:
+    with open(root_dir / "data/temp/prepred/newly_downloaded_projects.txt", "a") as file:
         # add a line to the txt file with the project details
-        project_details = {"project": project, "resolution": resolution, 
+        project_details = {"project": project.lower().replace(' ', '_'), "resolution": resolution, 
                                     'compression_name' : compression_name, 
                                     'compression_value': compression_value}
         print(project_details)
