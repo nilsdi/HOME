@@ -63,7 +63,7 @@ def download_all_possible():
         download_project(**job_details)
         # move the job to archive
         shutil.move(current_download, job_path / "used_urls" / current_download.name)
-        return
+    return
 download_all_possible()
 
 
