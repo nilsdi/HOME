@@ -85,7 +85,7 @@ def predict_and_eval(
         print("Best iou:", best_score)
 
 
-def predict_project(project_name, res=0.3, compression="i_lzw_25", BW=False):
+def predict(project_name, res=0.3, compression="i_lzw_25", BW=False):
     if BW:
         dir_checkpoint = str(root_dir) + "/data/ML_model/save_weights/run_2/"
         Dataset = "NOCI_BW"
@@ -150,7 +150,7 @@ if __name__ == "__main__":
     parser.add_argument("--compression", required=False, type=str, default="i_lzw_25")
     parser.add_argument("--BW", required=False, type=bool, default=False)
     args = parser.parse_args()
-    predict_project(
+    predict(
         project_name=args.project_name,
         res=args.res,
         compression=args.compression,

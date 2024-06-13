@@ -7,6 +7,7 @@ import zipfile
 from pathlib import Path
 from osgeo import gdal, osr
 from tqdm import tqdm
+import json
 
 root_dir = Path(__file__).parents[3]
 
@@ -64,13 +65,21 @@ def download_project(download_url: str, project: str, resolution: float,
         # Assert CRS is EPSG:25833
         assert srs.GetAuthorityCode(None) == "25833"
 
-    # save the proejct for prediction in a text file in temp
-    with open(root_dir / "data/temp/prepred/newly_downloaded_projects.txt", "a") as file:
-        # add a line to the txt file with the project details
-        project_details = {"project": project.lower().replace(' ', '_'), "resolution": resolution, 
+    # open the json with all the project details from the project log
+    with open(root_dir / "data/ML_prediction/project_log/project_details.json", "r") as file:
+        project_details = json.load(file)
+    # check if the project is already in the json
+    if project.lower().replace(' ', '_') not in project_details.keys():
+        # add the project to the json
+        project_details[project.lower().replace(' ', '_')] = {
+                                    "status": "downloaded",
+                                    "resolution": resolution, 
                                     'compression_name' : compression_name, 
                                     'compression_value': compression_value}
-        print(project_details)
-        # write the project details to the file
-        file.write(str(project_details) + "\n")
+    else:
+        # update the project to downloaded
+        project_details[project.lower().replace(' ', '_')]["status"] = "downloaded"
+    # save the updated json
+    with open(root_dir / "data/ML_prediction/project_log/project_details.json", "w") as file:
+        json.dump(project_details, file)
     return
