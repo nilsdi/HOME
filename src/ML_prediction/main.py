@@ -1,6 +1,8 @@
 import json
 import pandas as pd
 from pathlib import Path
+import logging
+import torch
 
 from src.ML_prediction.preprocessing import (
     step_01_tile_generation,
@@ -36,7 +38,7 @@ def main():
 
     list_of_projects = list(project_details.keys())
 
-    for project_name in list_of_projects[:1]:
+    for project_name in list_of_projects:
         res, compression_name, compression_value = (
             project_details[project_name]["resolution"],
             project_details[project_name]["compression_name"],
@@ -61,7 +63,11 @@ def main():
         )
 
         # Step 3: Predict
-        predict.predict(project_name=project_name, res=res, compression=compression)
+        year = int(project_name.split("_")[-1])
+        BW = year < 1995
+        predict.predict(
+            project_name=project_name, res=res, compression=compression, BW=BW
+        )
 
         # Step 4: Reassemble tiles
         # step_01_reassembling_tiles(project_name)
@@ -71,7 +77,7 @@ def main():
 
         project_details[project_name]["prediction_status"] = "predicted"
         with open(
-            root_dir / "data/ML_prediction/project_log/project_details.json", "r"
+            root_dir / "data/ML_prediction/project_log/project_details.json", "w"
         ) as file:
             json.write(project_details, file)
 
