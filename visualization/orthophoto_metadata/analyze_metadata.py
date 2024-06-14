@@ -6,17 +6,41 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from datetime import datetime
 
 # Get the root directory of the project
-root_directory = Path(__file__).resolve().parents[2]
+root_dir = Path(__file__).resolve().parents[2]
 
-# load the metadata
-metadata_file = 'metadata_all_projects_20240523000926.json'
-path_to_data = root_directory / 'data' / 'raw' / 'orthophoto'
-print(path_to_data / metadata_file)
-with open(path_to_data / metadata_file, 'r') as f:
+path_to_data = root_dir / 'data' / 'raw' / 'orthophoto'
+# list all files (not directories) in the path
+metadata_files = [f for f in os.listdir(path_to_data) if os.path.isfile(os.path.join(path_to_data, f))]
+# the last digits in the file name is the date and time of the metadata, we want the latest
+# Function to extract datetime from filename
+def extract_datetime(filename):
+    # Assuming the date is at the end of the filename and is in a specific format
+    # Adjust the slicing as per your filename format
+    date_str = filename.split('_')[-1].split('.')[0]  # Adjust based on your filename format
+    print(date_str)
+    return datetime.strptime(date_str, "%Y%m%d%H%M%S")  # Adjust the format as per your filename
+
+# Sort files by datetime
+sorted_files = sorted(metadata_files, key=extract_datetime, reverse=True)
+
+# The newest file
+newest_file = sorted_files[0]
+print("Newest file:", newest_file)
+print(path_to_data / newest_file)
+with open(path_to_data / newest_file, 'r') as f:
     metadata_all_projects = json.load(f)
 
+#%% check the keys
+print(f'we have the following keys in the metadata: {metadata_all_projects.keys()}')
+print(f'we have the following keys in the ProjectMetadata: {metadata_all_projects["ProjectMetadata"][0].keys()}')
+print(f'we have the following keys in the ProjectMetadata properties: {metadata_all_projects["ProjectMetadata"][0]["properties"].keys()}')
+# check if names in ProjectList and ProjectMetadata are the same
+names_list = [m['properties']['prosjektnavn'] for m in metadata_all_projects['ProjectMetadata']]
+for name1, name2 in zip(names_list, metadata_all_projects['ProjectList']):
+    print(f'{name1} == {name2}: {name1 == name2}')
 #%%	plot ortophoto types
 ortofoto_type_list = [m['properties']['ortofototype'] for m in metadata_all_projects['ProjectMetadata']]
 
@@ -52,6 +76,36 @@ a = 1+1
 # Convert the resolutions to numbers
 resolution_list = [float(m['properties']['pixelstorrelse']) for m in metadata_all_projects['ProjectMetadata']]
 
+# count the resolutions: 
+# how many are above 0.5 m
+# how many are between 0.3 and 0.5 m
+# how many are between 0.2 and 0.3 m
+# how many are between 0.1 and 0.2 m
+# how many are below 0.1 m
+above_05 = sum(np.array(resolution_list) > 0.5)
+between_03_05 = sum(np.logical_and(np.array(resolution_list) > 0.3, np.array(resolution_list) <= 0.5))
+between_02_03 = sum(np.logical_and(np.array(resolution_list) > 0.2, np.array(resolution_list) <= 0.3))
+between_01_02 = sum(np.logical_and(np.array(resolution_list) > 0.1, np.array(resolution_list) <= 0.2))
+below_01 = sum(np.array(resolution_list) <= 0.1)
+print(f'we have a total of projects with a higher (worse) resolution that 0.5 m: {above_05} '\
+        f'(share: {np.round(above_05/len(resolution_list)*100,1)}%')
+print(f'we have a total of projects with a resolution between 0.3 and 0.5: {between_03_05}'\
+        f' (share: {np.round(between_03_05/len(resolution_list)*100,1)}%')
+print(f'we have a total of projects with a resolution between 0.2 and 0.3: {between_02_03}'\
+        f' (share: {np.round(between_02_03/len(resolution_list)*100,1)}%')
+print(f'we have a total of projects with a resolution between 0.1 and 0.2: {between_01_02}'\
+        f' (share: {np.round(between_01_02/len(resolution_list)*100,1)}%')
+print(f'we have a total of projects with a resolution below 0.1: {below_01} (share: '\
+        f'{np.round(below_01/len(resolution_list)*100,1)}%')
+
+# how many are excalty 0.3, 0.2, 0.1
+exactly_03 = sum(np.array(resolution_list) == 0.3)
+exactly_02 = sum(np.array(resolution_list) == 0.2)
+exactly_01 = sum(np.array(resolution_list) == 0.1)
+print(f'we have a total of projects with a resolution of exactly 0.3 m: {exactly_03}')
+print(f'we have a total of projects with a resolution of exactly 0.2 m: {exactly_02}')
+print(f'we have a total of projects with a resolution of exactly 0.1 m: {exactly_01}') 
+
 plt.figure()
 plt.hist(resolution_list, bins='auto')
 plt.xlabel('Resolution')
@@ -75,9 +129,9 @@ plt.ylabel('Number of projects')
 plt.title('Year histogram')
 
 #%% simple histogram of the covered area of the projects
-print(f'we have the following attributes: {metadata_all_projects['ProjectMetadata'][0]['properties'].keys()}')
+print(f"we have the following attributes: {metadata_all_projects['ProjectMetadata'][0]['properties'].keys()}")
 #print(f'with the following values for the first project: {metadata_all_projects['ProjectMetadata'][0]['properties'].values()}')
-print(f'the st_area(shape) is the area of the project, and looks like this: {metadata_all_projects['ProjectMetadata'][0]['properties']['st_area(shape)']}') 
+print(f"the st_area(shape) is the area of the project, and looks like this: {metadata_all_projects['ProjectMetadata'][0]['properties']['st_area(shape)']}") 
 
 
 areas = np.array([float(m['properties']['st_area(shape)']) for m in metadata_all_projects['ProjectMetadata']])
@@ -145,6 +199,7 @@ plt.xlabel('Time')
 plt.yticks([0.1, 0.2, 0.5, 1, 2, 5, 10], [0.1, 0.2, 0.5, 1, 2, 5, 10])
 plt.title('Resolution vs time - all orthophoto projects Norway')
 plt.legend(handles=legend_elements, title='Types')
+plt.savefig('resolution_vs_time.png', dpi=300, bbox_inches='tight')
 plt.show()
 
 # %%

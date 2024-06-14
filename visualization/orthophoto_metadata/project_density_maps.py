@@ -185,8 +185,9 @@ class ProjectDensityGrid():
             fig, ax = plt.subplots(figsize=(15, 15))
         # calculate the extend of the raster so we can pass it to imshow
         if ignore_zero:
-            # Create a colormap
-            cmap = plt.get_cmap(cmap)
+            # Create a colormap from the string input
+            if type(cmap) == str:
+                cmap = plt.get_cmap(cmap)
             # Mask the zero values in the raster
             masked = np.ma.masked_where(raster == 0, raster)
             # Use imshow with the masked raster
@@ -263,7 +264,7 @@ class ProjectDensityGrid():
         return fig, ax
 
 #%% actually plot
-if __main__:
+if __name__ == "__main__":
     # get the path to the shape file
     root_directory = Path().resolve().parents[1]
     # add path to Norway shapes in data to path
@@ -277,7 +278,7 @@ if __main__:
         metadata_all_projects = json.load(f)
 
     # create the density grid
-    resolution = 500
+    resolution = 50000
     figsize = (10,10)
     Norway_density = ProjectDensityGrid(metadata_all_projects['ProjectMetadata'], 
                                                                 region_shape_file = path_to_shape, 
@@ -292,10 +293,19 @@ if __main__:
                                                         color_bar_label='# of projects', 
                                                         fig = fig, ax = axs[0], show_plot=False)
     axs[0].text(0.04, 0.96, 'a)', transform=axs[0].transAxes, fontsize=16, verticalalignment='top')
-
+    import matplotlib.colors as mcolors
     # plot the oldest project grid
-    oldest_cmaps =  ['copper', 'Blues']#'pink'#'copper'
-    oldest_cmap = oldest_cmaps[1]
+    cmap_colors = [(1, 1, 1), 
+                (0.10137254901960784, 0.58823529411764706, 0.7196078431372549),
+                (0.05137254901960784, 0.38823529411764706, 0.5196078431372549),
+                (0.03137254901960784, 0.24823529411764706, 0.4196078431372549), 
+                (0.03137254901960784, 0.18823529411764706, 0.3696078431372549), 
+                (0,0,0)]
+    cmap_colors.reverse()
+    # Create a custom colormap from the defined colors
+    CustomBlues = mcolors.LinearSegmentedColormap.from_list("CustomBlues", cmap_colors)
+    oldest_cmaps =  ['copper', 'Blues_r', CustomBlues]#'pink'#'copper'
+    oldest_cmap = oldest_cmaps[-1]
     fig, ax = Norway_density._display_raster(Norway_density.oldest_grid, Norway_density.transform,
                                                         cmap=oldest_cmap, plot_boundaries=False, plot_colorbar=True, 
                                                         ignore_zero=True, 
