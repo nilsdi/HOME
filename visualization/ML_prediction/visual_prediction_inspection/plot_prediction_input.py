@@ -45,8 +45,10 @@ def plot_prediction_input(project_details: dict, n_tiles:int = 1, tiles_per_plot
         # set random seed:
         random.seed(42)
         # generate n random numbers in the list of predictions
-        preds = random.choices(preds, k=n_tiles)
-        inputs = random.choices(inputs, k=n_tiles)
+        # just generate indices and then use them to get the files
+        indices = random.sample(range(len(preds)), n_tiles)
+        preds = [preds[i] for i in indices]
+        inputs = [inputs[i] for i in indices]
         #print(len(preds))
     else:
         raise NotImplementedError('Functionality to plot specific tile not implemented yet.')
@@ -95,8 +97,8 @@ def plot_prediction_input(project_details: dict, n_tiles:int = 1, tiles_per_plot
                 plt.close()
 
 if __name__ == '__main__':
-    projects = ['troindheim-gauldal_1947', 'trondheim_2019', 'trondheim_1992']
-    project_details = {'project_name': projects[2], 'resolution': 0.3, 
+    projects = ['trondheim-gauldal_1947', 'trondheim_2019', 'trondheim_1992']
+    project_details = {'project_name': projects[1], 'resolution': 0.3, 
                             'compression_name': 'lzw', 'compression_value': 25, 'status': 'predicted'}
     plot_prediction_input(project_details, n_tiles=10, tiles_per_plot=1, tile_coords=None,
                                         save=True, show=True)                

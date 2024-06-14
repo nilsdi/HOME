@@ -5,25 +5,21 @@ from osgeo import gdal
 import numpy as np
 from pathlib import Path
 import cv2
-
+import json
 # %%
 
 root_dir = Path(__file__).parents[3]
 current_dir = Path(__file__).parents[0]
 
 # Parameters
-project_name = "trondheim_1979"  # Example project name
+project_name = "trondheim_2019"  # Example project name
 x_km = 1  # Size of each small tile in kilometers
 y_overlap = 50  # Overlap in meters for the bigger tiles
 overlap_rate = 0  # 0% overlap (prediction tiles)
 
 
 """
-- we want to do all of this given only the project name
-- there will be one folder per project with all the tiles of prediction
-- + one text file with the path + names of the tiles?
-- need the original ortophoto geotif (to get the coordinates + resolution), this I have yet to do
-
+- just need to sort out the coordinates and add them in the big tiles
 """
 
 
@@ -55,10 +51,7 @@ def extract_tile_numbers(filename):
     return row, col
 
 
-def get_nb_row_col(file_list_path):
-    # Read filenames from the text file
-    with open(file_list_path, "r") as file:
-        filenames = [line.strip() for line in file]
+def get_nb_row_col(filenames):
     # Determine grid size
     cols, rows = 0, 0
     for filename in filenames:
@@ -210,58 +203,63 @@ def split_large_tile_into_small_tiles(
     num_tiles_x = (large_tile_width + tile_size_pixels - overlap_pixels - 1) // (tile_size_pixels - overlap_pixels)
     num_tiles_y = (large_tile_height + tile_size_pixels - overlap_pixels - 1) // (tile_size_pixels - overlap_pixels)
 
-    for y_tile_index in range(num_tiles_y):
-        for x_tile_index in range(num_tiles_x):
-            x_start = x_tile_index * (tile_size_pixels - overlap_pixels)
-            y_start = y_tile_index * (tile_size_pixels - overlap_pixels)
-            x_end = x_start + tile_size_pixels
-            y_end = y_start + tile_size_pixels
+    # Open a text file to write the tile names
+    tiles_list_path = os.path.join(output_dir, f"{project_name}_tiles_list.txt")
+    with open(tiles_list_path, 'w') as tiles_list_file:
+        for y_tile_index in range(num_tiles_y):
+            for x_tile_index in range(num_tiles_x):
+                x_start = x_tile_index * (tile_size_pixels - overlap_pixels)
+                y_start = y_tile_index * (tile_size_pixels - overlap_pixels)
+                x_end = x_start + tile_size_pixels
+                y_end = y_start + tile_size_pixels
 
-            # Create output tile with the exact specified size
-            output_tile_path = os.path.join(
-                output_dir,
-                f"{project_name}_tile_{x_km}km_{y_tile_index}_{x_tile_index}.tif",
-            )
-            driver = gdal.GetDriverByName("GTiff")
-            output_tile = driver.Create(
-                str(output_tile_path),
-                tile_size_pixels,
-                tile_size_pixels,
-                large_tile.RasterCount,
-                large_tile.GetRasterBand(1).DataType,
-            )
-            output_tile.SetGeoTransform(
-                (
-                    large_tile.GetGeoTransform()[0] + x_start * resolution,
-                    resolution,
-                    0,
-                    large_tile.GetGeoTransform()[3] + y_start * resolution,
-                    0,
-                    -resolution,
+                # Define the output tile path
+                output_tile_path = os.path.join(
+                    output_dir,
+                    f"{project_name}_tile_{x_km}km_{y_tile_index}_{x_tile_index}.tif",
                 )
-            )
-            output_tile.SetProjection(large_tile.GetProjection())
-
-            # Initialize tile with black pixels
-            for band in range(1, large_tile.RasterCount + 1):
-                black_tile_data = np.full((tile_size_pixels, tile_size_pixels), 0, dtype=np.uint8)
-                output_tile.GetRasterBand(band).WriteArray(black_tile_data)
-
-            # Read and write actual data within the bounds of the large tile
-            if x_end > large_tile_width:
-                x_end = large_tile_width
-            if y_end > large_tile_height:
-                y_end = large_tile_height
-
-            for band in range(1, large_tile.RasterCount + 1):
-                band_data = large_tile.GetRasterBand(band).ReadAsArray(
-                    x_start, y_start, x_end - x_start, y_end - y_start
+                driver = gdal.GetDriverByName("GTiff")
+                output_tile = driver.Create(
+                    str(output_tile_path),
+                    tile_size_pixels,
+                    tile_size_pixels,
+                    large_tile.RasterCount,
+                    large_tile.GetRasterBand(1).DataType,
                 )
-                if band_data is not None:
-                    output_tile.GetRasterBand(band).WriteArray(band_data, 0, 0)
+                output_tile.SetGeoTransform(
+                    (
+                        large_tile.GetGeoTransform()[0] + x_start * resolution,
+                        resolution,
+                        0,
+                        large_tile.GetGeoTransform()[3] + y_start * resolution,
+                        0,
+                        -resolution,
+                    )
+                )
+                output_tile.SetProjection(large_tile.GetProjection())
 
-            output_tile = None  # Close and save the tile
-            print(f"Saved tile: {output_tile_path}")
+                # Initialize tile with black pixels
+                for band in range(1, large_tile.RasterCount + 1):
+                    black_tile_data = np.full((tile_size_pixels, tile_size_pixels), 0, dtype=np.uint8)
+                    output_tile.GetRasterBand(band).WriteArray(black_tile_data)
+
+                # Read and write actual data within the bounds of the large tile
+                if x_end > large_tile_width:
+                    x_end = large_tile_width
+                if y_end > large_tile_height:
+                    y_end = large_tile_height
+
+                for band in range(1, large_tile.RasterCount + 1):
+                    band_data = large_tile.GetRasterBand(band).ReadAsArray(
+                        x_start, y_start, x_end - x_start, y_end - y_start
+                    )
+                    if band_data is not None:
+                        output_tile.GetRasterBand(band).WriteArray(band_data, 0, 0)
+                tiles_list_file.write(f"{output_tile_path}\n")
+
+                print(f"Saved tile: {output_tile_path}")
+                output_tile = None  # Close and save the tile
+                print(f"Saved tile: {output_tile_path}")
 
     large_tile = None  # Close the large tile
 
@@ -270,57 +268,59 @@ def split_large_tile_into_small_tiles(
 
 # Main script
 
+
 if __name__ == "__main__":
 
-    # path to the prediction tiles
-    input_dir = root_dir / f"data/ML_model/{project_name}/predictions/test"
+    project_dict_path = root_dir / "data/ML_prediction/project_log/project_details.json"
+    # Open and read the JSON file
+    with open(project_dict_path, 'r') as file:
+        project_dict = json.load(file)
 
-    # path to the original orthophoto UPDATE with project name
+    # Get the resolutiom and other details
+    resolution = project_dict[project_name]['resolution']
+    compression_name = project_dict[project_name]['compression_name']
+    compression_value = project_dict[project_name]['compression_value']
+    
+    """    # path to the original orthophoto UPDATE with project name
     # ortho_path = root_dir / 'data/ML_prediction/{project_name}'
     ortho_path = (
-        root_dir / "data/temp/test_zoe/images/archive/trondheim_0.3_1979_1_0.tif"
+        root_dir / f"data/raw/orthophoto/res_{resolution}/{project_name}/Eksport-nib.tif"
     )  # for testing
     # retrieve metadata from it (resolution + coordinates of the top left pixel)
     orig_ortho = gdal.Open(str(ortho_path))
 
     metadata_ortho = orig_ortho.GetGeoTransform()
-    # resolution in meters
-    resolution = metadata_ortho[1]
+
     # coord of the upper left corner of the upper left pixel
     x_coord = metadata_ortho[0]
     y_coord = metadata_ortho[3]
     # coord system
-    coord_sstem = orig_ortho.GetProjection()
+    coord_sstem = orig_ortho.GetProjection()"""
+
+
+    # path to the prediction tiles
+    input_dir = root_dir / f"data/ML_prediction/predictions/res_{resolution}/{project_name}/i_{compression_name}_{compression_value}"
 
     # output location for the reassembled tile: in a diff folder
     # bc we make multiple reassembled tiles per project (5km x 5km with 500m overlap)
     """here add that we create the file if it doesnt exist yet"""
-    output_dir = root_dir / f"data/ML_model/{project_name}/predictions/reassembled_tile"
+    output_dir = root_dir / f"data/ML_prediction/predictions/res_{resolution}/{project_name}/i_{compression_name}_{compression_value}/reassembled_tiles"
     output_file = output_dir / f"full_tif_{project_name}.tif"
 
     # path to text file with (hopefully) all the file names of the tiles of the project
     # assuming we keep the same format for tile names (include row and column)
-    file_list_path = root_dir / f"data/ML_model/{project_name}/dataset/test.txt"
-    rows, cols = get_nb_row_col(file_list_path)
+    # Use glob to find all .tif files in the directory
+    tif_files = list(input_dir.glob('*.tif'))
+    tif_filenames = [file.name for file in tif_files]
+    rows, cols = get_nb_row_col(tif_filenames)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-
-    # Read filenames from the text file
-
-    with open(file_list_path, "r") as file:
-        file_list = [line.strip() for line in file]
-
-    # Append '.tif' extension if not present
-    file_list = [
-        filename if filename.endswith(".tif") else f"{filename}.tif"
-        for filename in file_list
-    ]
 
     # Define the output file for the stitched image
     final_output_file = output_dir / f"full_tif_{project_name}.tif"
 
     # stitch back together the full tif
-    stitch_tiles_together(file_list, final_output_file, cols, rows, input_dir)
+    stitch_tiles_together(tif_filenames, final_output_file, cols, rows, input_dir)
     # split into smaller tiles
     split_large_tile_into_small_tiles(
         final_output_file, output_dir, x_km, y_overlap, resolution, project_name
