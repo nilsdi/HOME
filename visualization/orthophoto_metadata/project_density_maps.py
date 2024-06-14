@@ -15,6 +15,9 @@ import matplotlib.cm as cm
 from matplotlib import colors
 from matplotlib.colors import ListedColormap
 from matplotlib.colors import Normalize
+import matplotlib.colors as mcolors
+from datetime import datetime
+
 
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
@@ -270,15 +273,33 @@ if __name__ == "__main__":
     # add path to Norway shapes in data to path
     path_to_shape = root_directory / 'data'/'raw'/'maps'/'Norway_boundaries'/'NOR_adm0.shp'
 
-    # load the metadata
-    metadata_file = 'metadata_all_projects_20240610192146.json'
-    path_to_data = root_directory / 'data' / 'raw' / 'orthophoto'
+    # Get the root directory of the project
+    root_dir = Path(__file__).resolve().parents[2]
 
-    with open(path_to_data / metadata_file, 'r') as f:
+    path_to_data = root_dir / 'data' / 'raw' / 'orthophoto'
+    # list all files (not directories) in the path
+    metadata_files = [f for f in os.listdir(path_to_data) if os.path.isfile(os.path.join(path_to_data, f))]
+    # the last digits in the file name is the date and time of the metadata, we want the latest
+    # Function to extract datetime from filename
+    def extract_datetime(filename):
+        # Assuming the date is at the end of the filename and is in a specific format
+        # Adjust the slicing as per your filename format
+        date_str = filename.split('_')[-1].split('.')[0]  # Adjust based on your filename format
+        print(date_str)
+        return datetime.strptime(date_str, "%Y%m%d%H%M%S")  # Adjust the format as per your filename
+
+    # Sort files by datetime
+    sorted_files = sorted(metadata_files, key=extract_datetime, reverse=True)
+
+    # The newest file
+    newest_file = sorted_files[0]
+    print("Newest file:", newest_file)
+    print(path_to_data / newest_file)
+    with open(path_to_data / newest_file, 'r') as f:
         metadata_all_projects = json.load(f)
 
     # create the density grid
-    resolution = 50000
+    resolution = 500
     figsize = (10,10)
     Norway_density = ProjectDensityGrid(metadata_all_projects['ProjectMetadata'], 
                                                                 region_shape_file = path_to_shape, 
@@ -293,14 +314,14 @@ if __name__ == "__main__":
                                                         color_bar_label='# of projects', 
                                                         fig = fig, ax = axs[0], show_plot=False)
     axs[0].text(0.04, 0.96, 'a)', transform=axs[0].transAxes, fontsize=16, verticalalignment='top')
-    import matplotlib.colors as mcolors
+    
     # plot the oldest project grid
-    cmap_colors = [(1, 1, 1), 
-                (0.10137254901960784, 0.58823529411764706, 0.7196078431372549),
-                (0.05137254901960784, 0.38823529411764706, 0.5196078431372549),
-                (0.03137254901960784, 0.24823529411764706, 0.4196078431372549), 
-                (0.03137254901960784, 0.18823529411764706, 0.3696078431372549), 
-                (0,0,0)]
+    colors = [(1, 1, 1), 
+                (0.12137254901960784, 0.58823529411764706, 0.7196078431372549),
+                (0.06137254901960784, 0.38823529411764706, 0.5196078431372549),
+                (0.04137254901960784, 0.26823529411764706, 0.4396078431372549), 
+                (0.04137254901960784, 0.20823529411764706, 0.3996078431372549), 
+                (0.09,0.09,0.09)]
     cmap_colors.reverse()
     # Create a custom colormap from the defined colors
     CustomBlues = mcolors.LinearSegmentedColormap.from_list("CustomBlues", cmap_colors)
@@ -313,7 +334,11 @@ if __name__ == "__main__":
                                                         color_bar_label='Oldest project', 
                                                         fig = fig, ax = axs[1], show_plot=False)
     axs[1].text(0.04, 0.96, 'b)', transform=axs[1].transAxes, fontsize=14, verticalalignment='top')
+    if type(oldest_cmap) != str:
+        oldest_cmap = oldest_cmap.name
     plt.savefig(f'project_density_maps/Norway_coverage_map_res{resolution}_cmaps_{density_cmap}_{oldest_cmap}.png', 
                         dpi = 300, bbox_inches='tight')
     plt.show()
 # %%
+oldest_cmap.name
+'testi'.name
