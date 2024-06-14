@@ -11,6 +11,10 @@ data/
 archive/
 project_density_maps/
 
+# selfmade plots (might become too large)
+*.png
+*.tif
+
 # individual difficult files
 developing_plots.ipynb
 # C extensions

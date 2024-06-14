@@ -13,8 +13,8 @@ current_dir = Path(__file__).parents[0]
 
 # Parameters
 project_name = "trondheim_1979"  # Example project name
-x_km = 5  # Size of each small tile in kilometers
-y_overlap = 500  # Overlap in meters for the bigger tiles
+x_km = 1  # Size of each small tile in kilometers
+y_overlap = 50  # Overlap in meters for the bigger tiles
 overlap_rate = 0  # 0% overlap (prediction tiles)
 
 
@@ -69,8 +69,6 @@ def get_nb_row_col(file_list_path):
             cols = col + 1
     return rows, cols
 
-
-rows, cols = get_nb_row_col(file_list_path)
 
 
 def order_files_by_xy(files):
@@ -151,9 +149,9 @@ def stitch_tiles_together(tile_files, output_file, num_columns, num_rows, input_
     combined_dataset.SetGeoTransform(sample_dataset.GetGeoTransform())
     combined_dataset.SetProjection(sample_dataset.GetProjection())
 
-    # Define a white tile
-    white_tile = np.full(
-        (tile_height, tile_width, sample_dataset.RasterCount), 255, dtype=np.uint8
+    # Define a black tile
+    black_tile = np.full(
+        (tile_height, tile_width, sample_dataset.RasterCount), 0, dtype=np.uint8
     )
 
     # Create a dictionary to map tile positions to filenames
@@ -181,10 +179,10 @@ def stitch_tiles_together(tile_files, output_file, num_columns, num_rows, input_
                             data, x_offset, y_offset
                         )
             else:
-                # If no tile, fill the area with white (or any other placeholder)
+                # If no tile, fill the area with black (or any other placeholder)
                 for band in range(1, sample_dataset.RasterCount + 1):
                     combined_dataset.GetRasterBand(band).WriteArray(
-                        white_tile[:, :, band - 1],
+                        black_tile[:, :, band - 1],
                         column * tile_width,
                         row * tile_height,
                     )
@@ -196,70 +194,76 @@ def stitch_tiles_together(tile_files, output_file, num_columns, num_rows, input_
 
 # %%
 
-
 def split_large_tile_into_small_tiles(
     large_tile_path, output_dir, x_km, y_overlap, resolution, project_name
 ):
     large_tile = gdal.Open(str(large_tile_path))
-
     if not large_tile:
-        raise FileNotFoundError(
-            f"Unable to open large tile TIFF file: {large_tile_path}"
-        )
+        raise FileNotFoundError(f"Unable to open large tile TIFF file: {large_tile_path}")
 
     large_tile_width = large_tile.RasterXSize
     large_tile_height = large_tile.RasterYSize
     tile_size_pixels = int((x_km * 1000) / resolution)
     overlap_pixels = int(y_overlap / resolution)
 
-    # Adjust loop to account for overlap on all sides
-    for y in range(
-        0, large_tile_height - overlap_pixels, tile_size_pixels - overlap_pixels
-    ):
-        for x in range(
-            0, large_tile_width - overlap_pixels, tile_size_pixels - overlap_pixels
-        ):
-            x_end = min(x + tile_size_pixels + overlap_pixels, large_tile_width)
-            y_end = min(y + tile_size_pixels + overlap_pixels, large_tile_height)
+    # Calculate the number of tiles needed in both dimensions
+    num_tiles_x = (large_tile_width + tile_size_pixels - overlap_pixels - 1) // (tile_size_pixels - overlap_pixels)
+    num_tiles_y = (large_tile_height + tile_size_pixels - overlap_pixels - 1) // (tile_size_pixels - overlap_pixels)
 
-            # Ensure we have a valid tile size after accounting for overlap
-            if x_end - x > overlap_pixels and y_end - y > overlap_pixels:
-                row_index = y // (tile_size_pixels - overlap_pixels)
-                col_index = x // (tile_size_pixels - overlap_pixels)
-                output_tile_path = os.path.join(
-                    output_dir,
-                    f"{project_name}_tile_{x_km}km_{row_index}_{col_index}.tif",
+    for y_tile_index in range(num_tiles_y):
+        for x_tile_index in range(num_tiles_x):
+            x_start = x_tile_index * (tile_size_pixels - overlap_pixels)
+            y_start = y_tile_index * (tile_size_pixels - overlap_pixels)
+            x_end = x_start + tile_size_pixels
+            y_end = y_start + tile_size_pixels
+
+            # Create output tile with the exact specified size
+            output_tile_path = os.path.join(
+                output_dir,
+                f"{project_name}_tile_{x_km}km_{y_tile_index}_{x_tile_index}.tif",
+            )
+            driver = gdal.GetDriverByName("GTiff")
+            output_tile = driver.Create(
+                str(output_tile_path),
+                tile_size_pixels,
+                tile_size_pixels,
+                large_tile.RasterCount,
+                large_tile.GetRasterBand(1).DataType,
+            )
+            output_tile.SetGeoTransform(
+                (
+                    large_tile.GetGeoTransform()[0] + x_start * resolution,
+                    resolution,
+                    0,
+                    large_tile.GetGeoTransform()[3] + y_start * resolution,
+                    0,
+                    -resolution,
                 )
-                driver = gdal.GetDriverByName("GTiff")
-                output_tile = driver.Create(
-                    str(output_tile_path),
-                    x_end - x,
-                    y_end - y,
-                    large_tile.RasterCount,
-                    large_tile.GetRasterBand(1).DataType,
+            )
+            output_tile.SetProjection(large_tile.GetProjection())
+
+            # Initialize tile with black pixels
+            for band in range(1, large_tile.RasterCount + 1):
+                black_tile_data = np.full((tile_size_pixels, tile_size_pixels), 0, dtype=np.uint8)
+                output_tile.GetRasterBand(band).WriteArray(black_tile_data)
+
+            # Read and write actual data within the bounds of the large tile
+            if x_end > large_tile_width:
+                x_end = large_tile_width
+            if y_end > large_tile_height:
+                y_end = large_tile_height
+
+            for band in range(1, large_tile.RasterCount + 1):
+                band_data = large_tile.GetRasterBand(band).ReadAsArray(
+                    x_start, y_start, x_end - x_start, y_end - y_start
                 )
-                output_tile.SetGeoTransform(
-                    (
-                        large_tile.GetGeoTransform()[0] + x * resolution,  # top left x
-                        resolution,  # pixel width
-                        0,  # rotation, 0 if image is "north up"
-                        large_tile.GetGeoTransform()[3] + y * resolution,  # top left y
-                        0,  # rotation, 0 if image is "north up"
-                        -resolution,  # pixel height (negative)
-                    )
-                )
-                output_tile.SetProjection(large_tile.GetProjection())
+                if band_data is not None:
+                    output_tile.GetRasterBand(band).WriteArray(band_data, 0, 0)
 
-                for band in range(1, large_tile.RasterCount + 1):
-                    band_data = large_tile.GetRasterBand(band).ReadAsArray(
-                        x, y, x_end - x, y_end - y
-                    )
-                    output_tile.GetRasterBand(band).WriteArray(band_data)
+            output_tile = None  # Close and save the tile
+            print(f"Saved tile: {output_tile_path}")
 
-                output_tile = None
-                print(f"Saved tile: {output_tile_path}")
-
-    large_tile = None
+    large_tile = None  # Close the large tile
 
 
 # %%
@@ -297,7 +301,7 @@ if __name__ == "__main__":
     # path to text file with (hopefully) all the file names of the tiles of the project
     # assuming we keep the same format for tile names (include row and column)
     file_list_path = root_dir / f"data/ML_model/{project_name}/dataset/test.txt"
-
+    rows, cols = get_nb_row_col(file_list_path)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -312,13 +316,10 @@ if __name__ == "__main__":
         for filename in file_list
     ]
 
-    # Assuming number of columns (cols) and number of rows (rows) are known or can be calculated
-    # No need to order files by x and y indices or sort them into columns for the new approach
-
     # Define the output file for the stitched image
     final_output_file = output_dir / f"full_tif_{project_name}.tif"
 
-    # Call the improved stitch_tiles_together function directly
+    # stitch back together the full tif
     stitch_tiles_together(file_list, final_output_file, cols, rows, input_dir)
     # split into smaller tiles
     split_large_tile_into_small_tiles(
