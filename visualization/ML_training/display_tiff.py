@@ -30,16 +30,18 @@ def pixel_to_geographic_coordinates(dataset, x, y):
     unit = srs.GetLinearUnitsName()
 
     # If the projection is in meters, convert to degrees
-    if unit == 'metre':
-        transformer = Transformer.from_crs(srs.ExportToProj4(), 'EPSG:4326',
-                                           always_xy=True)
+    if unit == "metre":
+        transformer = Transformer.from_crs(
+            srs.ExportToProj4(), "EPSG:4326", always_xy=True
+        )
         x_geo, y_geo = transformer.transform(x_geo, y_geo)
 
     return x_geo, y_geo
 
 
-def display_rgb_geotiff_subset(file_path, x_start, y_start, width=None,
-                               height=None, dpi=None):
+def display_rgb_geotiff_subset(
+    file_path, x_start, y_start, width=None, height=None, dpi=None
+):
 
     if dpi is None:
         dpi = 100
@@ -64,7 +66,7 @@ def display_rgb_geotiff_subset(file_path, x_start, y_start, width=None,
         subset_rgb = np.transpose(subset_rgb, (1, 2, 0))
         cmap = None
     else:
-        cmap = 'gray'
+        cmap = "gray"
     plt.figure(dpi=dpi)
     plt.imshow(subset_rgb, cmap=cmap)
     # plt.colorbar(label='Pixel Intensity')
@@ -76,10 +78,11 @@ def display_rgb_geotiff_subset(file_path, x_start, y_start, width=None,
     x_tick_labels = []
     y_tick_labels = []
     for x, y in zip(x_ticks, y_ticks):
-        x_geo, y_geo = pixel_to_geographic_coordinates(dataset, x_start + x,
-                                                       y_start + y)
-        x_tick_labels.append('{:.4f}'.format(x_geo))
-        y_tick_labels.append('{:.4f}'.format(y_geo))
+        x_geo, y_geo = pixel_to_geographic_coordinates(
+            dataset, x_start + x, y_start + y
+        )
+        x_tick_labels.append("{:.4f}".format(x_geo))
+        y_tick_labels.append("{:.4f}".format(y_geo))
     plt.xticks(x_ticks, labels=x_tick_labels, rotation=45)
     plt.yticks(y_ticks, labels=y_tick_labels)
 
@@ -89,7 +92,11 @@ def display_rgb_geotiff_subset(file_path, x_start, y_start, width=None,
     plt.show()
 
 
-file_path = (root_dir + "/data/raw/orthophoto/res_0.3/trondheim_1999/i_lzw_25/Eksport-nib-2.tif")
+# %%
+
+file_path = (
+    root_dir + "/data/raw/orthophoto/res_0.3/trondheim_1999/i_lzw_25/Eksport-nib-2.tif"
+)
 display_rgb_geotiff_subset(file_path, 0, 0, dpi=150)
 
 # %% display size and resolution of the image
@@ -108,7 +115,7 @@ projection = dataset.GetProjection()
 srs = osr.SpatialReference(wkt=projection)
 unit = srs.GetLinearUnitsName()
 
-if unit != 'metre':
+if unit != "metre":
     # Constants
     EARTH_RADIUS = 6371 * 1000  # Earth's radius in meters
     LATITUDE = math.radians(63.43)  # Latitude of Trondheim, Norway in radians
@@ -128,27 +135,31 @@ if unit != 'metre':
 print(f"Pixel resolution: {pixel_width:.4f} x {pixel_height:.4f} meters")
 # %%
 
-file_path = (root_dir + "/data/temp/pretrain/labels/" +
-             "trondheim_2019_rect.tif")
-display_rgb_geotiff_subset(file_path, 0, 0, 28000, 17000)
+file_path = (
+    root_dir
+    + "/data/ML_model/trondheim_1937/predictions/reassembled_tile/final_stitched_image.tif"
+)
+display_rgb_geotiff_subset(file_path, 0, 0, 5000, 5000)
 
 # %%
-file_path = (root_dir + "/data/temp/pretrain/images/" +
-             "trondheim_2019_rect.tif")
+file_path = root_dir + "/data/temp/pretrain/images/" + "trondheim_2019_rect.tif"
 display_rgb_geotiff_subset(file_path, 0, 0, 28000, 17000)
 
 
 # %% display image, label and prediction side to side
 
-def display_images_side_by_side(
-        name, prediction: bool = False, label: bool = True,
-        prediction_folder=root_dir + "/data/model/original/predictions/",
-        image_folder=root_dir + "/data/model/original/train/image/",
-        label_folder=root_dir + "/data/model/original/train/label/"):
 
-    assert prediction or label, (
-        "At least one of prediction or label must be True")
-    if name == 'random':
+def display_images_side_by_side(
+    name,
+    prediction: bool = False,
+    label: bool = True,
+    prediction_folder=root_dir + "/data/model/original/predictions/",
+    image_folder=root_dir + "/data/model/original/train/image/",
+    label_folder=root_dir + "/data/model/original/train/label/",
+):
+
+    assert prediction or label, "At least one of prediction or label must be True"
+    if name == "random":
         if prediction:
             files_in_folder = [f for f in os.listdir(prediction_folder)]
             name = files_in_folder[random.randint(0, len(files_in_folder))]
@@ -160,7 +171,7 @@ def display_images_side_by_side(
             name = files_in_folder[random.randint(0, len(files_in_folder))]
             image_path = image_folder + name
             label_path = label_folder + name
-        print('name:', name)
+        print("name:", name)
     else:
         image_path = image_folder + name
         label_path = label_folder + name
@@ -169,8 +180,10 @@ def display_images_side_by_side(
 
     # Open the files
     if prediction:
-        with (rasterio.open(image_path) as image,
-              rasterio.open(prediction_path) as prediction):
+        with (
+            rasterio.open(image_path) as image,
+            rasterio.open(prediction_path) as prediction,
+        ):
             # Read the data
             image_data = image.read([1, 2, 3])
             prediction_data = prediction.read(1)
@@ -184,28 +197,27 @@ def display_images_side_by_side(
 
             # Display the image
             axs[0].imshow(image_data.transpose((1, 2, 0)))
-            axs[0].set_title('Image')
+            axs[0].set_title("Image")
             axs[0].set_xticks([])
             axs[0].set_yticks([])
 
             if label:
                 # Display the label
-                axs[1].imshow(label_data, cmap='gray')
-                axs[1].set_title('Ground Truth')
+                axs[1].imshow(label_data, cmap="gray")
+                axs[1].set_title("Ground Truth")
                 axs[1].set_xticks([])
                 axs[1].set_yticks([])
 
             # Display the prediction
-            axs[-1].imshow(prediction_data, cmap='gray')
-            axs[-1].set_title('Prediction')
+            axs[-1].imshow(prediction_data, cmap="gray")
+            axs[-1].set_title("Prediction")
             axs[-1].set_xticks([])
             axs[-1].set_yticks([])
 
             # Show the figure
             plt.show()
     else:
-        with (rasterio.open(image_path) as image,
-              rasterio.open(label_path) as label):
+        with rasterio.open(image_path) as image, rasterio.open(label_path) as label:
             # Read the data
             image_data = image.read([1, 2, 3])
             label_data = label.read(1)
@@ -215,27 +227,31 @@ def display_images_side_by_side(
 
             # Display the image
             axs[0].imshow(image_data.transpose((1, 2, 0)))
-            axs[0].set_title('Image')
+            axs[0].set_title("Image")
             axs[0].set_xticks([])
             axs[0].set_yticks([])
 
             # Display the label
-            axs[1].imshow(label_data, cmap='gray')
-            axs[1].set_title('Ground Truth')
+            axs[1].imshow(label_data, cmap="gray")
+            axs[1].set_title("Ground Truth")
             axs[1].set_xticks([])
             axs[1].set_yticks([])
 
             # Show the figure
             plt.show()
-    return (fig)
+    return fig
 
 
 image_folder = root_dir + "/data/model/topredict/train/image/"
 prediction_folder = root_dir + "/data/model/topredict/predictions/BW_1937/"
 
-fig = display_images_side_by_side('random', prediction=True,
-                                  prediction_folder=prediction_folder,
-                                  image_folder=image_folder, label=False)
+fig = display_images_side_by_side(
+    "random",
+    prediction=True,
+    prediction_folder=prediction_folder,
+    image_folder=image_folder,
+    label=False,
+)
 
 # %%
 
@@ -243,8 +259,8 @@ for i in range(8):
     image_folder = root_dir + "/data/model/train/image/"
     files_in_folder = [f for f in os.listdir(image_folder)]
     name = files_in_folder[random.randint(0, len(files_in_folder))]
-    image_path = (root_dir + f"/data/model/train/image/{name}")
-    label_path = (root_dir + f"/data/model/train/label/{name}")
+    image_path = root_dir + f"/data/model/train/image/{name}"
+    label_path = root_dir + f"/data/model/train/label/{name}"
 
     # Copy the files to the test folder
     os.system(f"cp {image_path} {root_dir}/figures/images/{name}")
@@ -252,15 +268,14 @@ for i in range(8):
 
 
 # %% display image, label and prediction for Inria, WHU and Mass side to side
-filename = 'oslo_0_latest_14_7'
-datasets = ['Inria', 'WHU', 'Mass']
+filename = "oslo_0_latest_14_7"
+datasets = ["Inria", "WHU", "Mass"]
 
-image_path = (root_dir + f"/data/model/train/image/{filename}.tif")
-label_path = (root_dir + f"/data/model/train/label/{filename}.tif")
+image_path = root_dir + f"/data/model/train/image/{filename}.tif"
+label_path = root_dir + f"/data/model/train/label/{filename}.tif"
 
 # Open the files
-with (rasterio.open(image_path) as image,
-      rasterio.open(label_path) as label):
+with rasterio.open(image_path) as image, rasterio.open(label_path) as label:
     # Read the data
     image_data = image.read([1, 2, 3])
     label_data = label.read(1)
@@ -270,33 +285,33 @@ with (rasterio.open(image_path) as image,
 
     # Display the image
     axs[0].imshow(image_data.transpose((1, 2, 0)))
-    axs[0].set_title('Image')
+    axs[0].set_title("Image")
     axs[0].set_xticks([])
     axs[0].set_yticks([])
 
     # Display the label
-    axs[1].imshow(label_data, cmap='gray')
-    axs[1].set_title('Ground Truth')
+    axs[1].imshow(label_data, cmap="gray")
+    axs[1].set_title("Ground Truth")
     axs[1].set_xticks([])
     axs[1].set_yticks([])
 
     for i, dataset in enumerate(datasets):
-        prediction_path = (
-            root_dir + f"/data/model/predictions/{dataset}/{filename}.tif")
+        prediction_path = root_dir + f"/data/model/predictions/{dataset}/{filename}.tif"
 
         # Open the files
         with rasterio.open(prediction_path) as prediction:
             # Read the data
             prediction_data = prediction.read(1)
-            axs[i + 2].imshow(prediction_data, cmap='gray')
-            axs[i + 2].set_title(f'{datasets[i]} Weights Prediction')
+            axs[i + 2].imshow(prediction_data, cmap="gray")
+            axs[i + 2].set_title(f"{datasets[i]} Weights Prediction")
             axs[i + 2].set_xticks([])
             axs[i + 2].set_yticks([])
 
     # Show the figure
     plt.show()
-    fig.savefig(root_dir + "/figures/pretrain_comparison.png",
-                bbox_inches='tight', pad_inches=0)
+    fig.savefig(
+        root_dir + "/figures/pretrain_comparison.png", bbox_inches="tight", pad_inches=0
+    )
 
 
 # %% display image, label and prediction for trondheim in 3 years: 1937, 1999
@@ -307,19 +322,23 @@ folder_images = root_dir + "/data/model/topredict/train/image/"
 folder_labels = root_dir + "/data/model/topredict/train/label/"
 folder_predictions = root_dir + "/data/model/topredict/predictions/"
 
-years = ['1937', '1999', '2023']
-filenames = ['trondheim_0.3_1937_1_1_',
-             'trondheim_0.3_2019_1_0_',
-             'trondheim_0.3_2023_1_0_']
+years = ["1937", "1999", "2023"]
+filenames = [
+    "trondheim_0.3_1937_1_1_",
+    "trondheim_0.3_2019_1_0_",
+    "trondheim_0.3_2023_1_0_",
+]
 
 
-def display_several_years(folder_images, folder_labels, folder_predictions,
-                          years, filenames, suffix=None):
+def display_several_years(
+    folder_images, folder_labels, folder_predictions, years, filenames, suffix=None
+):
     if suffix is None:
-        files_in_folder = [f for f in os.listdir(folder_images) if
-                           f.startswith(filenames[0])]
+        files_in_folder = [
+            f for f in os.listdir(folder_images) if f.startswith(filenames[0])
+        ]
         name = files_in_folder[random.randint(0, len(files_in_folder))]
-        suffix = name.split('_')[-2] + '_' + name.split('_')[-1]
+        suffix = name.split("_")[-2] + "_" + name.split("_")[-1]
 
     label_path = folder_labels + (filenames[-1] + suffix)
     label_data = rasterio.open(label_path).read(1)
@@ -328,16 +347,17 @@ def display_several_years(folder_images, folder_labels, folder_predictions,
     fig, axs = plt.subplots(3, 3, figsize=(15, 15))
 
     for i, year in enumerate(years):
-        if year == '2023':
+        if year == "2023":
             alpha = 1
         else:
             alpha = 0.5
         image_path = folder_images + (filenames[i] + suffix)
-        prediction_path = folder_predictions + (
-            filenames[i] + suffix)
+        prediction_path = folder_predictions + (filenames[i] + suffix)
         # Open the files
-        with (rasterio.open(image_path) as image,
-              rasterio.open(prediction_path) as prediction):
+        with (
+            rasterio.open(image_path) as image,
+            rasterio.open(prediction_path) as prediction,
+        ):
             # Read the data
             image_data = image.read([1, 2, 3])
             prediction_data = prediction.read(1)
@@ -348,26 +368,54 @@ def display_several_years(folder_images, folder_labels, folder_predictions,
             axs[i, 0].set_yticks([])
 
             # Display the prediction
-            axs[i, 1].imshow(prediction_data, cmap='gray')
+            axs[i, 1].imshow(prediction_data, cmap="gray")
             axs[i, 1].set_xticks([])
             axs[i, 1].set_yticks([])
 
             # Display the label
-            axs[i, 2].imshow(label_data, cmap='gray', alpha=alpha)
+            axs[i, 2].imshow(label_data, cmap="gray", alpha=alpha)
             axs[i, 2].set_xticks([])
             axs[i, 2].set_yticks([])
 
         # Add year to the left
-        axs[i, 0].text(-0.1, 0.5, year, fontsize=12, ha='center',
-                       va='center', transform=axs[i, 0].transAxes)
+        axs[i, 0].text(
+            -0.1,
+            0.5,
+            year,
+            fontsize=12,
+            ha="center",
+            va="center",
+            transform=axs[i, 0].transAxes,
+        )
 
     # Add image prediction label to the top
-    axs[0, 0].text(0.5, 1.05, 'Image', fontsize=12, ha='center',
-                   va='center', transform=axs[0, 0].transAxes)
-    axs[0, 1].text(0.5, 1.05, 'Prediction', fontsize=12, ha='center',
-                   va='center', transform=axs[0, 1].transAxes)
-    axs[0, 2].text(0.5, 1.05, 'Ground Truth (2023)', fontsize=12, ha='center',
-                   va='center', transform=axs[0, 2].transAxes)
+    axs[0, 0].text(
+        0.5,
+        1.05,
+        "Image",
+        fontsize=12,
+        ha="center",
+        va="center",
+        transform=axs[0, 0].transAxes,
+    )
+    axs[0, 1].text(
+        0.5,
+        1.05,
+        "Prediction",
+        fontsize=12,
+        ha="center",
+        va="center",
+        transform=axs[0, 1].transAxes,
+    )
+    axs[0, 2].text(
+        0.5,
+        1.05,
+        "Ground Truth (2023)",
+        fontsize=12,
+        ha="center",
+        va="center",
+        transform=axs[0, 2].transAxes,
+    )
 
     # Add filename as title
     fig.suptitle(suffix, fontsize=16)
@@ -377,28 +425,29 @@ def display_several_years(folder_images, folder_labels, folder_predictions,
     return fig
 
 
-fig = display_several_years(folder_images, folder_labels, folder_predictions,
-                            years, filenames)
+fig = display_several_years(
+    folder_images, folder_labels, folder_predictions, years, filenames
+)
 
 # %% Function to plot side by side image and different predictions
 
 
-def display_any(folders: list,
-                column_names: list,
-                row_names: list = None,
-                filenames: list = 'random'):
-    if filenames == 'random':
+def display_any(
+    folders: list,
+    column_names: list,
+    row_names: list = None,
+    filenames: list = "random",
+):
+    if filenames == "random":
         filenames = []
         for i, row in enumerate(folders):
             files_in_folder = [f for f in os.listdir(row[-1])]
-            filenames.append(
-                files_in_folder[random.randint(0, len(files_in_folder))])
+            filenames.append(files_in_folder[random.randint(0, len(files_in_folder))])
 
     # Open the files
     num_rows = len(folders)
     num_cols = len(folders[0])
-    fig, axs = plt.subplots(
-        num_rows, num_cols, figsize=(5*num_cols, 5*num_rows))
+    fig, axs = plt.subplots(num_rows, num_cols, figsize=(5 * num_cols, 5 * num_rows))
     axs = np.atleast_2d(axs)
     for i, row in enumerate(folders):
         filename = filenames[i]
@@ -409,13 +458,13 @@ def display_any(folders: list,
                 num_channels = image.count
                 if num_channels == 1:
                     data = image.read(1)
-                    cmap = 'gray'
+                    cmap = "gray"
                 else:
                     data = image.read([1, 2, 3])
                     data = data.transpose((1, 2, 0))
                     cmap = None
                 axs[i, j].imshow(data, cmap=cmap)
-                axs[i, j].set_title(f'{column_names[j]}')
+                axs[i, j].set_title(f"{column_names[j]}")
                 axs[i, j].set_xticks([])
                 axs[i, j].set_yticks([])
 
@@ -434,127 +483,166 @@ def display_any(folders: list,
 
 
 # %%
-folders = [[root_dir + "/data/model/topredict/train/image/",
-           root_dir + "/data/model/topredict/predictions/BW_RGB_training/",
-           root_dir + "/data/model/topredict/predictions/BW_1937/"]]
-names = ['Image', 'Original training', 'B&W training']
+folders = [
+    [
+        root_dir + "/data/model/topredict/train/image/",
+        root_dir + "/data/model/topredict/predictions/BW_RGB_training/",
+        root_dir + "/data/model/topredict/predictions/BW_1937/",
+    ]
+]
+names = ["Image", "Original training", "B&W training"]
 
 fig = display_any(folders, names)
 
 # %%
 
-folders = [[root_dir + "/data/model/original/train/image/",
-           root_dir + "/data/model/original/train_BW/image/",
-           root_dir + "/data/model/original/train_poor/image/"]]
+folders = [
+    [
+        root_dir + "/data/model/original/train/image/",
+        root_dir + "/data/model/original/train_BW/image/",
+        root_dir + "/data/model/original/train_poor/image/",
+    ]
+]
 
-names = ['Original', 'B&W', 'Contrast and brightness']
+names = ["Original", "B&W", "Contrast and brightness"]
 
-fig = display_any(folders, names, filenames=['oslo_1_0.3_2023_15_27.tif'])
+fig = display_any(folders, names, filenames=["oslo_1_0.3_2023_15_27.tif"])
 
 # %%
 
-folders = [[root_dir + "/data/model/topredict/train/image/",
-           root_dir + "/data/model/topredict/train_augmented/image/",
-           root_dir + "/data/model/topredict/predictions/BW_1937/"]]
+folders = [
+    [
+        root_dir + "/data/model/topredict/train/image/",
+        root_dir + "/data/model/topredict/train_augmented/image/",
+        root_dir + "/data/model/topredict/predictions/BW_1937/",
+    ]
+]
 
-names = ['Original', 'Contrast and brightness',
-         "poor quality B&W training"]
+names = ["Original", "Contrast and brightness", "poor quality B&W training"]
 
 fig = display_any(folders, names)
 
 # %%
 
 
-folders = [[root_dir + "/data/model/topredict/train/image/",
-           root_dir + "/data/model/topredict/predictions/BW_RGB_training/",
-                      root_dir + "/data/model/topredict/predictions/BW_1937/"]]
-names = ['Image', 'Original training', 'B&W training']
+folders = [
+    [
+        root_dir + "/data/model/topredict/train/image/",
+        root_dir + "/data/model/topredict/predictions/BW_RGB_training/",
+        root_dir + "/data/model/topredict/predictions/BW_1937/",
+    ]
+]
+names = ["Image", "Original training", "B&W training"]
 fig = display_any(folders, names)
 
 # %% Plot Inria, WHU, Mass predictions, then normal and from Inria predictions
 
-folders = [[root_dir + "/data/model/original/train/image/",
-            root_dir + "/data/model/original/train/label/",
-            root_dir + "/data/model/original/predictions/Inria/",
-            root_dir + "/data/model/original/predictions/WHU/",
-            root_dir + "/data/model/original/predictions/Mass/",
-            root_dir + "/data/model/original/predictions/from_scratch/",
-            root_dir + "/data/model/original/predictions/from_Inria/"]]
+folders = [
+    [
+        root_dir + "/data/model/original/train/image/",
+        root_dir + "/data/model/original/train/label/",
+        root_dir + "/data/model/original/predictions/Inria/",
+        root_dir + "/data/model/original/predictions/WHU/",
+        root_dir + "/data/model/original/predictions/Mass/",
+        root_dir + "/data/model/original/predictions/from_scratch/",
+        root_dir + "/data/model/original/predictions/from_Inria/",
+    ]
+]
 
-names = ['Image', 'Ground truth', 'Inria', 'WHU', 'Mass', 'From scratch',
-         'From Inria']
-fig = display_any(folders, names, filenames=['bergen_0_0.3_2022_0_38.tif'])
-fig.savefig(root_dir + "/figures/predictions_comparison.png",
-            bbox_inches='tight', pad_inches=0)
+names = ["Image", "Ground truth", "Inria", "WHU", "Mass", "From scratch", "From Inria"]
+fig = display_any(folders, names, filenames=["bergen_0_0.3_2022_0_38.tif"])
+fig.savefig(
+    root_dir + "/figures/predictions_comparison.png", bbox_inches="tight", pad_inches=0
+)
 
 
 # %% Plot 1937, 1979, 1992 images, "augmented images", RGB prediction,
 # BW prediction with poor training, BW prediction with augmented image
 
-folders = [[root_dir + "/data/model/topredict/train/image/",
-            root_dir + "/data/model/topredict/train_augmented/image/",
-            root_dir + "/data/model/topredict/predictions/BW_RGB_training/",
-            root_dir + "/data/model/topredict/predictions/BW_poor_training/",
-            root_dir + "/data/model/topredict/predictions/BW_augmented/"],
-           [root_dir + "/data/model/topredict/train/image/",
-            root_dir + "/data/model/topredict/train_augmented/image/",
-            root_dir + "/data/model/topredict/predictions/BW_RGB_training/",
-            root_dir + "/data/model/topredict/predictions/BW_poor_training/",
-            root_dir + "/data/model/topredict/predictions/BW_augmented/"],
-           [root_dir + "/data/model/topredict/train/image/",
-            root_dir + "/data/model/topredict/train_augmented/image/",
-            root_dir + "/data/model/topredict/predictions/BW_RGB_training/",
-            root_dir + "/data/model/topredict/predictions/BW_poor_training/",
-            root_dir + "/data/model/topredict/predictions/BW_augmented/"]]
+folders = [
+    [
+        root_dir + "/data/model/topredict/train/image/",
+        root_dir + "/data/model/topredict/train_augmented/image/",
+        root_dir + "/data/model/topredict/predictions/BW_RGB_training/",
+        root_dir + "/data/model/topredict/predictions/BW_poor_training/",
+        root_dir + "/data/model/topredict/predictions/BW_augmented/",
+    ],
+    [
+        root_dir + "/data/model/topredict/train/image/",
+        root_dir + "/data/model/topredict/train_augmented/image/",
+        root_dir + "/data/model/topredict/predictions/BW_RGB_training/",
+        root_dir + "/data/model/topredict/predictions/BW_poor_training/",
+        root_dir + "/data/model/topredict/predictions/BW_augmented/",
+    ],
+    [
+        root_dir + "/data/model/topredict/train/image/",
+        root_dir + "/data/model/topredict/train_augmented/image/",
+        root_dir + "/data/model/topredict/predictions/BW_RGB_training/",
+        root_dir + "/data/model/topredict/predictions/BW_poor_training/",
+        root_dir + "/data/model/topredict/predictions/BW_augmented/",
+    ],
+]
 
-names = ['Original', 'Augmented image', 'RGB training',
-         'Poor quality B&W training', 'B&W training + augmented image']
+names = [
+    "Original",
+    "Augmented image",
+    "RGB training",
+    "Poor quality B&W training",
+    "B&W training + augmented image",
+]
 
-row_names = ['1937', '1979', '1992']
+row_names = ["1937", "1979", "1992"]
 
-fig = display_any(folders, names, row_names,
-                  filenames=['trondheim_0.3_1937_1_1_4_14.tif',
-                             'trondheim_0.3_1979_1_0_5_7.tif',
-                             'trondheim_0.3_1992_1_2_3_11.tif'])
+fig = display_any(
+    folders,
+    names,
+    row_names,
+    filenames=[
+        "trondheim_0.3_1937_1_1_4_14.tif",
+        "trondheim_0.3_1979_1_0_5_7.tif",
+        "trondheim_0.3_1992_1_2_3_11.tif",
+    ],
+)
 
-fig.savefig(root_dir + "/figures/B&W_training_comparisons.png",
-            bbox_inches='tight', pad_inches=0)
+fig.savefig(
+    root_dir + "/figures/B&W_training_comparisons.png",
+    bbox_inches="tight",
+    pad_inches=0,
+)
 
 # %%
 
 
-def display_label_and_distmap(label_dir, distmap_dir,
-                              name='random'):
-    if name == 'random':
+def display_label_and_distmap(label_dir, distmap_dir, name="random"):
+    if name == "random":
         files_in_folder = [f for f in os.listdir(label_dir)]
-        name = files_in_folder[random.randint(0, len(files_in_folder))].strip(
-            '.tif')
+        name = files_in_folder[random.randint(0, len(files_in_folder))].strip(".tif")
     else:
-        name = name.strip('.tif')
+        name = name.strip(".tif")
     # Open the files
     fig, axs = plt.subplots(1, 3, figsize=(10, 5))
-    label_path = label_dir + (name + '.tif')
-    distmap_path = distmap_dir + (name + '.mat')
+    label_path = label_dir + (name + ".tif")
+    distmap_path = distmap_dir + (name + ".mat")
     with rasterio.open(label_path) as label:
         # Read the data
         label_data = label.read(1)
-        axs[0].imshow(label_data, cmap='gray')
-        axs[0].set_title('Label')
+        axs[0].imshow(label_data, cmap="gray")
+        axs[0].set_title("Label")
         axs[0].set_xticks([])
         axs[0].set_yticks([])
 
     distmap = scipy.io.loadmat(distmap_path)
     # Read the data
     distmap_data = distmap["depth"].astype(np.int32)
-    axs[1].imshow(distmap_data, cmap='hot')
-    axs[1].set_title('Distance Map')
+    axs[1].imshow(distmap_data, cmap="hot")
+    axs[1].set_title("Distance Map")
     axs[1].set_xticks([])
     axs[1].set_yticks([])
 
     # Display boundary map calculated from distance map
-    edge_data = ((distmap_data < 3) & (distmap_data > 0))
-    axs[2].imshow(edge_data, cmap='gray')
-    axs[2].set_title('Boundary')
+    edge_data = (distmap_data < 3) & (distmap_data > 0)
+    axs[2].imshow(edge_data, cmap="gray")
+    axs[2].set_title("Boundary")
     axs[2].set_xticks([])
     axs[2].set_yticks([])
 
@@ -565,8 +653,9 @@ def display_label_and_distmap(label_dir, distmap_dir,
 
 label_dir = root_dir + "/data/model/original/train/label/"
 distmap_dir = root_dir + "/data/model/original/boundary/"
-fig = display_label_and_distmap(label_dir, distmap_dir,
-                                name='oslo_1_0.3_2023_15_27.tif')
+fig = display_label_and_distmap(
+    label_dir, distmap_dir, name="oslo_1_0.3_2023_15_27.tif"
+)
 
 
 # %%

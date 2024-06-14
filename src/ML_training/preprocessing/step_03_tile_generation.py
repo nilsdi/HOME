@@ -4,6 +4,7 @@ import numpy as np
 from tqdm import tqdm
 from pathlib import Path
 import shutil
+import random
 
 # Increase the maximum number of pixels OpenCV can handle
 os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2, 40))
@@ -54,6 +55,8 @@ def partition_and_crop_images(
         height, width = image_size, image_size
 
     skipped = 0
+    empty_tiles = 0
+    random.seed(42)
 
     with tqdm(total=total_iterations, desc="Processing") as pbar:
         for image_file in image_files:
@@ -107,9 +110,12 @@ def partition_and_crop_images(
                     if ratio < imbalance_threshold[0] or (
                         ratio > imbalance_threshold[1]
                     ):
-                        skipped += 1
-                        pbar.update(1)
-                        continue
+                        if random.random() > 0.15:
+                            skipped += 1
+                            pbar.update(1)
+                            continue
+                        else:
+                            empty_tiles += 1
 
                     # Crop the tile from the image
                     image_tile = image[y : y + tile_size, x : x + tile_size]
@@ -140,6 +146,7 @@ def partition_and_crop_images(
             )
 
     print(f"Skipped {skipped} tiles due to class imbalance")
+    print(f"Kept {empty_tiles} for training on no buildings")
 
 
 input_dir_images = root_dir + "/data/temp/pretrain/images/"

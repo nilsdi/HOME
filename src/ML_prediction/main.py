@@ -38,7 +38,12 @@ def main():
 
     list_of_projects = list(project_details.keys())
 
+    projects_to_run = []
     for project_name in list_of_projects:
+        if project_details[project_name]["status"] == "downloaded":
+            projects_to_run.append(project_name)
+
+    for project_name in projects_to_run:
         res, compression_name, compression_value = (
             project_details[project_name]["resolution"],
             project_details[project_name]["compression_name"],
@@ -75,11 +80,11 @@ def main():
         # Step 5: Regularize
         # step_02_regularization(project_name)
 
-        project_details[project_name]["prediction_status"] = "predicted"
+        project_details[project_name]["status"] = "predicted"
         with open(
             root_dir / "data/ML_prediction/project_log/project_details.json", "w"
         ) as file:
-            json.write(project_details, file)
+            json.dump(project_details, file)
 
 
 if __name__ == "__main__":

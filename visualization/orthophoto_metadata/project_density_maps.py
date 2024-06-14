@@ -263,46 +263,47 @@ class ProjectDensityGrid():
         return fig, ax
 
 #%% actually plot
+if __main__:
+    # get the path to the shape file
+    root_directory = Path().resolve().parents[1]
+    # add path to Norway shapes in data to path
+    path_to_shape = root_directory / 'data'/'raw'/'maps'/'Norway_boundaries'/'NOR_adm0.shp'
 
-# get the path to the shape file
-root_directory = Path().resolve().parents[1]
-# add path to Norway shapes in data to path
-path_to_shape = root_directory / 'data'/'raw'/'maps'/'Norway_boundaries'/'NOR_adm0.shp'
+    # load the metadata
+    metadata_file = 'metadata_all_projects_20240610192146.json'
+    path_to_data = root_directory / 'data' / 'raw' / 'orthophoto'
 
-# load the metadata
-metadata_file = 'metadata_all_projects_20240610192146.json'
-path_to_data = root_directory / 'data' / 'raw' / 'orthophoto'
+    with open(path_to_data / metadata_file, 'r') as f:
+        metadata_all_projects = json.load(f)
 
-with open(path_to_data / metadata_file, 'r') as f:
-    metadata_all_projects = json.load(f)
+    # create the density grid
+    resolution = 500
+    figsize = (10,10)
+    Norway_density = ProjectDensityGrid(metadata_all_projects['ProjectMetadata'], 
+                                                                region_shape_file = path_to_shape, 
+                                                                resolution=resolution, region='Norway')
+    fig, axs = plt.subplots(1, 2, figsize=(14, 9))
+    plt.subplots_adjust(wspace=0)
+    # plot the density grid
+    density_cmap = 'gist_heat_r'
+    fig, ax = Norway_density._display_raster(Norway_density.density_grid, Norway_density.transform, 
+                                                        cmap=density_cmap, plot_boundaries=False, plot_colorbar=True,
+                                                        #save_as=f'density_project_map_res{resolution}_cmap{density_cmap}.png',
+                                                        color_bar_label='# of projects', 
+                                                        fig = fig, ax = axs[0], show_plot=False)
+    axs[0].text(0.04, 0.96, 'a)', transform=axs[0].transAxes, fontsize=16, verticalalignment='top')
 
-# create the density grid
-resolution = 500
-figsize = (10,10)
-Norway_density = ProjectDensityGrid(metadata_all_projects['ProjectMetadata'], 
-                                                            region_shape_file = path_to_shape, 
-                                                            resolution=resolution, region='Norway')
-fig, axs = plt.subplots(1, 2, figsize=(14, 9))
-plt.subplots_adjust(wspace=0)
-# plot the density grid
-density_cmap = 'gist_heat_r'
-fig, ax = Norway_density._display_raster(Norway_density.density_grid, Norway_density.transform, 
-                                                    cmap=density_cmap, plot_boundaries=False, plot_colorbar=True,
-                                                    #save_as=f'density_project_map_res{resolution}_cmap{density_cmap}.png',
-                                                    color_bar_label='# of projects', 
-                                                    fig = fig, ax = axs[0], show_plot=False)
-axs[0].text(0.04, 0.96, 'a)', transform=axs[0].transAxes, fontsize=16, verticalalignment='top')
-
-# plot the oldest project grid
-oldest_cmap =  'copper'#'pink'#'copper'
-fig, ax = Norway_density._display_raster(Norway_density.oldest_grid, Norway_density.transform,
-                                                    cmap=oldest_cmap, plot_boundaries=False, plot_colorbar=True, 
-                                                    ignore_zero=True, 
-                                                    #save_as=f'oldest_project_map_res{resolution}_cmap{oldest_cmap}.png',
-                                                    color_bar_label='Oldest project', 
-                                                    fig = fig, ax = axs[1], show_plot=False)
-axs[1].text(0.04, 0.96, 'b)', transform=axs[1].transAxes, fontsize=14, verticalalignment='top')
-plt.savefig(f'project_density_maps/Norway_coverage_map_res{resolution}_cmaps_{density_cmap}_{oldest_cmap}.png', 
-                    dpi = 300, bbox_inches='tight')
-plt.show()
+    # plot the oldest project grid
+    oldest_cmaps =  ['copper', 'Blues']#'pink'#'copper'
+    oldest_cmap = oldest_cmaps[1]
+    fig, ax = Norway_density._display_raster(Norway_density.oldest_grid, Norway_density.transform,
+                                                        cmap=oldest_cmap, plot_boundaries=False, plot_colorbar=True, 
+                                                        ignore_zero=True, 
+                                                        #save_as=f'oldest_project_map_res{resolution}_cmap{oldest_cmap}.png',
+                                                        color_bar_label='Oldest project', 
+                                                        fig = fig, ax = axs[1], show_plot=False)
+    axs[1].text(0.04, 0.96, 'b)', transform=axs[1].transAxes, fontsize=14, verticalalignment='top')
+    plt.savefig(f'project_density_maps/Norway_coverage_map_res{resolution}_cmaps_{density_cmap}_{oldest_cmap}.png', 
+                        dpi = 300, bbox_inches='tight')
+    plt.show()
 # %%
