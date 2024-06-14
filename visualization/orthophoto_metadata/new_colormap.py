@@ -56,11 +56,11 @@ import matplotlib.pyplot as plt
 
 fig, ax = plt.subplots(figsize=(9, 6))
 colors = [(1, 1, 1), 
-            (0.10137254901960784, 0.58823529411764706, 0.7196078431372549),
-               (0.05137254901960784, 0.38823529411764706, 0.5196078431372549),
-             (0.03137254901960784, 0.24823529411764706, 0.4196078431372549), 
-            (0.03137254901960784, 0.18823529411764706, 0.3696078431372549), 
-            (0,0,0)]
+            (0.12137254901960784, 0.58823529411764706, 0.7196078431372549),
+               (0.06137254901960784, 0.38823529411764706, 0.5196078431372549),
+             (0.04137254901960784, 0.26823529411764706, 0.4396078431372549), 
+            (0.04137254901960784, 0.20823529411764706, 0.3996078431372549), 
+            (0.09,0.09,0.09)]
 # Create a custom colormap from the defined colors
 CustomBlues = mcolors.LinearSegmentedColormap.from_list("CustomBlues", colors)
 
@@ -80,3 +80,4 @@ plt.xlim(0, len(colors))  # Adjust x-axis limits to fit the bars
 plt.ylim(0, 1)  # Adjust y-axis limits if needed
 plt.axis('off')  # Optional: Remove axis for a cleaner look
 plt.show()
+# %%
