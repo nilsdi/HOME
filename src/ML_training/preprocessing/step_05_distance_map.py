@@ -81,7 +81,7 @@ def process(inp):
     )
 
 
-indir = osp.join(args.datadir, "train", "label")
+indir = osp.join(args.datadir, f"train", "label")
 outdir = osp.join(args.datadir, args.outname)
 args_to_apply = [
     (indir, outdir, osp.basename(basename))

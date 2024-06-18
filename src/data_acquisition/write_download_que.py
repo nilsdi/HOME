@@ -45,6 +45,10 @@ project_names = ['Oslo vår 2023','Bergen 2022', 'Moss 2022','Stavanger 2023',
                             'Trondheim MOF 2023', 'Tromsø midlertidig ortofoto 2023' ]
 project_names = []
 que_path = root_dir / 'data/temp/norgeibilder/download_que/'
+
+# read in the json for project management:
+with open(root_dir / "data/ML_prediction/project_log/project_details.json", "r") as file:
+    project_details = json.load(file)
 # %% create the jsons
 for project in project_names:
     # check if the project is already in the que
@@ -67,10 +71,21 @@ for project in project_names:
         'compression_value': compression_value, 
         'mosaic': mosaic
     }
+    project_details = {
+        'status': 'queued',
+        'channels': None,
+        'resolution': resolution,
+        'compression_name': compression_method,
+        'compression_value': compression_value
+    }
+    project_details[project.lower().replace(" ", "_")] = project_details
+
     with open(que_path/f'{project.lower().replace(" ", "_")}.json', 'w') as f:
         json.dump(download_details, f)
 
 
 
 
-# %%
+# %% save the updated project details
+with open(root_dir / "data/ML_prediction/project_log/project_details.json", "w") as file:
+    json.dump(project_details, file, indent=4)

@@ -3,9 +3,10 @@ import json
 import time
 import os
 from pathlib import Path
+from typing import Tuple, Optional
 
 
-def status_export(JobID: int) -> tuple[bool, str]:
+def status_export(JobID: int) -> Tuple[bool, Optional[str]]:
     '''
     Request the status of an export job specified by the JobID.
     The status returned can be used to check if the export is complete.

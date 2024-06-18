@@ -5,6 +5,7 @@ from tqdm import tqdm
 from pathlib import Path
 import shutil
 import random
+import argparse
 
 # Increase the maximum number of pixels OpenCV can handle
 os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2, 40))
@@ -13,6 +14,13 @@ import cv2  # noqa
 root_dir = str(Path(__file__).parents[3])
 
 # %%
+
+parser = argparse.ArgumentParser(description="Tile generation")
+parser.add_argument(
+    "--res", default=0.2, type=float, help="resolution of the tiles in meters"
+)
+args = parser.parse_args()
+res = args.res
 
 
 def partition_and_crop_images(
@@ -24,6 +32,7 @@ def partition_and_crop_images(
     overlap_rate=0.01,
     image_size=None,
     imbalance_threshold=(0.005, 0.9),
+    res=0.2,
 ):
     # Create output directories if they don't exist
     os.makedirs(output_dir_images, exist_ok=True)
@@ -37,6 +46,9 @@ def partition_and_crop_images(
 
     # Get list of all image files in the input directory
     image_files = [f for f in os.listdir(input_dir_images) if f.endswith(".tif")]
+
+    # Filter to keep only images of the good resolution
+    image_files = [f for f in image_files if str(res) in f]
 
     effective_tile_size = tile_size * (1 - overlap_rate)
 
@@ -151,8 +163,8 @@ def partition_and_crop_images(
 
 input_dir_images = root_dir + "/data/temp/pretrain/images/"
 input_dir_labels = root_dir + "/data/temp/pretrain/labels"
-output_dir_images = root_dir + "/data/ML_training/train/image/"
-output_dir_labels = root_dir + "/data/ML_training/train/label/"
+output_dir_images = root_dir + f"/data/ML_training/train/image/"
+output_dir_labels = root_dir + f"/data/ML_training/train/label/"
 
 print("Partitioning and cropping images with labels")
 partition_and_crop_images(
@@ -162,6 +174,7 @@ partition_and_crop_images(
     output_dir_labels,
     tile_size=512,
     overlap_rate=0.01,
+    res=res,
 )
 
 # %%

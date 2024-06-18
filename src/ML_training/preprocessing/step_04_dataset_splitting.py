@@ -5,6 +5,9 @@ import random
 import json
 
 # %%
+
+total_share = 0.5
+
 val_share = 0.1
 test_share = 0.2
 
@@ -16,7 +19,7 @@ with open(current_dir / "bbox.json", "r") as f:
     bbox = json.load(f)
 cities = list(bbox.keys())
 
-data_path = root_dir / "data/ML_training/train/image"
+data_path = root_dir / f"data/ML_training/train/image"
 
 train_file = open(root_dir / "data/ML_training/dataset/train.txt", "w")
 val_file = open(root_dir / "data/ML_training/dataset/val.txt", "w")
@@ -30,6 +33,8 @@ for city in cities[:-1]:  # exclude Fredrikstad
 
     # Shuffle the tiles
     random.shuffle(tiles)
+
+    tiles = tiles[: int(len(tiles) * total_share)]
 
     # Calculate the indices for splitting
     val_index = int(len(tiles) * val_share)

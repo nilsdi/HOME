@@ -5,6 +5,7 @@ from pathlib import Path
 from tqdm import tqdm
 from PIL import Image
 import os
+import argparse
 
 
 class FilteredDataset(Dataset):
@@ -55,7 +56,7 @@ def calculate_mean_std(dataset_path, txt_path=None, batch_size=32):
 # Usage
 if __name__ == "__main__":
     root_dir = Path(__file__).parents[3]
-    path_train_data = root_dir / "data/ML_training/train/image/"
+    path_train_data = root_dir / f"data/ML_training/train/image/"
     path_train_txt = root_dir / "data/ML_training/dataset/train.txt"
 
     mean, std = calculate_mean_std(path_train_data, path_train_txt)

@@ -11,6 +11,7 @@ from src.ML_training.preprocessing.get_label_data.cut_images import (
     save_cut_geotiff,
 )  # noqa
 import os
+import argparse
 
 # %%
 root_dir = Path(__file__).parents[3]
@@ -30,7 +31,7 @@ gdf_omrade = gpd.read_file(path_label, driver="FileGDB", layer="fkb_bygning_omra
 # %%
 
 
-def make_training_data(city):
+def make_training_data(city, res):
     for i in range(len(bbox[city])):
         print(f"Processing {city} {i}")
         # Get the bounding box coordinates
@@ -38,68 +39,45 @@ def make_training_data(city):
 
         # Check if the bounding box has label data
         if bbox[city][i]["training"] == 1:
-            year = bbox[city][i]["year"]
-            res = bbox[city][i]["res"]
-            subfolders = list(
-                (root_dir / f"data/raw/orthophoto/res_{str(res)}").glob(
-                    f"*{city}*{year}*"
-                )
-            )
-
-            assert len(subfolders) == 1, (
-                f"Found {len(subfolders)} cities" + " matching training data"
-            )
-            filename = f"{city}_{i}_{res}_{year}"
-
-            if not os.path.exists(
-                root_dir / f"data/temp/pretrain/images/{filename}.tif"
-            ):
-                data, transform = get_labels(gdf_omrade, bbox_coordinates, res)
-                if data.size != 0:
-                    save_labels(data, filename, transform)
-
-                geotiff_path = subfolders[0] / "i_lzw_25" / "Eksport-nib.tif"
-                image, transform = cut_geotiff(geotiff_path, bbox_coordinates, res)
-                if image.size != 0:
-                    save_cut_geotiff(image, filename, transform)
-        else:
-            for res in [0.3, 0.5]:
+            if bbox[city][i]["res"] == res:
+                year = bbox[city][i]["year"]
                 subfolders = list(
-                    (root_dir / f"data/raw/orthophoto/res_{str(res)}").glob(f"*{city}*")
+                    (root_dir / f"data/raw/orthophoto/res_{str(res)}").glob(
+                        f"*{city}*{year}*"
+                    )
                 )
 
-                for subfolder in subfolders:
-                    year = subfolder.name.split("_")[-1]
-                    # Get all tif files in folder
-                    geotiffs = list((subfolder / "i_lzw_25").glob("*.tif"))
+                assert len(subfolders) == 1, (
+                    f"Found {len(subfolders)} cities" + " matching training data"
+                )
+                filename = f"{city}_{i}_{res}_{year}"
 
-                    for j, geotiff_path in enumerate(geotiffs):
+                if not os.path.exists(
+                    root_dir / f"data/temp/pretrain/images/{filename}.tif"
+                ):
+                    data, transform = get_labels(gdf_omrade, bbox_coordinates, res)
+                    if data.size != 0:
+                        save_labels(data, filename, transform)
 
-                        filename = f"{city}_{res}_{year}_{i}_{j}"
-
-                        if not os.path.exists(
-                            root_dir / f"data/temp/pretrain/images/{filename}.tif"
-                        ):
-                            image, transform = cut_geotiff(
-                                geotiff_path, bbox_coordinates, res
-                            )
-
-                            # save the image
-                            if image.size != 0:
-                                save_cut_geotiff(
-                                    image,
-                                    filename,
-                                    transform,
-                                    save_folder="data/temp/pretrain/images/",
-                                )
+                    geotiff_path = subfolders[0] / "i_lzw_25" / "Eksport-nib.tif"
+                    image, transform = cut_geotiff(geotiff_path, bbox_coordinates, res)
+                    if image.size != 0:
+                        save_cut_geotiff(image, filename, transform)
 
     return None
 
 
 # %% Make training data for each city
 
+parser = argparse.ArgumentParser(description="Tile generation")
+parser.add_argument(
+    "--res", default=0.2, type=float, help="resolution of the tiles in meters"
+)
+args = parser.parse_args()
+res = args.res
+
 for city in cities:
-    make_training_data(city)
+    make_training_data(city, res)
 
 
 # %%
