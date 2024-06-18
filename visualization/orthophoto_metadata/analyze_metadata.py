@@ -122,12 +122,46 @@ print(f'we have a total of projects with a higher (worse) resolution that 0.5 m:
 # Convert the times to datetime
 time_list = [pd.to_datetime(m['properties']['aar']) for m in metadata_all_projects['ProjectMetadata']]
 time_list = pd.Series(time_list)
+
+colour_list = [m['properties']['ortofototype'] for m in metadata_all_projects['ProjectMetadata']]
+
 n_bins = 2024 - min(time_list).year
 plt.hist(time_list, bins=n_bins)
 plt.xlabel('Year')
 plt.ylabel('Number of projects')
 plt.title('Year histogram')
 
+#%%
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Assuming metadata_all_projects['ProjectMetadata'] is defined
+# Convert the times to datetime and create a DataFrame
+data = [{
+    'time': pd.to_datetime(m['properties']['aar']),
+    'ortofototype': int(m['properties']['ortofototype'])
+} for m in metadata_all_projects['ProjectMetadata']]
+df = pd.DataFrame(data)
+
+# Extract year from time for grouping
+df['year'] = df['time'].dt.year
+
+# Define colors for each ortofototype
+colors = {1: 'red', 2: 'black', 3: 'green', 4: 'orange'}
+
+# Calculate the number of bins
+n_bins = 2024 - df['year'].min()
+
+# Plot histogram for each ortofototype
+for ortofototype, color in colors.items():
+    subset = df[df['ortofototype'] == ortofototype]
+    plt.hist(subset['year'], bins=n_bins, color=color, alpha=0.5, label=f'Ortofoto {ortofototype}')
+
+plt.xlabel('Year')
+plt.ylabel('Number of projects')
+plt.title('Year histogram')
+plt.legend()
+plt.show()
 #%% simple histogram of the covered area of the projects
 print(f"we have the following attributes: {metadata_all_projects['ProjectMetadata'][0]['properties'].keys()}")
 #print(f'with the following values for the first project: {metadata_all_projects['ProjectMetadata'][0]['properties'].values()}')

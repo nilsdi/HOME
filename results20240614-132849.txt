@@ -1,7 +1,0 @@
-[epoch: 0]
-batch_loss: 7.3269
-epoch_loss: 10533.3220
-val_IoU: 0.459053
-lr: 0.001
-
-

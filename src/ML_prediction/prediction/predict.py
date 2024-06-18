@@ -96,9 +96,9 @@ def predict(project_name, res=0.3, compression="i_lzw_25", BW=False):
         Dataset = "NOCI_BW"
         read_name = "HDNet_NOCI_BW_best"
     else:
-        dir_checkpoint = str(root_dir) + "/data/ML_model/save_weights/run_3/"
+        dir_checkpoint = str(root_dir) + "/data/ML_model/save_weights/run_6/"
         Dataset = "NOCI"
-        read_name = "HDNet_NOCI_best"
+        read_name = f"HDNet_NOCI_{res}_best"
 
     pred_name = f"pred_{project_name}_{res}_{compression}.txt"
     prediction_folder = "predictions/test/"

@@ -75,7 +75,8 @@ def download_project(download_url: str, project: str, resolution: float,
                                     "status": "downloaded",
                                     "resolution": resolution, 
                                     'compression_name' : compression_name, 
-                                    'compression_value': compression_value}
+                                    'compression_value': compression_value, 
+                                    'channels': None }
     else:
         # update the project to downloaded
         project_details[project.lower().replace(' ', '_')]["status"] = "downloaded"

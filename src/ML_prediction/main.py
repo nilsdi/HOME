@@ -16,7 +16,7 @@ from src.ML_prediction.prediction import predict
 # )
 
 
-def main():
+def main(list_of_projects:list):
     """
     Main function to run the prediction pipeline
 
@@ -73,6 +73,7 @@ def main():
         predict.predict(
             project_name=project_name, res=res, compression=compression, BW=BW
         )
+        # Step 4: (Optional) Visualize a few tiles.
 
         # Step 4: Reassemble tiles
         # step_01_reassembling_tiles(project_name)
@@ -88,4 +89,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    list_of_projects = ['trondheim_kommune_2020']
+    main(list_of_projects=list_of_projects)
