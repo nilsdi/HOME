@@ -1,19 +1,23 @@
-name: TMM4128_model
+name: HOME
 channels:
-  - nvidia
+  - conda-forge
   - pytorch
+  - nvidia
   - defaults
-dependencies:
+dependencies: # not specifying versions to allow for solving during the build process
+  - python==3.10
   - cudatoolkit=11.3
-  - pytorch==1.12.1
+  - pytorch==1.12.1=py3.10_cuda11.3_cudnn8.3.2_0 # wont work (June 24) due to 
+  # issue with MKL - use pip install after setting up the env instead 
+  # pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 -f https://download.pytorch.org/whl/torch_stable.html
   - torchaudio==0.12.1
   - torchvision==0.13.1
-  - conda-libmamba-solver
-  - scipy
-  - matplotlib
-  - imgaug
-  - gdal
-  - rasterio
-  - geopandas
-  - ipykernel
-  - opencv
+  - conda-libmamba-solver # == 23.9.3
+  - scipy #==1.12.0
+  - matplotlib #==3.8.4
+  - imgaug #==0.4.0
+  - gdal #==3.0.2
+  - rasterio #==1.2.10
+  - geopandas #==0.12.2
+  - ipykernel #==6.28.0
+  - opencv #==4.6.0

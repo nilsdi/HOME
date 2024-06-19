@@ -1,3 +1,4 @@
+#%%
 import json
 import pandas as pd
 from pathlib import Path
@@ -36,7 +37,8 @@ def main(list_of_projects:list):
     ) as file:
         project_details = json.load(file)
 
-    list_of_projects = list(project_details.keys())
+    if list_of_projects == ['all']:
+        list_of_projects = list(project_details.keys())
 
     projects_to_run = []
     for project_name in list_of_projects:
@@ -87,7 +89,10 @@ def main(list_of_projects:list):
         ) as file:
             json.dump(project_details, file)
 
+#%%
 
 if __name__ == "__main__":
     list_of_projects = ['trondheim_kommune_2020']
     main(list_of_projects=list_of_projects)
+
+# %%

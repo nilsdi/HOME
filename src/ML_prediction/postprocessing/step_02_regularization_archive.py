@@ -2,7 +2,6 @@
 from osgeo import ogr, gdal, osr
 from osgeo.gdalnumeric import *  
 from osgeo.gdalconst import * 
-import fiona
 from shapely.geometry import shape
 import rasterio.features
 import geopandas as gpd

@@ -4,7 +4,6 @@ import os
 from osgeo import gdal
 import numpy as np
 from pathlib import Path
-import cv2
 import json
 # %%
 
@@ -12,14 +11,16 @@ root_dir = Path(__file__).parents[3]
 current_dir = Path(__file__).parents[0]
 
 # Parameters
-project_name = "trondheim_2019"  # Example project name
+project_name = "trondheim_kommune_2020"  # Example project name
 x_km = 1  # Size of each small tile in kilometers
 y_overlap = 50  # Overlap in meters for the bigger tiles
 overlap_rate = 0  # 0% overlap (prediction tiles)
-
+x_nb_tiles = 20 # number of tiles in x direction larger tiles
+y_overlap_nb_tiles = 2 # number of tiles in y direction overlap
 
 """
 - just need to sort out the coordinates and add them in the big tiles
+
 """
 
 
@@ -36,8 +37,8 @@ overlap_rate = 0  # 0% overlap (prediction tiles)
 # Function to parse filename and extract its coordinates: row and col
 def extract_tile_numbers(filename):
     """
-    Extracts the x and y (row and col) from a filename
-    of pattern '_1_0_x_y'.
+    Extracts the x/col and y/row (coordinates) from a filename
+    of pattern '_x_y'.
 
     Args:
         filename (str): The filename to extract the tile info from.
@@ -46,20 +47,31 @@ def extract_tile_numbers(filename):
         tuple: row, col part extracted from the filename.
     """
     parts = filename.split("_")
-    row = int(parts[-2])
-    col = int(parts[-1].split(".")[0])
+    col = int(parts[-2]) # x_coord
+    row = int(parts[-1].split(".")[0]) #y_coord
     return row, col
 
-
-def get_nb_row_col(filenames):
-    # Determine grid size
-    cols, rows = 0, 0
+def get_top_left(filenames:list[str])->tuple[int,int]:
+    # Determine top left corner
+    top_left = (np.inf, np.inf)
     for filename in filenames:
-        col, row = extract_tile_numbers(filename)
-        if row + 1 > rows:
-            rows = row + 1
-        if col + 1 > cols:
-            cols = col + 1
+        row, col = extract_tile_numbers(filename)
+        if row < top_left[0]:
+            top_left = (row, top_left[1])
+        if col < top_left[1]:
+            top_left = (top_left[0], col)
+    return top_left
+
+def get_nb_row_col(filenames:list[str])->tuple[int,int]:
+    # Determine grid size
+    rows, cols = 0, 0
+    row0, col0 = get_top_left(filenames)
+    for filename in filenames:
+        row, col = extract_tile_numbers(filename)
+        if row - row0 + 1 > rows:
+            rows = rows + 1
+        if col - col0 + 1 > cols:
+            cols = cols + 1
     return rows, cols
 
 
@@ -85,38 +97,106 @@ def order_files_by_xy(files):
 
     return ordered_files
 
+#%%
 
-def get_columns_from_ordered_files(ordered_files):
-    """
-    Creates lists of columns of tiles from the ordered files.
+def make_tile_sets(ordered_files, x_nb_tiles, y_overlap_nb_tiles):
+    nb_tiles_large_tile = x_nb_tiles + 2 * y_overlap_nb_tiles
+    num_rows, num_cols = get_nb_row_col(ordered_files)
+    nb_sets_x = int(np.ceil(num_cols / nb_tiles_large_tile))
+    nb_sets_y = int(np.ceil(num_rows / nb_tiles_large_tile))
+    tile_sets = [[] for _ in range(nb_sets_x * nb_sets_y)]
+    col0, row0 = get_top_left(ordered_files)
+    top_left_coords = [f'{row0 + x_set * nb_tiles_large_tile}_{col0 + y_set * nb_tiles_large_tile}'
+                       for x_set in range(nb_sets_x) for y_set in range(nb_sets_y)]
+    for x_set in range(nb_sets_x):
+        for y_set in range(nb_sets_y):
+            for x_tile in range(x_nb_tiles):
+                for y_tile in range(x_nb_tiles):
+                    expected_tile_name = f"{project_name}_b_{row0 + y_set * nb_tiles_large_tile + y_tile}_{col0 + x_set * nb_tiles_large_tile + x_tile}.tif"
+                    if expected_tile_name in ordered_files:
+                        tile_sets[y_set * nb_sets_x + x_set].append(expected_tile_name)
+    tile_sets_dict = {top_left: tile_set for top_left, tile_set in zip(top_left_coords, tile_sets) if tile_set}
+    return tile_sets_dict
 
-    Args:
-        ordered_files (list of str): List of ordered filenames.
+def stitch_tiles_together(tile_files, output_file, input_dir, tile_size_px=512):
+    sample_path = os.path.join(input_dir, tile_files[0])
+    sample_dataset = gdal.Open(sample_path)
+    if not sample_dataset:
+        raise FileNotFoundError(f"Unable to open sample TIFF file: {sample_path}")
+    original_tile_width = tile_size_px
+    original_tile_height = tile_size_px
+    num_rows, num_columns = get_nb_row_col(tile_files)
+    overlap_width = int(original_tile_width * overlap_rate)
+    overlap_height = int(original_tile_height * overlap_rate)
+    tile_width = original_tile_width - overlap_width
+    tile_height = original_tile_height - overlap_height
+    total_width = tile_width * num_columns + overlap_width
+    total_height = tile_height * num_rows + overlap_height
+    driver = gdal.GetDriverByName("GTiff")
+    combined_dataset = driver.Create(str(output_file), total_width, total_height, sample_dataset.RasterCount, sample_dataset.GetRasterBand(1).DataType)
+    combined_dataset.SetGeoTransform(sample_dataset.GetGeoTransform())
+    combined_dataset.SetProjection(sample_dataset.GetProjection())
+    black_tile = np.full((tile_height, tile_width, sample_dataset.RasterCount), 0, dtype=np.uint8)
+    tile_dict = {extract_tile_numbers(filename): filename for filename in tile_files}
+    for column in range(num_columns):
+        for row in range(num_rows):
+            tile_pos = (column, row)
+            if tile_pos in tile_dict:
+                tile_path = os.path.join(input_dir, tile_dict[tile_pos])
+                tile_dataset = gdal.Open(tile_path)
+                if tile_dataset:
+                    for band in range(1, tile_dataset.RasterCount + 1):
+                        data = tile_dataset.GetRasterBand(band).ReadAsArray(overlap_width // 2, overlap_height // 2, tile_width, tile_height)
+                        x_offset = column * tile_width
+                        y_offset = row * tile_height
+                        combined_dataset.GetRasterBand(band).WriteArray(data, x_offset, y_offset)
+            else:
+                for band in range(1, sample_dataset.RasterCount + 1):
+                    combined_dataset.GetRasterBand(band).WriteArray(black_tile[:, :, band - 1], column * tile_width, row * tile_height)
+    print(f"Final stitched image saved as {output_file}")
+    combined_dataset = None
 
-    Returns:
-        list of list of str: A list where each element is a list of filenames in a column.
-    """
-    columns = {}
-    for filename in ordered_files:
-        x, y = extract_tile_numbers(filename)
-        if x not in columns:
-            columns[x] = []
-        columns[x].append(filename)
-
-    # Sort columns by their keys (y indices)
-    sorted_columns = [columns[key] for key in sorted(columns.keys())]
-    return sorted_columns
+#%%
 
 
-def stitch_tiles_together(tile_files, output_file, num_columns, num_rows, input_dir):
+def make_tile_sets(ordered_files, x_nb_tiles, y_overlap_nb_tiles):
+    # set the size of each large tile
+    nb_tiles_large_tile = x_nb_tiles + 2*y_overlap_nb_tiles
+    num_rows, num_cols = get_nb_row_col(ordered_files)
+    # determine how many sets of tiles we need
+    nb_sets_x = int(np.ceil(num_cols / nb_tiles_large_tile))
+    nb_sets_y = int(np.ceil(num_rows / nb_tiles_large_tile))
+    # create a list of the top left coordinates of each set
+    tile_sets = [[] for _ in range(nb_sets_x*nb_sets_y)]
+    # fill each set with the right tiles
+    row0, col0 = get_top_left(ordered_files)
+    top_left_coords = [f'{row0 + x_set*nb_tiles_large_tile}_{col0+y_set*nb_tiles_large_tile}'
+                        for x_set, y_set in zip(range(nb_sets_x), range(nb_sets_y))]
+    for tile in ordered_files:
+        row, col = extract_tile_numbers(tile)
+        # adjust for the offset of the entire set
+        row -= row0
+        col -= col0
+        set_x = col // nb_tiles_large_tile
+        set_y = row // nb_tiles_large_tile
+        tile_sets[set_y*set_x].append(tile)
+    tile_sets_dict = {top_left: tile_set for top_left, tile_set in zip(top_left_coords, tile_sets)}
+    ile_sets_dict = {key: value for key, value in tile_sets_dict.items() if value}
+    return tile_sets_dict
+
+
+
+
+def stitch_tiles_together(tile_files, output_file, input_dir, tile_size_px = 512):
     # Open one of the files to get the tile size and georeference info
     sample_path = os.path.join(input_dir, tile_files[0])
     sample_dataset = gdal.Open(sample_path)
     if not sample_dataset:
         raise FileNotFoundError(f"Unable to open sample TIFF file: {sample_path}")
 
-    original_tile_width = sample_dataset.RasterXSize
-    original_tile_height = sample_dataset.RasterYSize
+    original_tile_width = tile_size_px
+    original_tile_height = tile_size_px
+    num_rows, num_columns = get_nb_row_col(tile_files)
 
     # Calculate overlap in pixels
     overlap_width = int(original_tile_width * overlap_rate)
@@ -179,6 +259,7 @@ def stitch_tiles_together(tile_files, output_file, num_columns, num_rows, input_
                         column * tile_width,
                         row * tile_height,
                     )
+    # find the top left corner out of all the tiles
 
     print(f"Final stitched image saved as {output_file}")
     # Close the datasets
@@ -187,7 +268,7 @@ def stitch_tiles_together(tile_files, output_file, num_columns, num_rows, input_
 
 # %%
 
-def split_large_tile_into_small_tiles(
+"""def split_large_tile_into_small_tiles(
     large_tile_path, output_dir, x_km, y_overlap, resolution, project_name
 ):
     large_tile = gdal.Open(str(large_tile_path))
@@ -226,17 +307,32 @@ def split_large_tile_into_small_tiles(
                     large_tile.RasterCount,
                     large_tile.GetRasterBand(1).DataType,
                 )
-                output_tile.SetGeoTransform(
-                    (
-                        large_tile.GetGeoTransform()[0] + x_start * resolution,
-                        resolution,
-                        0,
-                        large_tile.GetGeoTransform()[3] + y_start * resolution,
-                        0,
-                        -resolution,
-                    )
+                # output_tile.SetGeoTransform(
+                #     (
+                #         large_tile.GetGeoTransform()[0] + x_start * resolution,
+                #         resolution,
+                #         0,
+                #         large_tile.GetGeoTransform()[3] + y_start * resolution,
+                #         0,
+                #         -resolution,
+                #     )
+                # )
+                # output_tile.SetProjection(large_tile.GetProjection())
+                # Calculate the geotransform for the small tile
+                gt = large_tile.GetGeoTransform()
+                origin_x = gt[0] + x_start * resolution
+                origin_y = gt[3] + y_start * resolution
+                new_gt = (
+                    origin_x,
+                    resolution,
+                    0,
+                    origin_y,
+                    0,
+                    -resolution
                 )
+                output_tile.SetGeoTransform(new_gt)
                 output_tile.SetProjection(large_tile.GetProjection())
+
 
                 # Initialize tile with black pixels
                 for band in range(1, large_tile.RasterCount + 1):
@@ -262,7 +358,7 @@ def split_large_tile_into_small_tiles(
                 print(f"Saved tile: {output_tile_path}")
 
     large_tile = None  # Close the large tile
-
+"""
 
 # %%
 
@@ -299,13 +395,15 @@ if __name__ == "__main__":
 
 
     # path to the prediction tiles
-    input_dir = root_dir / f"data/ML_prediction/predictions/res_{resolution}/{project_name}/i_{compression_name}_{compression_value}"
+    #input_dir = root_dir / f"data/ML_prediction/predictions/res_{resolution}/{project_name}/i_{compression_name}_{compression_value}"
+    input_dir = root_dir / f"data/ML_prediction/topredict/image/res_{resolution}/{project_name}/i_{compression_name}_{compression_value}"
+
 
     # output location for the reassembled tile: in a diff folder
     # bc we make multiple reassembled tiles per project (5km x 5km with 500m overlap)
     """here add that we create the file if it doesnt exist yet"""
-    output_dir = root_dir / f"data/ML_prediction/predictions/res_{resolution}/{project_name}/i_{compression_name}_{compression_value}/reassembled_tiles"
-    output_file = output_dir / f"full_tif_{project_name}.tif"
+    output_dir = root_dir / f"data/ML_prediction/topredict/image/res_{resolution}/{project_name}/i_{compression_name}_{compression_value}/reassembled_tiles"
+    #output_dir = root_dir / f"data/ML_prediction/predictions/res_{resolution}/{project_name}/i_{compression_name}_{compression_value}/reassembled_tiles"
 
     # path to text file with (hopefully) all the file names of the tiles of the project
     # assuming we keep the same format for tile names (include row and column)
@@ -316,12 +414,16 @@ if __name__ == "__main__":
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    # Define the output file for the stitched image
-    final_output_file = output_dir / f"full_tif_{project_name}.tif"
-
-    # stitch back together the full tif
-    stitch_tiles_together(tif_filenames, final_output_file, cols, rows, input_dir)
-    # split into smaller tiles
-    split_large_tile_into_small_tiles(
-        final_output_file, output_dir, x_km, y_overlap, resolution, project_name
-    )
+    ordered_files = order_files_by_xy(tif_filenames)
+    tile_sets_dict = make_tile_sets(ordered_files, x_nb_tiles, y_overlap_nb_tiles)
+    for top_left, tile_set in tile_sets_dict.items():
+        # Define the output file for the stitched image
+        final_output_file = output_dir / f"stitched_tif_{project_name}_{top_left}.tif"
+        # Stitch back together the tile
+        stitch_tiles_together(tile_set, final_output_file, input_dir, tile_size_px=512)
+    # # stitch back together the full tif
+    # stitch_tiles_together(tif_filenames, final_output_file, cols, rows, input_dir)
+    # # split into smaller tiles
+    # split_large_tile_into_small_tiles(
+    #     final_output_file, output_dir, x_km, y_overlap, resolution, project_name
+    # )
