@@ -101,7 +101,7 @@ def predict(project_name, res=0.3, compression="i_lzw_25", BW=False):
         read_name = f"HDNet_NOCI_{res}_best"
 
     pred_name = f"pred_{project_name}_{res}_{compression}.txt"
-    prediction_folder = "predictions/test/"
+    # prediction_folder = "predictions/test/"
 
     prediction_folder = root_dir / "data/ML_prediction/predictions"
     batchsize = 16
@@ -146,10 +146,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Tile raw orthophotos for prediction with ML model"
     )
-    parser.add_argument("--project_name", required=True, type=str)
-    parser.add_argument("--res", required=False, type=float, default=0.3)
-    parser.add_argument("--compression", required=False, type=str, default="i_lzw_25")
-    parser.add_argument("--BW", required=False, type=bool, default=False)
+    parser.add_argument("-p", "--project_name", required=True, type=str)
+    parser.add_argument("-r", "--res", required=False, type=float, default=0.3)
+    parser.add_argument(
+        "-c", "--compression", required=False, type=str, default="i_lzw_25"
+    )
+    parser.add_argument("-bw", "--BW", required=False, type=bool, default=False)
     args = parser.parse_args()
     predict(
         project_name=args.project_name,

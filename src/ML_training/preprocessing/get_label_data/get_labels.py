@@ -6,7 +6,9 @@ from pathlib import Path
 from src.utils.bbox_to_meters import convert_bbox_to_meters  # noqa
 
 
-def get_labels(fkb_omrade_gdf, bbox: list, pixel_size: float) -> tuple[np.ndarray]:
+def get_labels(
+    fkb_omrade_gdf, bbox: list, pixel_size: float, in_degree: bool = True
+) -> tuple[np.ndarray]:
     """
     Function to get the labels of the buildings in the area of interest
 
@@ -24,7 +26,10 @@ def get_labels(fkb_omrade_gdf, bbox: list, pixel_size: float) -> tuple[np.ndarra
     """
     target_crs = "EPSG:25833"
     # Define the bounding box and the resolution
-    [left, bottom, right, top] = convert_bbox_to_meters(bbox)
+    if in_degree:
+        [left, bottom, right, top] = convert_bbox_to_meters(bbox)
+    else:
+        [left, bottom, right, top] = bbox
     # Calculate the scaling factors
     # scaling factor in the y direction
     # Calculate the dimensions of the new GeoTIFF

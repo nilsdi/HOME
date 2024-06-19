@@ -7,6 +7,8 @@ import shutil
 import argparse
 from osgeo import gdal
 import pandas as pd
+import geopandas as gpd
+from src.ML_training.preprocessing.get_label_data.get_labels import get_labels
 
 # Increase the maximum number of pixels OpenCV can handle
 os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2, 40))
@@ -24,7 +26,6 @@ def tile_images_no_labels(
     move_to_archive=False,
     project_name=None,
     res=0.3,
-    show_progress=False,
     prediction_mask=None,
 ):
     if prediction_mask is None:
@@ -151,76 +152,100 @@ def tile_images_no_labels(
 
 
 # %% Similar functions but for labels without images
-# Probably shouldn't be used anymore
-
-# def tile_labels_no_images(
-#     input_dir_labels,
-#     output_dir_labels,
-#     tile_size=512,
-#     overlap_rate=0.00,
-#     image_size=None,
-# ):
-#     # Create output directories if they don't exist
-#     os.makedirs(output_dir_labels, exist_ok=True)
-
-#     # Get list of all image files in the input directory
-#     label_files = [f for f in os.listdir(input_dir_labels) if f.endswith(".tif")]
-
-#     effective_tile_size = tile_size * (1 - overlap_rate)
-
-#     # Calculate the image size if not given
-#     total_iterations = 0
-#     if image_size is None:
-#         for file in label_files:
-#             label_path = os.path.join(input_dir_labels, file)
-#             label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
-#             height, width = label.shape
-
-#             num_tiles_x = int(np.ceil((width - tile_size) / (effective_tile_size))) + 1
-#             num_tiles_y = int(np.ceil((height - tile_size) / (effective_tile_size))) + 1
-#             total_iterations += num_tiles_x * num_tiles_y
-#     else:
-#         height, width = image_size, image_size
-
-#     with tqdm(total=total_iterations, desc="Processing") as pbar:
-#         for label_file in label_files:
-#             # Load the label
-#             label_path = os.path.join(input_dir_labels, label_file)
-#             label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
-#             height, width = label.shape
-
-#             num_tiles_x = int(np.ceil((width - tile_size) / (effective_tile_size))) + 1
-#             num_tiles_y = int(np.ceil((height - tile_size) / (effective_tile_size))) + 1
-
-#             # Calculate the required padding
-#             padding_x = (num_tiles_x - 1) * effective_tile_size + tile_size - width
-#             padding_y = (num_tiles_y - 1) * effective_tile_size + tile_size - height
-
-#             # Pad the image and label
-#             label = np.pad(label, ((0, int(padding_y)), (0, int(padding_x))))
-
-#             # Iterate over each tile
-#             for i in range(num_tiles_x):
-#                 for j in range(num_tiles_y):
-#                     # Calculate the tile coordinates
-#                     x = int(i * effective_tile_size)
-#                     y = int(j * effective_tile_size)
-
-#                     # Crop the tile from the label
-#                     label_tile = label[y : y + tile_size, x : x + tile_size]
-
-#                     # Save the label tile to the output directory
-#                     label_tile_filename = f"{label_file[:-4]}_{i}_{j}.tif"
-#                     label_tile_path = os.path.join(
-#                         output_dir_labels, label_tile_filename
-#                     )
-#                     cv2.imwrite(label_tile_path, label_tile)
-
-#                     pbar.update(1)
 
 
-# input_dir_labels = root_dir + "/data/temp/prepred/labels/"
-# output_dir_labels = root_dir + "/data/model/topredict/train/label/"
+def tile_labels(
+    project_name,
+    res=0.2,
+    compression="i_lzw_25",
+    tile_size=512,
+    overlap_rate=0.00,
+    image_size=None,
+):
+
+    year = int(project_name.split("_")[-1])
+    year_dt_utc = pd.to_datetime(year, format="%Y").tz_localize("UTC")
+
+    ### Makes label for a given project
+    dir_images = (
+        root_dir
+        + f"/data/ML_prediction/topredict/image/res_{res}/{project_name}/{compression}/"
+    )
+
+    output_dir_labels = (
+        root_dir
+        + f"/data/ML_prediction/topredict/label/res_{res}/{project_name}/{compression}/"
+    )
+
+    # Create output directories if they don't exist
+    os.makedirs(output_dir_labels, exist_ok=True)
+
+    # Get list of all image files in the input directory
+    image_tiles = [f for f in os.listdir(dir_images) if f.endswith(".tif")]
+
+    # Initialize min and max coordinates
+    min_coord_x = min_coord_y = float("inf")
+    max_coord_x = max_coord_y = float("-inf")
+
+    for image_tile in image_tiles:
+        # Split the filename on underscore
+        parts = image_tile.split(".")[0].split("_")
+
+        # Extract coord_x and coord_y
+        coord_x = int(parts[-2])
+        coord_y = int(parts[-1])
+
+        # Update min and max coordinates
+        min_coord_x = min(min_coord_x, coord_x)
+        min_coord_y = min(min_coord_y, coord_y)
+        max_coord_x = max(max_coord_x, coord_x)
+        max_coord_y = max(max_coord_y, coord_y)
+
+    effective_tile_size = int(tile_size * (1 - overlap_rate))
+    pixel_size = res * effective_tile_size
+
+    path_label = (
+        root_dir
+        + "/data/raw/FKB_bygning"
+        + "/Basisdata_0000_Norge_5973_FKB-Bygning_FGDB.gdb"
+    )
+    gdf_omrade = gpd.read_file(path_label, driver="FileGDB", layer="fkb_bygning_omrade")
+    gdf_omrade_subset = gdf_omrade[gdf_omrade["datafangstdato"] <= year_dt_utc]
+
+    bbox = (
+        np.array([min_coord_x, min_coord_y, max_coord_x + 1, max_coord_y + 1])
+        * pixel_size
+    )
+
+    label, _ = get_labels(gdf_omrade_subset, bbox, res, in_degree=False)
+
+    # Calculate the image size if not given
+    total_iterations = len(image_tiles)
+
+    with tqdm(total=total_iterations, desc="Processing") as pbar:
+        for image_tile in image_tiles:
+
+            # Split the filename on underscore
+            parts = image_tile.split(".")[0].split("_")
+
+            # Extract coord_x and coord_y
+            coord_x = int(parts[-2])
+            coord_y = int(parts[-1])
+
+            x = (coord_x - min_coord_x) * effective_tile_size
+            y = (coord_y - min_coord_y) * effective_tile_size
+
+            label_tile = label[y : y + effective_tile_size, x : x + effective_tile_size]
+
+            # Save the label tile to the output directory
+            label_tile_filename = f"{project_name}_{parts[2]}_{coord_x}_{coord_y}.tif"
+            label_tile_path = os.path.join(output_dir_labels, label_tile_filename)
+
+            cv2.imwrite(label_tile_path, label_tile)
+
+            pbar.update(1)
+
+    return
 
 
 # %%
