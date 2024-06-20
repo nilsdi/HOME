@@ -55,8 +55,13 @@ def calculate_mean_std(dataset_path, txt_path=None, batch_size=32):
 
 # Usage
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Calculate mean and std of dataset")
+    parser.add_argument("-b", "--BW", required=False, type=bool, default=False)
+    args = parser.parse_args()
+    str_bw = "_BW" if args.BW else ""
+
     root_dir = Path(__file__).parents[3]
-    path_train_data = root_dir / f"data/ML_training/train/image/"
+    path_train_data = root_dir / f"data/ML_training/train{str_bw}/image/"
     path_train_txt = root_dir / "data/ML_training/dataset/train.txt"
 
     mean, std = calculate_mean_std(path_train_data, path_train_txt)
