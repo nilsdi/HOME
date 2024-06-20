@@ -1,7 +1,8 @@
 #%%
 import yaml
 import subprocess
-
+from pathlib import Path
+root_dir = Path(__file__).resolve().parents[2]
 # Path to your environment.yml file
 env_file_path = 'environment.yml'
 

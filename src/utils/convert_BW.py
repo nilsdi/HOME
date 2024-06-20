@@ -21,6 +21,6 @@ def convert_folder_to_bw(input_dir, output_dir):
 
 # Specify the folder path here
 root_dir = Path(__file__).parents[2]
-input_dir = root_dir / "data/model/original/train/image"
-output_dir = root_dir / "data/model/original/train_BW/image"
+input_dir = root_dir / "data/ML_training/train/image"
+output_dir = root_dir / "data/ML_training/train_BW/image"
 convert_folder_to_bw(input_dir, output_dir)

@@ -1,4 +1,4 @@
-#%%
+# %%
 import json
 import pandas as pd
 from pathlib import Path
@@ -11,13 +11,17 @@ from src.ML_prediction.preprocessing import (
 )
 from src.ML_prediction.prediction import predict
 
+from src.visualization.ML_prediction.visual_inspection.plot_prediction_input import (
+    plot_prediction_input,
+)
+
 # from src.ML_prediction.postprocessing import (
 #     step_01_reassembling_tiles,
 #     step_02_regularization,
 # )
 
 
-def main(list_of_projects:list):
+def main(list_of_projects: list):
     """
     Main function to run the prediction pipeline
 
@@ -37,7 +41,7 @@ def main(list_of_projects:list):
     ) as file:
         project_details = json.load(file)
 
-    if list_of_projects == ['all']:
+    if list_of_projects == ["all"]:
         list_of_projects = list(project_details.keys())
 
     projects_to_run = []
@@ -75,8 +79,6 @@ def main(list_of_projects:list):
         predict.predict(
             project_name=project_name, res=res, compression=compression, BW=BW
         )
-        # Step 4: (Optional) Visualize a few tiles.
-
         # Step 4: Reassemble tiles
         # step_01_reassembling_tiles(project_name)
 
@@ -89,10 +91,14 @@ def main(list_of_projects:list):
         ) as file:
             json.dump(project_details, file)
 
-#%%
+        # Step 4: (Optional) Visualize a few tiles.
+        plot_prediction_input(project_name, n_tiles=4, save=True, show=True)
 
+
+# %%
 if __name__ == "__main__":
-    list_of_projects = ['trondheim_kommune_2020']
+    list_of_projects = ["trondheim_kommune_2021"]
     main(list_of_projects=list_of_projects)
+    print("did something")
 
 # %%
