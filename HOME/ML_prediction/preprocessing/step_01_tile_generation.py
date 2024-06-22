@@ -8,7 +8,7 @@ import argparse
 from osgeo import gdal
 import pandas as pd
 import geopandas as gpd
-from src.ML_training.preprocessing.get_label_data.get_labels import get_labels
+from HOME.ML_training.preprocessing.get_label_data.get_labels import get_labels
 
 # Increase the maximum number of pixels OpenCV can handle
 os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2, 40))

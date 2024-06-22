@@ -56,12 +56,10 @@ def get_top_left(filenames: list[str]) -> tuple[int, int]:
     min_col, min_row = np.inf, np.inf
     for filename in filenames:
         col, row = extract_tile_numbers(filename)
-        print(row)
         # Update minimum column and row values
         if col < min_col:
             min_col = col
         if row < min_row:
-            #print(row)
             min_row = row
     return min_col, min_row
 
@@ -100,7 +98,38 @@ def order_files_by_xy(files):
 
     return ordered_files
 
+
 #%%
+
+# here I want to make a function that would create the corresponding indices for the tiles sets.
+"""let's say the big tiff is a large matrix A, size (rows, cols). We add padding to make it square.
+Then we create submatrices of size (x_nb_tiles, x_nb_tiles) with overlap of y_nb_tiles.
+We create a list of corresponding indices for each submatrix. these are the tiles that shoulod be in the 
+same set, if they exist. If none of the tiles exist, we leave it empty. If some, we add them and fill out the 
+rest with black tiles. We keep in mind the top left corner of each set, to get the coordinates"""
+
+
+def get_indices_for_tile_sets(row0, col0, rows, cols, x_nb_tiles, y_nb_tiles):
+    # Step 1 & 2: Create a square matrix with padding if necessary
+    max_size = max(rows, cols)
+
+    # Steps 4 & 5: Calculate submatrix sizes with overlap and generate indexes
+    list_of_submatrices_indexes = []
+    step_size = x_nb_tiles - y_nb_tiles  # Effective step size after considering overlap
+    
+    for row_start in range(row0, row0+max_size, step_size):
+        for col_start in range(col0, col0+max_size, step_size):
+            row_end = row_start + x_nb_tiles
+            col_end = col_start + x_nb_tiles
+            print(row_start, row_end, col_start, col_end)
+            submatrix_indexes = [(row, col) for row in range(row_start, row_end) for col in range(col_start, col_end)]
+            list_of_submatrices_indexes.append(submatrix_indexes)
+    
+    return list_of_submatrices_indexes
+
+#%%
+
+"""here we should modify this one to integrate get_indices_for_tile_sets"""
 
 def make_tile_sets(ordered_files, x_nb_tiles, y_overlap_nb_tiles):
     # set the size of each large tile
@@ -128,7 +157,7 @@ def make_tile_sets(ordered_files, x_nb_tiles, y_overlap_nb_tiles):
                     print(expected_tile_name)
                     if expected_tile_name in ordered_files:
                         tile_sets[y_set * nb_sets_x + x_set].append(expected_tile_name)
-    tile_sets_dict = {top_left: tile_set for top_left, tile_set in zip(top_left_coords, tile_sets) if tile_set}
+    tile_sets_dict = {top_left: tile_set for top_left, tile_set in zip(top_left_coords, tile_sets)}
     return tile_sets_dict
 
 def stitch_tiles_together(tile_files, output_file, input_dir, tile_size_px=512):
@@ -148,19 +177,26 @@ def stitch_tiles_together(tile_files, output_file, input_dir, tile_size_px=512):
     total_width = tile_width * num_columns + overlap_width
     total_height = tile_height * num_rows + overlap_height
     driver = gdal.GetDriverByName("GTiff")
+    #col0, row0 = get_top_left(tile_files)
+    col0, row0 = extract_tile_numbers(tile_files[0])
+    # calculate the coordinates (top left)
+    x_coord = col0 * resolution * tile_size_px
+    y_cord = row0 * resolution * tile_size_px
+    # set the metadata of the new tif to include the coordinates
+    geo_transform = (x_coord, resolution, 0, y_cord, 0, -resolution)
+
     combined_dataset = driver.Create(str(output_file), 
                                      total_width, 
                                      total_height, 
                                      sample_dataset.RasterCount, 
                                      sample_dataset.GetRasterBand(1).DataType)
-    combined_dataset.SetGeoTransform(sample_dataset.GetGeoTransform())
+    combined_dataset.SetGeoTransform(geo_transform)
     combined_dataset.SetProjection(sample_dataset.GetProjection())
 
     #create a black tile
     black_tile = np.full((tile_height, tile_width, sample_dataset.RasterCount), 0, dtype=np.uint8)
 
     tile_dict = {extract_tile_numbers(filename): filename for filename in tile_files}
-    col0, row0 = get_top_left(tile_files)
 
     # add the tiles to the combined dataset (new larger tile)
     for column in range(num_columns):
@@ -172,19 +208,15 @@ def stitch_tiles_together(tile_files, output_file, input_dir, tile_size_px=512):
                 if tile_dataset:
                     for band in range(1, tile_dataset.RasterCount + 1):
                         data = tile_dataset.GetRasterBand(band).ReadAsArray(overlap_width // 2, overlap_height // 2, tile_width, tile_height)
-                        # Rotate the tile data 90 degrees clockwise
-                        #data = np.rot90(data, k=-1)
                         # Adjust offsets for rotated tile
                         x_offset = column * tile_width  
-                        #y_offset = row * tile_height  
                         # Adjust y_offset calculation to correct row order
                         y_offset = total_height - ((row + 1) * tile_height)
                         combined_dataset.GetRasterBand(band).WriteArray(data, x_offset, y_offset)
             else:
                 for band in range(1, sample_dataset.RasterCount + 1):
                     combined_dataset.GetRasterBand(band).WriteArray(black_tile[:, :, band - 1], column * tile_width, row * tile_height)
-    # rotate the final sitched image 90 degrees anti-clockwise
-    #combined_dataset = np.rot90(combined_dataset, k=1)
+
     print(f"Final stitched image saved as {output_file}")
     combined_dataset = None
 
@@ -307,14 +339,11 @@ if __name__ == "__main__":
 
 
     # output location for the reassembled tile: in a diff folder
-    # bc we make multiple reassembled tiles per project (5km x 5km with 500m overlap)
-    """here add that we create the file if it doesnt exist yet"""
-    # output_dir = root_dir / f"data/ML_prediction/topredict/image/res_{resolution}/{project_name}/i_{compression_name}_{compression_value}/reassembled_tiles"
     output_dir = root_dir / f"data/ML_prediction/topredict/image/res_{resolution}/{project_name}/reassembled_tiles"
 
     #output_dir = root_dir / f"data/ML_prediction/predictions/res_{resolution}/{project_name}/i_{compression_name}_{compression_value}/reassembled_tiles"
 
-    # path to text file with (hopefully) all the file names of the tiles of the project
+
     # assuming we keep the same format for tile names (include row and column)
     # Use glob to find all .tif files in the directory
     tif_files = list(input_dir.glob('*.tif'))
@@ -325,6 +354,7 @@ if __name__ == "__main__":
 
     ordered_files = order_files_by_xy(tif_filenames)
     tile_sets_dict = make_tile_sets(ordered_files, x_nb_tiles, y_overlap_nb_tiles)
+    #%%
     for top_left, tile_set in tile_sets_dict.items():
         # Define the output file for the stitched image
         final_output_file = output_dir / f"stitched_tif_{project_name}_{top_left}.tif"

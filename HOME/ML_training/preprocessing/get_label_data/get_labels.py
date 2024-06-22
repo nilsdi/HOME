@@ -3,7 +3,7 @@ from rasterio.transform import from_bounds
 from rasterio.features import geometry_mask
 import numpy as np
 from pathlib import Path
-from src.utils.bbox_to_meters import convert_bbox_to_meters  # noqa
+from HOME.utils.bbox_to_meters import convert_bbox_to_meters  # noqa
 
 
 def get_labels(

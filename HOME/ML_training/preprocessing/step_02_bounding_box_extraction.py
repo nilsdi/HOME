@@ -2,11 +2,11 @@
 from pathlib import Path
 import geopandas as gpd
 import json
-from src.ML_training.preprocessing.get_label_data.get_labels import (
+from HOME.ML_training.preprocessing.get_label_data.get_labels import (
     get_labels,
     save_labels,
 )  # noqa
-from src.ML_training.preprocessing.get_label_data.cut_images import (
+from HOME.ML_training.preprocessing.get_label_data.cut_images import (
     cut_geotiff,
     save_cut_geotiff,
 )  # noqa
