@@ -2,7 +2,7 @@ import rasterio
 from rasterio.windows import Window
 import numpy as np
 from pathlib import Path
-from src.utils.bbox_to_meters import convert_bbox_to_meters  # noqa
+from HOME.utils.bbox_to_meters import convert_bbox_to_meters  # noqa
 from pathlib import Path
 
 

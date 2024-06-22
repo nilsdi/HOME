@@ -57,7 +57,7 @@ if __name__ == "__main__":
     parser.add_argument("-r", "--res", required=False, type=float, default=0.2)
     parser.add_argument("-bw", "--BW", required=False, type=bool, default=False)
     parser.add_argument(
-        "-rn", "--read_name", required=False, type=str, default="HDNet_Inria_best"
+        "-rn", "--read_name", required=False, type=str, default=""
     )
     args = parser.parse_args()
 

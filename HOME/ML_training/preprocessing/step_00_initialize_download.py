@@ -16,11 +16,11 @@ Dependencies: (if optional files are not provided, the script doesn't do anythin
 - JSON files with job details in `data/temp/norgeibilder/jobids/` directory (optional)
 """
 
-from src.data_acquisition.orthophoto_api.start_export import (
+from HOME.data_acquisition.orthophoto_api.start_export import (
     start_export,
     save_export_job,
 )
-from src.data_acquisition.orthophoto_api.status_export import (
+from HOME.data_acquisition.orthophoto_api.status_export import (
     status_export,
     save_download_url,
 )

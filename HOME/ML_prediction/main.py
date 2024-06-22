@@ -5,13 +5,13 @@ from pathlib import Path
 import logging
 import torch
 
-from src.ML_prediction.preprocessing import (
+from HOME.ML_prediction.preprocessing import (
     step_01_tile_generation,
     step_02_make_text_file,
 )
-from src.ML_prediction.prediction import predict
+from HOME.ML_prediction.prediction import predict
 
-from src.visualization.ML_prediction.visual_inspection.plot_prediction_input import (
+from HOME.visualization.ML_prediction.visual_inspection.plot_prediction_input import (
     plot_prediction_input,
 )
 

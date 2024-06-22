@@ -5,7 +5,7 @@ import shutil
 import sys
 
 
-from src.data_acquisition.orthophoto_api.download_project import (
+from HOME.data_acquisition.orthophoto_api.download_project import (
     download_project,
 )  # noqa
 
