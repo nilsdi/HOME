@@ -27,15 +27,7 @@ def parse_args(parser, args):
     bw_str_ = "_BW" if args.BW else ""
     res = args.res
 
-    parser.add_argument("--lr", default=0.001, type=float, help="initial learning rate")
     parser.add_argument("-b", "--batch-size", default=8, type=int)
-    parser.add_argument(
-        "--epochs",
-        default=150,
-        type=int,
-        metavar="N",
-        help="number of total epochs to train",
-    )
     parser.add_argument("--data-path", default=root_dir / "data/ML_training/")
     parser.add_argument("--numworkers", default=8, type=int)
     parser.add_argument("--num-classes", default=1, type=int)
@@ -56,9 +48,16 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--numrun", required=True, type=int)
     parser.add_argument("-r", "--res", required=False, type=float, default=0.2)
     parser.add_argument("-bw", "--BW", required=False, type=bool, default=False)
+    parser.add_argument("-rn", "--read_name", required=False, type=str, default="")
     parser.add_argument(
-        "-rn", "--read_name", required=False, type=str, default=""
+        "-e",
+        "--epochs",
+        default=150,
+        type=int,
+        metavar="N",
+        help="number of total epochs to train",
     )
+    parser.add_argument("--lr", default=0.001, type=float, help="initial learning rate")
     args = parser.parse_args()
 
     args = parse_args(parser, args)
@@ -67,7 +66,11 @@ if __name__ == "__main__":
     if not os.path.exists(dir_checkpoint):
         os.mkdir(dir_checkpoint)
 
-    description = f"Tile resolution: {args.res} \nBlack and White: {args.BW} \nFrom Existing: {args.read_name} \nDate: {datetime.now()}\n\n"
+    description = (
+        f"Tile resolution: {args.res} \nBlack and White: {args.BW} \nFrom Existing:"
+        f" {args.read_name} \nDate: {datetime.now()}\n\n"
+        f"max_epochs: {args.epochs}\n, learning rate: {args.lr}"
+    )
     with open(dir_checkpoint + "training_description.txt", "w") as file:
         file.write(description)
 
