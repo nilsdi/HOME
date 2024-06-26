@@ -11,23 +11,31 @@ This script continues to check the status of all jobs in a loop until all jobs a
 """
 
 # %% imports
-from HOME.data_acquisition.orthophoto_api.status_export import (
+from HOME.data_acquisition.norgeibilder.orthophoto_api.status_export import (
     status_export,
     save_download_url,
 )
-from HOME.data_acquisition.orthophoto_api.download_project import download_project
+from HOME.data_acquisition.norgeibilder.orthophoto_api.download_project import (
+    download_project,
+)
 from pathlib import Path
 import os
 import json
 import shutil
 import time
+from HOME.get_data_path import get_data_path
 
-root_dir = Path(__file__).resolve().parents[2]
+# Get the root directory of the project
+root_dir = Path(__file__).resolve().parents[3]
+# print(root_dir)
+# get the data path (might change)
+data_path = get_data_path(root_dir)
+# print(data_path)
 # %% check job status
 
 
 def check_all_jobs() -> bool:
-    jobids_dir = root_dir / "data/temp/norgeibilder/jobids/"
+    jobids_dir = data_path / "temp/norgeibilder/jobids/"
     jobs = [j for j in os.listdir(jobids_dir) if "." in j]
     print(f"available jobs: {jobs}.")
     all_jobs_complete = True
@@ -56,13 +64,17 @@ all_jobs_complete = check_all_jobs()
 
 # immediatly download the finished jobs
 def download_all_possible():
-    possible_downloads_files = root_dir.glob("data/temp/norgeibilder/urls/*")
-    possible_downloads = [p for p in possible_downloads_files if "." in str(p)]
+    urls_dir = data_path / "temp/norgeibilder/urls/"
+    possible_downloads = [
+        d for d in os.listdir(urls_dir) if "." in d
+    ]  # jobs = [j for j in os.listdir(jobids_dir) if "." in j]
+    # possible_downloads_files = root_dir.glob(data_path / "temp/norgeibilder/urls/*")
+    # possible_downloads = [p for p in possible_downloads_files if "." in str(p)]
     print(f"current urls: {possible_downloads}.")
     for current_download in possible_downloads:
         # read in json:
-        job_path = root_dir / "data/temp/norgeibilder/urls/"
-        with open(current_download, "r") as f:
+        job_path = data_path / "temp/norgeibilder/urls/"
+        with open(job_path / current_download, "r") as f:
             job_details = json.load(f)
         for key in job_details:
             print(f"{key}: {job_details[key]}")
@@ -73,14 +85,15 @@ def download_all_possible():
     return
 
 
+# download once manually
 download_all_possible()
 
 
 while not all_jobs_complete:
     print(
-        "Not all jobs are complete. Waiting for 20 minutes before" + " checking again."
+        "Not all jobs are complete. Waiting for 60 minutes before" + " checking again."
     )
-    time.sleep(1200)  # Wait for 20 minutes
+    time.sleep(3600)  # Wait for 60 minutes
     all_jobs_complete = check_all_jobs()
     download_all_possible()
 

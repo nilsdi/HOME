@@ -1,3 +1,9 @@
+"""
+Preparing any large geotiff images for prediction with the ML model by tiling them into
+smaller images. The tiling is done in a grid that starts at 0,0 in EPSG:25833 and extends
+towards north and east, each output tile fits into this grid.
+"""
+
 # %%
 import os
 import numpy as np
@@ -28,9 +34,17 @@ def tile_images_no_labels(
     res=0.3,
     prediction_mask=None,
 ):
+    """
+    Creates tiles in tilesize from images in input_dir_images and saves them in
+    output_dir_images. The tiles are named according to their position relative in the
+    grid that would be started at absolute 0,0 in CRS EPSG:25833 and extends towards
+    north and east. The tiles are only created if the corresponding grid cell is in the
+    prediction_mask.
+    """
+    # Load the prediction mask we have premade if no other is provided
     if prediction_mask is None:
         prediction_mask = pd.read_csv(
-            root_dir + "/data/ML_prediction/prediction_mask/prediction_mask.csv",
+            root_dir + f"/data/ML_prediction/prediction_mask/prediction_mask_{res}.csv",
             index_col=0,
         )
         prediction_mask.columns = prediction_mask.columns.astype(int)
@@ -65,10 +79,10 @@ def tile_images_no_labels(
 
         # Calculate the offset and the coordinates of the top left corner of the first tile
         pixel_size = res * effective_tile_size
-
+        # we have to offset the top left corner/entire image to match the grid
         offset_x = abs(top_left_x) % (pixel_size)
         offset_y = pixel_size - abs(top_left_y) % (pixel_size)
-
+        # the logical grid starts at 0,0 in EPSG:25833, the coords of the top left are:
         coord_top_left_x = int(np.floor(top_left_x / pixel_size))
         coord_top_left_y = int(np.ceil(top_left_y / pixel_size))
 
@@ -116,8 +130,7 @@ def tile_images_no_labels(
                         # Crop the tile from the image
                         image_tile = image[y : y + tile_size, x : x + tile_size]
 
-                        if image_tile.sum() != 0:
-
+                        if image_tile.sum() != 0:  # no need to write a black tile
                             # Save the image tile to the output directory
                             if project_name:
                                 image_tile_filename = f"{project_name}_{image_file[-5:-4]}_{coord_top_left_x + i}_{coord_top_left_y - j}.tif"
@@ -131,7 +144,7 @@ def tile_images_no_labels(
                         else:
                             skipped_tiles += 1
 
-                    else:
+                    else:  # no need to write a tile outside the prediction mask
                         skipped_tiles += 1
                     pbar.update(1)
 
@@ -285,7 +298,7 @@ if __name__ == "__main__":
         description="Tile raw orthophotos for prediction with ML model"
     )
     parser.add_argument("--project_name", required=True, type=str)
-    parser.add_argument("--res", required=False, type=float, default=0.3)
+    parser.add_argument("--res", required=False, type=float, default=0.2)
     parser.add_argument("--compression", required=False, type=str, default="i_lzw_25")
     args = parser.parse_args()
     tile_generation(args.project_name, args.res, args.compression)

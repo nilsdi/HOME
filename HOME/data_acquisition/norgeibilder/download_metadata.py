@@ -6,16 +6,19 @@ the orthophoto API into a local json.
 # %% imports
 import json
 import os
-import sys
 from pathlib import Path
+from datetime import datetime
+from HOME.get_data_path import get_data_path
 
 # Get the root directory of the project
-root_directory = Path(__file__).resolve().parents[2]
+root_dir = Path(__file__).resolve().parents[3]
+# print(root_dir)
+# get the data path (might change)
+data_path = get_data_path(root_dir)
+# print(data_path)
 
-# Add the root directory to sys.path
-sys.path.append(str(root_directory))
 
-from HOME.data_acquisition.orthophoto_api.project_metadata import (
+from HOME.data_acquisition.norgeibilder.orthophoto_api.project_metadata import (
     get_all_projects,
     get_project_metadata,
 )
@@ -38,13 +41,12 @@ while metadata_counter < n_projects:
     metadata_counter += 100
 
 # %% save to json in data folder
-# write the metadata to a file
-from datetime import datetime
-import json
 
-path_to_data = root_directory / "data" / "raw" / "orthophoto"
+path_to_data = os.path.join(data_path, "raw/orthophoto")
 now = datetime.now()
 metadata_file = f'metadata_all_projects_{now.strftime("%Y%m%d%H%M%S")}.json'
-with open(path_to_data / metadata_file, "w") as f:
+# make the directory if it does not exist already
+os.makedirs(path_to_data, exist_ok=True)
+with open(os.path.join(path_to_data, metadata_file), "w") as f:
     json.dump(metadata_all_projects, f)
 # %%

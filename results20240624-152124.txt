@@ -1,0 +1,560 @@
+[epoch: 0]
+batch_loss: 3.0064
+epoch_loss: 5691.3446
+val_IoU: 0.381333
+lr: 0.0001
+
+
+[epoch: 1]
+batch_loss: 4.7842
+epoch_loss: 5579.1741
+val_IoU: 0.423852
+lr: 0.0001
+
+
+[epoch: 2]
+batch_loss: 3.6881
+epoch_loss: 5540.0255
+val_IoU: 0.458505
+lr: 0.0001
+
+
+[epoch: 3]
+batch_loss: 2.1729
+epoch_loss: 5505.4052
+val_IoU: 0.535155
+lr: 0.0001
+
+
+[epoch: 4]
+batch_loss: 3.2005
+epoch_loss: 5668.8265
+val_IoU: 0.402951
+lr: 7e-05
+
+
+[epoch: 5]
+batch_loss: 3.5253
+epoch_loss: 5561.0756
+val_IoU: 0.510073
+lr: 7e-05
+
+
+[epoch: 6]
+batch_loss: 5.4081
+epoch_loss: 5526.5177
+val_IoU: 0.482293
+lr: 7e-05
+
+
+[epoch: 7]
+batch_loss: 2.9846
+epoch_loss: 5500.9724
+val_IoU: 0.478131
+lr: 7e-05
+
+
+[epoch: 8]
+batch_loss: 3.1459
+epoch_loss: 5707.7303
+val_IoU: 0.353758
+lr: 4.899999999999999e-05
+
+
+[epoch: 9]
+batch_loss: 3.6384
+epoch_loss: 5569.5363
+val_IoU: 0.375656
+lr: 4.899999999999999e-05
+
+
+[epoch: 10]
+batch_loss: 2.2212
+epoch_loss: 5533.0927
+val_IoU: 0.435934
+lr: 4.899999999999999e-05
+
+
+[epoch: 11]
+batch_loss: 4.0604
+epoch_loss: 5507.4385
+val_IoU: 0.408151
+lr: 4.899999999999999e-05
+
+
+[epoch: 12]
+batch_loss: 3.2444
+epoch_loss: 5731.4460
+val_IoU: 0.321672
+lr: 3.4299999999999993e-05
+
+
+[epoch: 13]
+batch_loss: 2.9439
+epoch_loss: 5598.6080
+val_IoU: 0.354862
+lr: 3.4299999999999993e-05
+
+
+[epoch: 14]
+batch_loss: 3.3059
+epoch_loss: 5550.4077
+val_IoU: 0.402176
+lr: 3.4299999999999993e-05
+
+
+[epoch: 15]
+batch_loss: 3.5949
+epoch_loss: 5524.5002
+val_IoU: 0.388704
+lr: 3.4299999999999993e-05
+
+
+[epoch: 16]
+batch_loss: 4.8431
+epoch_loss: 5791.5811
+val_IoU: 0.295989
+lr: 2.4009999999999995e-05
+
+
+[epoch: 17]
+batch_loss: 3.2861
+epoch_loss: 5628.5997
+val_IoU: 0.331929
+lr: 2.4009999999999995e-05
+
+
+[epoch: 18]
+batch_loss: 3.8896
+epoch_loss: 5574.2959
+val_IoU: 0.373043
+lr: 2.4009999999999995e-05
+
+
+[epoch: 19]
+batch_loss: 3.1504
+epoch_loss: 5543.9588
+val_IoU: 0.380629
+lr: 2.4009999999999995e-05
+
+
+[epoch: 20]
+batch_loss: 3.1995
+epoch_loss: 5796.5459
+val_IoU: 0.252656
+lr: 1.6806999999999997e-05
+
+
+[epoch: 21]
+batch_loss: 3.9519
+epoch_loss: 5644.7371
+val_IoU: 0.330339
+lr: 1.6806999999999997e-05
+
+
+[epoch: 22]
+batch_loss: 4.3675
+epoch_loss: 5591.6453
+val_IoU: 0.333660
+lr: 1.6806999999999997e-05
+
+
+[epoch: 23]
+batch_loss: 3.3188
+epoch_loss: 5564.8402
+val_IoU: 0.342473
+lr: 1.6806999999999997e-05
+
+
+[epoch: 24]
+batch_loss: 4.0434
+epoch_loss: 5874.9493
+val_IoU: 0.243018
+lr: 1.1764899999999996e-05
+
+
+[epoch: 25]
+batch_loss: 3.7390
+epoch_loss: 5688.0362
+val_IoU: 0.300929
+lr: 1.1764899999999996e-05
+
+
+[epoch: 26]
+batch_loss: 3.8780
+epoch_loss: 5624.3565
+val_IoU: 0.307254
+lr: 1.1764899999999996e-05
+
+
+[epoch: 27]
+batch_loss: 2.6787
+epoch_loss: 5597.2235
+val_IoU: 0.330854
+lr: 1.1764899999999996e-05
+
+
+[epoch: 28]
+batch_loss: 3.6596
+epoch_loss: 5904.0430
+val_IoU: 0.230533
+lr: 8.235429999999996e-06
+
+
+[epoch: 29]
+batch_loss: 3.4534
+epoch_loss: 5730.7039
+val_IoU: 0.260896
+lr: 8.235429999999996e-06
+
+
+[epoch: 30]
+batch_loss: 4.5215
+epoch_loss: 5666.2861
+val_IoU: 0.285575
+lr: 8.235429999999996e-06
+
+
+[epoch: 31]
+batch_loss: 2.7424
+epoch_loss: 5631.8270
+val_IoU: 0.301681
+lr: 8.235429999999996e-06
+
+
+[epoch: 32]
+batch_loss: 3.4189
+epoch_loss: 5963.7182
+val_IoU: 0.218181
+lr: 5.764800999999997e-06
+
+
+[epoch: 33]
+batch_loss: 3.0686
+epoch_loss: 5770.8565
+val_IoU: 0.213678
+lr: 5.764800999999997e-06
+
+
+[epoch: 34]
+batch_loss: 4.8842
+epoch_loss: 5712.7525
+val_IoU: 0.246533
+lr: 5.764800999999997e-06
+
+
+[epoch: 35]
+batch_loss: 3.8077
+epoch_loss: 5670.9363
+val_IoU: 0.282128
+lr: 5.764800999999997e-06
+
+
+[epoch: 36]
+batch_loss: 4.1965
+epoch_loss: 6025.0973
+val_IoU: 0.208520
+lr: 4.035360699999998e-06
+
+
+[epoch: 37]
+batch_loss: 4.1859
+epoch_loss: 5840.8008
+val_IoU: 0.215657
+lr: 4.035360699999998e-06
+
+
+[epoch: 38]
+batch_loss: 2.9432
+epoch_loss: 5782.1144
+val_IoU: 0.212940
+lr: 4.035360699999998e-06
+
+
+[epoch: 39]
+batch_loss: 3.0017
+epoch_loss: 5732.4109
+val_IoU: 0.256211
+lr: 4.035360699999998e-06
+
+
+[epoch: 40]
+batch_loss: 3.9428
+epoch_loss: 6055.8747
+val_IoU: 0.196040
+lr: 2.8247524899999986e-06
+
+
+[epoch: 41]
+batch_loss: 2.4339
+epoch_loss: 5876.8199
+val_IoU: 0.200732
+lr: 2.8247524899999986e-06
+
+
+[epoch: 42]
+batch_loss: 3.2929
+epoch_loss: 5807.2919
+val_IoU: 0.208346
+lr: 2.8247524899999986e-06
+
+
+[epoch: 43]
+batch_loss: 2.9878
+epoch_loss: 5756.9319
+val_IoU: 0.231376
+lr: 2.8247524899999986e-06
+
+
+[epoch: 44]
+batch_loss: 3.7093
+epoch_loss: 6149.7310
+val_IoU: 0.179830
+lr: 1.977326742999999e-06
+
+
+[epoch: 45]
+batch_loss: 3.5530
+epoch_loss: 5958.4134
+val_IoU: 0.193241
+lr: 1.977326742999999e-06
+
+
+[epoch: 46]
+batch_loss: 3.2243
+epoch_loss: 5879.0390
+val_IoU: 0.212822
+lr: 1.977326742999999e-06
+
+
+[epoch: 47]
+batch_loss: 3.2797
+epoch_loss: 5833.2275
+val_IoU: 0.218662
+lr: 1.977326742999999e-06
+
+
+[epoch: 48]
+batch_loss: 4.2728
+epoch_loss: 6168.9185
+val_IoU: 0.181349
+lr: 1.3841287200999992e-06
+
+
+[epoch: 49]
+batch_loss: 4.2294
+epoch_loss: 6002.6042
+val_IoU: 0.193013
+lr: 1.3841287200999992e-06
+
+
+[epoch: 50]
+batch_loss: 3.6243
+epoch_loss: 5930.6421
+val_IoU: 0.185211
+lr: 1.3841287200999992e-06
+
+
+[epoch: 51]
+batch_loss: 2.8976
+epoch_loss: 5881.4696
+val_IoU: 0.194688
+lr: 1.3841287200999992e-06
+
+
+[epoch: 52]
+batch_loss: 4.2857
+epoch_loss: 6233.0315
+val_IoU: 0.170805
+lr: 9.688901040699995e-07
+
+
+[epoch: 53]
+batch_loss: 3.9163
+epoch_loss: 6057.3575
+val_IoU: 0.175033
+lr: 9.688901040699995e-07
+
+
+[epoch: 54]
+batch_loss: 2.6919
+epoch_loss: 5971.3146
+val_IoU: 0.198460
+lr: 9.688901040699995e-07
+
+
+[epoch: 55]
+batch_loss: 3.5464
+epoch_loss: 5913.5891
+val_IoU: 0.196552
+lr: 9.688901040699995e-07
+
+
+[epoch: 56]
+batch_loss: 3.8776
+epoch_loss: 6272.1770
+val_IoU: 0.163722
+lr: 6.782230728489996e-07
+
+
+[epoch: 57]
+batch_loss: 2.3830
+epoch_loss: 6136.2113
+val_IoU: 0.172270
+lr: 6.782230728489996e-07
+
+
+[epoch: 58]
+batch_loss: 3.7548
+epoch_loss: 6049.5544
+val_IoU: 0.180051
+lr: 6.782230728489996e-07
+
+
+[epoch: 59]
+batch_loss: 3.7684
+epoch_loss: 5979.5906
+val_IoU: 0.178572
+lr: 6.782230728489996e-07
+
+
+[epoch: 60]
+batch_loss: 4.0611
+epoch_loss: 6321.8177
+val_IoU: 0.164557
+lr: 4.747561509942997e-07
+
+
+[epoch: 61]
+batch_loss: 4.5094
+epoch_loss: 6181.4753
+val_IoU: 0.170092
+lr: 4.747561509942997e-07
+
+
+[epoch: 62]
+batch_loss: 4.2098
+epoch_loss: 6121.8224
+val_IoU: 0.172123
+lr: 4.747561509942997e-07
+
+
+[epoch: 63]
+batch_loss: 3.7225
+epoch_loss: 6065.3907
+val_IoU: 0.175543
+lr: 4.747561509942997e-07
+
+
+[epoch: 64]
+batch_loss: 3.4423
+epoch_loss: 6356.8313
+val_IoU: 0.171439
+lr: 3.3232930569600976e-07
+
+
+[epoch: 65]
+batch_loss: 3.9443
+epoch_loss: 6219.3456
+val_IoU: 0.165808
+lr: 3.3232930569600976e-07
+
+
+[epoch: 66]
+batch_loss: 3.0651
+epoch_loss: 6156.9487
+val_IoU: 0.168587
+lr: 3.3232930569600976e-07
+
+
+[epoch: 67]
+batch_loss: 3.4030
+epoch_loss: 6100.6445
+val_IoU: 0.172081
+lr: 3.3232930569600976e-07
+
+
+[epoch: 68]
+batch_loss: 3.8656
+epoch_loss: 6385.2701
+val_IoU: 0.161299
+lr: 2.326305139872068e-07
+
+
+[epoch: 69]
+batch_loss: 3.7427
+epoch_loss: 6273.2496
+val_IoU: 0.168959
+lr: 2.326305139872068e-07
+
+
+[epoch: 70]
+batch_loss: 3.0644
+epoch_loss: 6200.8812
+val_IoU: 0.162891
+lr: 2.326305139872068e-07
+
+
+[epoch: 71]
+batch_loss: 4.0484
+epoch_loss: 6157.5288
+val_IoU: 0.166195
+lr: 2.326305139872068e-07
+
+
+[epoch: 72]
+batch_loss: 5.5354
+epoch_loss: 6410.8480
+val_IoU: 0.169592
+lr: 1.6284135979104476e-07
+
+
+[epoch: 73]
+batch_loss: 3.4291
+epoch_loss: 6313.1317
+val_IoU: 0.161578
+lr: 1.6284135979104476e-07
+
+
+[epoch: 74]
+batch_loss: 4.4289
+epoch_loss: 6249.6741
+val_IoU: 0.158629
+lr: 1.6284135979104476e-07
+
+
+[epoch: 75]
+batch_loss: 3.8007
+epoch_loss: 6212.7560
+val_IoU: 0.167055
+lr: 1.6284135979104476e-07
+
+
+[epoch: 76]
+batch_loss: 4.5157
+epoch_loss: 6434.3621
+val_IoU: 0.156482
+lr: 1.1398895185373132e-07
+
+
+[epoch: 77]
+batch_loss: 2.8021
+epoch_loss: 6351.9858
+val_IoU: 0.154764
+lr: 1.1398895185373132e-07
+
+
+[epoch: 78]
+batch_loss: 3.9493
+epoch_loss: 6293.5473
+val_IoU: 0.154302
+lr: 1.1398895185373132e-07
+
+
+[epoch: 79]
+batch_loss: 3.1013
+epoch_loss: 6272.0791
+val_IoU: 0.159558
+lr: 1.1398895185373132e-07
+
+

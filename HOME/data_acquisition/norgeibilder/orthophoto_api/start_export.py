@@ -3,10 +3,23 @@ from pathlib import Path
 import json
 import os
 import time
+from HOME.get_data_path import get_data_path
 
-def start_export(project:str, resolution:float, format:int = 4, compression_method:int = 5,
-                         compression_value:float = 50, mosaic:bool = False)->int:
-    '''
+root_dir = Path(__file__).parents[4]
+# print(root_dir)
+data_path = get_data_path(root_dir)
+# print(data_path)
+
+
+def start_export(
+    project: str,
+    resolution: float,
+    format: int = 4,
+    compression_method: int = 5,
+    compression_value: float = 50,
+    mosaic: bool = False,
+) -> int:
+    """
     Request an export of the orthophoto project specified.
     The export JobID returned can be used to fetch the status of the export.
     User and password are taken from the geonorge_login.json file.
@@ -18,57 +31,69 @@ def start_export(project:str, resolution:float, format:int = 4, compression_meth
     - compression_method: The compression method to be used for the export (see doc).
     - compression_value: The compression value to be used for the export (see doc).
     - mosaic: Whether to export the orthophoto as a mosaic or not - not yet implemented.
-    
+
     Returns:
     - The JobID of the export request.
-    '''
+    """
     rest_export_url = "https://tjenester.norgeibilder.no/rest/startExport.ashx"
 
     # Get the directory of this file
     current_dir = Path(__file__).resolve().parents[0]
 
     # Construct the path to the JSON file
-    json_file_path = os.path.join(current_dir, 'geonorge_login.json')
+    json_file_path = os.path.join(current_dir, "geonorge_login.json")
 
     # Open the JSON file
-    with open(json_file_path, 'r') as file:
+    with open(json_file_path, "r") as file:
         # Load the JSON data
         login = json.load(file)
 
-    export_payload  = {
-    "Username": login['Username'],
-    "Password": login['Password'],
-    'CopyEmail': 'nils.dittrich@ntnu.no',
-    "Format": format,
-    'Resolution': resolution,
-    'CompressionMethod': str(compression_method),
-    'CompressionValue': str(compression_value),
-    "Projects": project, 
-    'Imagemosaic': 2, # 2 means no mosaic
-    'support_files': 1 # medata or not - we choose yes
+    export_payload = {
+        "Username": login["Username"],
+        "Password": login["Password"],
+        "CopyEmail": "nils.dittrich@ntnu.no",
+        "Format": format,
+        "Resolution": resolution,
+        "CompressionMethod": str(compression_method),
+        "CompressionValue": str(compression_value),
+        "Projects": project,
+        "Imagemosaic": 2,  # 2 means no mosaic
+        "support_files": 1,  # medata or not - we choose yes
     }
     # we need to send the payload as a json in a request calling it the request
     export_payload_json = json.dumps(export_payload)
     export_query = {"request": export_payload_json}
-    export_response = requests.get(rest_export_url, params = export_query)
+    export_response = requests.get(rest_export_url, params=export_query)
 
     if export_response.status_code != 200:
-        raise Exception(f"Export request failed with status code {export_response.status_code}.")
+        raise Exception(
+            f"Export request failed with status code {export_response.status_code}."
+        )
     else:
-        print(f"Export request successful with status code {export_response.status_code}.")
+        print(
+            f"Export request successful with status code {export_response.status_code}."
+        )
         response_json = export_response.json()
         print(response_json)
-        JobID = export_response.json()['JobID']
+        JobID = export_response.json()["JobID"]
 
     return JobID
+
 
 # remove whitespace from name
 # change coordinate system WSG84
 # proof the path stuff (for servers?)
 
-def save_export_job(JobID:int, project:str, resolution:float, 
-                                compression_method:int, compression_value:float, mosaic:bool)->None:
-    '''
+
+def save_export_job(
+    JobID: int,
+    project: str,
+    resolution: float,
+    compression_method: int,
+    compression_value: float,
+    mosaic: bool,
+) -> None:
+    """
     Save the export job details to a file for later reference.
 
     Arguments:
@@ -78,30 +103,32 @@ def save_export_job(JobID:int, project:str, resolution:float,
     - compression_type: The compression method to be used for the export.
     - compression_value: The compression value to be used for the export.
     - mosaic: Whether to export the orthophoto as a mosaic or not.
-    
+
     Returns:
     - None
-    '''
-    greatgrandparent_dir = Path(__file__).resolve().parents[3]
+    """
+    # greatgrandparent_dir = Path(__file__).resolve().parents[4]
 
     # current time for the file name
     current_time = time.strftime("%Y%m%d-%H%M%S")
     file_name = f"Export_{project.lower()}_{current_time}.json"
-    file_path =  os.path.join(greatgrandparent_dir, f"data/temp/norgeibilder/jobids/{file_name}")
+    file_path = os.path.join(data_path, f"temp/norgeibilder/jobids/{file_name}")
 
     if compression_method != 5:
-        raise Exception("Only LZW compression (type 5) is supported in saving the job at the moment.")
-    
+        raise Exception(
+            "Only LZW compression (type 5) is supported in saving the job at the moment."
+        )
+
     export_job = {
         "JobID": JobID,
         "project": project,
         "resolution": resolution,
         "compression_method": compression_method,
         "compression_value": compression_value,
-        "mosaic": mosaic
+        "mosaic": mosaic,
     }
 
-    with open(file_path, 'w') as file:
+    with open(file_path, "w") as file:
         json.dump(export_job, file)
 
     return
