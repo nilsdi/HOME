@@ -62,7 +62,7 @@ def download_project(
                     pbar.update(len(chunk))
 
     # Unzip the file
-    unzip_folder = os.path.join(extract_path, file_name).split(".")[0]
+    unzip_folder = os.path.join(extract_path, file_name.split(".")[0])
     os.makedirs(unzip_folder, exist_ok=True)
     with zipfile.ZipFile(file_path, "r") as zip_ref:
         zip_ref.extractall(unzip_folder)
