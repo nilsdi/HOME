@@ -99,7 +99,7 @@ def download_project(
         project_details[project.lower().replace(" ", "_")]["status"] = "downloaded"
     # save the updated json
     with open(
-        os.join(data_path, "ML_prediction/project_log/project_details.json"), "w"
+        os.path.join(data_path, "ML_prediction/project_log/project_details.json"), "w"
     ) as file:
         json.dump(project_details, file)
     return

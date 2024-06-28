@@ -56,7 +56,7 @@ def calculate_mean_std(dataset_path, txt_path=None, batch_size=32):
 # Usage
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Calculate mean and std of dataset")
-    parser.add_argument("-b", "--BW", required=False, type=bool, default=False)
+    parser.add_argument("-bw", "--BW", required=False, type=bool, default=False)
     args = parser.parse_args()
     str_bw = "_BW" if args.BW else ""
 

@@ -10,7 +10,7 @@ import os
 import random
 import scipy.io
 
-root_dir = str(Path(__file__).resolve().parents[2])
+root_dir = str(Path(__file__).resolve().parents[3])
 # %%
 
 
@@ -655,6 +655,21 @@ fig = display_any(
     row_names,
     filenames="random",
 )
+
+# %%
+
+folders = [
+    [
+        root_dir + "/data/ML_training/train/image/",
+        root_dir + "/data/ML_training/train_BW/image/",
+        root_dir + "/data/ML_training/train/label/",
+    ]
+]
+
+names = ["Original", "B&W", "Ground Truth"]
+
+fig = display_any(folders, names, filenames="random")
+
 
 # %%
 

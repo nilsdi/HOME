@@ -122,17 +122,31 @@ def stacked_skewed_footprints(
     skew_flattened_boxes = [
         skew_flatten_verts(box, skew=skew, flatten=flatten) for box in boxes
     ]
+    # we make a copy of the footprint verts of all but the first time step to later make the
+    # connecting lines down
+    import copy
+
+    connecting_lines_bottom_verts = copy.deepcopy(
+        [[fp for fp in footprints] for footprints in skewed_flattened_footprints[1:]]
+    )
+
     # then we offset the y coordinates of boxes and footprints
     for footprints, t_offset in zip(skewed_flattened_footprints, t_dist):
         for fp in footprints:
             for v in fp:
                 v[1] += t_offset * y_offset_factor
+    for bottom_fps, t_m1_offset in zip(connecting_lines_bottom_verts, t_dist[:-1]):
+        for fp in bottom_fps:
+            for v in fp:
+                v[1] += t_m1_offset * y_offset_factor
     for box, t_offset in zip(skew_flattened_boxes, t_dist):
         for v in box:
             v[1] += t_offset * y_offset_factor
 
     # then we plot the boxes and  the footprints of each time step
-    for footprints, box in zip(skewed_flattened_footprints, skew_flattened_boxes):
+    for i, (footprints, box) in enumerate(
+        zip(skewed_flattened_footprints, skew_flattened_boxes)
+    ):
         plot_footprint(
             box,
             ax=ax,
@@ -144,13 +158,23 @@ def stacked_skewed_footprints(
             fill_alpha=0.1,
         )
         for fp in footprints:
-            plot_footprint(fp, ax=ax, color="red")
+            plot_footprint(fp, ax=ax, color="crimson")
+        # then we plot the connecting lines
+        if i > 0:
+            bottom_verts = connecting_lines_bottom_verts[i - 1]
+            for top_fp, bottom_fp in zip(footprints, bottom_verts):
+                for v1, v2 in zip(top_fp, bottom_fp):
+                    ax.plot(
+                        [v1[0], v2[0]], [v1[1], v2[1]], color="gray", ls="--", lw=0.4
+                    )
+
     return ax
 
 
 # %%testing
 if __name__ == "__main__":
-    TC = [271805, 7043536]
+    # Define our custom "footprints"
+    TC = [271805, 7043536]  # Center trondheim in EPSG 24833
     h1 = [
         TC,
         [TC[0], TC[1] + 20],
@@ -172,11 +196,11 @@ if __name__ == "__main__":
     # new test
     fig, ax = plt.subplots()
     stacked_skewed_footprints(
-        [[h1, h2], [h1, h2], [h1, h2]],
-        [0, 1, 3],
+        [[h1, h2], [h1, h2], [h1, h2], [h1, h2], [h1, h2]],
+        [0, 2, 5, 6.8, 8],
         ax=ax,
-        skew=0.25,
-        flatten=0.7,
+        skew=0.4,
+        flatten=0.5,
         overlap=0.1,
     )
     plt.axis("off")

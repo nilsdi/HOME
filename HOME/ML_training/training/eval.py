@@ -6,6 +6,7 @@ import os
 import sys
 from pathlib import Path
 from torch.utils.data import DataLoader
+import argparse
 
 grandparent_dir = Path(__file__).parents[4]
 sys.path.append(str(grandparent_dir))
@@ -19,12 +20,9 @@ matplotlib.use("tkagg")
 
 root_dir = Path(__file__).parents[3]
 data_dir = str(root_dir) + "/data/ML_training/"
-dir_checkpoint = str(root_dir) + "/data/ML_model/save_weights/run_3/"
-image_folder = "train/image"
 
 batchsize = 16
 num_workers = 8
-read_name = "HDNet_NOCI_best"
 Dataset = "NOCI"
 # assert Dataset in ['WHU', 'Inria', 'Mass', 'NOCI']
 net = HighResolutionDecoupledNet(base_channel=48, num_classes=1)
@@ -54,6 +52,21 @@ def eval_HRBR(net, device, batch_size, image_folder="train/image"):
 
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="pytorch HDNet training")
+    parser.add_argument("-n", "--numrun", required=True, type=int)
+    parser.add_argument("-r", "--res", required=False, type=float, default=0.2)
+    parser.add_argument("-bw", "--BW", required=False, type=bool, default=False)
+    parser.add_argument(
+        "-rn", "--read_name", required=False, type=str, default="HDNet_NOCI_0.2_C_best"
+    )
+    args = parser.parse_args()
+
+    dir_checkpoint = str(root_dir) + f"/data/ML_model/save_weights/run_{args.numrun}/"
+    bw_str_ = "_BW" if args.BW else ""
+    image_folder = f"train{bw_str_}/image"
+    read_name = args.read_name
+
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logging.info(f"Using device {device}")
