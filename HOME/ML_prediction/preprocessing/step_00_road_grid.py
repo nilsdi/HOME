@@ -7,11 +7,19 @@ from rasterio.transform import from_bounds
 from rasterio.features import geometry_mask
 from scipy import ndimage
 import argparse
+from HOME.get_data_path import get_data_path
+
+# Get the root directory of the project
+root_dir = Path(__file__).resolve().parents[3]
+# print(root_dir)
+# get the data path (might change)
+data_path = get_data_path(root_dir)
+
 
 def road_grid(grid_size=512, res=0.3):
     # Read the veg.geojson file
     root_dir = Path(__file__).parents[3]
-    road_dir = root_dir / "data/raw/FKB_veg/Basisdata_0000_Norge_5973_FKB-Veg_FGDB.gdb"
+    road_dir = data_path / "raw/FKB_veg/Basisdata_0000_Norge_5973_FKB-Veg_FGDB.gdb"
     roads = gpd.read_file(road_dir, layer="fkb_veg_omrade")
     bounds = roads.total_bounds
 
@@ -47,17 +55,18 @@ def road_grid(grid_size=512, res=0.3):
     )
 
     # Dilate the mask
-    dilated_mask = ndimage.binary_dilation(mask)
+    for i in range(args.dilate):
+        mask = ndimage.binary_dilation(mask)
 
     # Create a DataFrame with the grid coordinates
     road_presence = pd.DataFrame(
         columns=np.arange(min_grid_x, max_grid_x),
         index=np.arange(max_grid_y, min_grid_y, -1),
-        data=dilated_mask,
+        data=mask,
     )
 
     road_presence.to_csv(
-        root_dir / f"data/ML_prediction/prediction_mask/prediction_mask_{res}.csv"
+        data_path / f"ML_prediction/prediction_mask/prediction_mask_{res}.csv"
     )
 
 
@@ -65,5 +74,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--grid_size", type=int, default=512)
     parser.add_argument("--res", type=float, default=0.3)
+    parser.add_argument("--dilate", type=int, default=1)
     args = parser.parse_args()
     road_grid(grid_size=args.grid_size, res=args.res)
+
+# %%

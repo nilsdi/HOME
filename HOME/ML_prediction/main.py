@@ -20,6 +20,15 @@ from HOME.visualization.ML_prediction.visual_inspection.plot_prediction_input im
 #     step_02_regularization,
 # )
 
+from HOME.get_data_path import get_data_path
+
+# Get the root directory of the project
+root_dir = Path(__file__).resolve().parents[2]
+# print(root_dir)
+# get the data path (might change)
+data_path = get_data_path(root_dir)
+# print(data_path)
+
 
 def main(list_of_projects: list):
     """
@@ -29,15 +38,10 @@ def main(list_of_projects: list):
     list_of_projects: list, list of project names to run the prediction pipeline
     """
 
-    root_dir = Path(__file__).parents[2]
-    prediction_mask = pd.read_csv(
-        root_dir / "data/ML_prediction/prediction_mask/prediction_mask.csv", index_col=0
-    )
-    prediction_mask.columns = prediction_mask.columns.astype(int)
-    prediction_mask.index = prediction_mask.index.astype(int)
+    # root_dir = Path(__file__).parents[2]
 
     with open(
-        root_dir / "data/ML_prediction/project_log/project_details.json", "r"
+        data_path / "ML_prediction/project_log/project_details.json", "r"
     ) as file:
         project_details = json.load(file)
 
@@ -45,16 +49,31 @@ def main(list_of_projects: list):
         list_of_projects = list(project_details.keys())
 
     projects_to_run = []
+    pred_res = 0  # the resolution for which we open the prediction mask
     for project_name in list_of_projects:
         if project_details[project_name]["status"] == "downloaded":
             projects_to_run.append(project_name)
+        pred_res = project_details[project_name]["resolution"]
+
+    # load prediction mask
+    prediction_mask = pd.read_csv(
+        data_path / f"ML_prediction/prediction_mask/prediction_mask_{pred_res}.csv",
+        index_col=0,
+    )
+    prediction_mask.columns = prediction_mask.columns.astype(int)
+    prediction_mask.index = prediction_mask.index.astype(int)
 
     for project_name in projects_to_run:
-        res, compression_name, compression_value = (
+        res, compression_name, compression_value, channels = (
             project_details[project_name]["resolution"],
             project_details[project_name]["compression_name"],
             project_details[project_name]["compression_value"],
+            project_details[project_name]["channels"],
         )
+        if res != pred_res:
+            raise ValueError(
+                "The resolution of the project does not match across projects."
+            )
 
         compression = f"i_{compression_name}_{compression_value}"
 
@@ -75,7 +94,7 @@ def main(list_of_projects: list):
 
         # Step 3: Predict
         year = int(project_name.split("_")[-1])
-        BW = year < 1995
+        BW = channels == "BW"
         predict.predict(
             project_name=project_name, res=res, compression=compression, BW=BW
         )
@@ -87,7 +106,7 @@ def main(list_of_projects: list):
 
         project_details[project_name]["status"] = "predicted"
         with open(
-            root_dir / "data/ML_prediction/project_log/project_details.json", "w"
+            data_path / "ML_prediction/project_log/project_details.json", "w"
         ) as file:
             json.dump(project_details, file)
 
@@ -99,6 +118,6 @@ def main(list_of_projects: list):
 if __name__ == "__main__":
     list_of_projects = ["trondheim_kommune_2021"]
     main(list_of_projects=list_of_projects)
-    print("did something")
+    # print("did something")
 
 # %%
