@@ -9,7 +9,14 @@ from torch.utils.data import DataLoader
 import cv2
 from tqdm import tqdm
 import argparse
+from HOME.get_data_path import get_data_path
 
+# Get the root directory of the project
+root_dir = Path(__file__).resolve().parents[3]
+# print(root_dir)
+# get the data path (might change)
+data_path = get_data_path(root_dir)
+# print(data_path)
 grandparent_dir = Path(__file__).parents[4]
 sys.path.append(str(grandparent_dir))
 sys.path.append(str(grandparent_dir / "ISPRS_HD_NET"))
@@ -22,8 +29,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 matplotlib.use("tkagg")
 
 # %%
-root_dir = Path(__file__).parents[3]
-data_dir = str(root_dir) + "/data/ML_prediction/"
+data_dir = data_path / "ML_prediction/"
 predict = True
 
 
@@ -34,7 +40,7 @@ def predict_and_eval(
     data_dir,
     txt_name="test.txt",
     predict=True,
-    prediction_folder=root_dir / "data/ML_prediction/predictions",
+    prediction_folder=data_path / "ML_prediction/predictions",
     image_folder="topredict/image/",
     Dataset="NOCI",
     num_workers=8,
@@ -92,18 +98,18 @@ def predict(project_name, res=0.3, compression="i_lzw_25", BW=False):
     logging.info(f"Using device {device}")
 
     if BW:
-        dir_checkpoint = str(root_dir) + "/data/ML_model/save_weights/run_2/"
+        dir_checkpoint = data_path / "ML_model/save_weights/run_2/"
         Dataset = "NOCI_BW"
         read_name = "HDNet_NOCI_BW_best"
     else:
-        dir_checkpoint = str(root_dir) + "/data/ML_model/save_weights/run_6/"
+        dir_checkpoint = data_path / "ML_model/save_weights/run_7/"
         Dataset = "NOCI"
         read_name = f"HDNet_NOCI_{res}_best"
 
     pred_name = f"pred_{project_name}_{res}_{compression}.txt"
     # prediction_folder = "predictions/test/"
 
-    prediction_folder = root_dir / "data/ML_prediction/predictions"
+    prediction_folder = data_path / "ML_prediction/predictions"
     batchsize = 16
     num_workers = 8
 
@@ -114,11 +120,11 @@ def predict(project_name, res=0.3, compression="i_lzw_25", BW=False):
     if read_name != "":
         net_state_dict = net.state_dict()
         state_dict = torch.load(
-            dir_checkpoint + read_name + ".pth", map_location=device
+            dir_checkpoint / f"{read_name}.pth", map_location=device
         )
         net_state_dict.update(state_dict)
         net.load_state_dict(net_state_dict, strict=False)
-        logging.info("Model loaded from " + read_name + ".pth")
+        logging.info("Model loaded from " + str(read_name) + ".pth")
 
     net = convert_model(net)
     net = torch.nn.parallel.DataParallel(net.to(device))

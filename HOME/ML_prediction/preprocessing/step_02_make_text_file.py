@@ -4,19 +4,25 @@ from pathlib import Path
 import argparse
 
 # %%
-root_dir = Path(__file__).parents[3]
 current_dir = Path(__file__).parents[0]
+from HOME.get_data_path import get_data_path
+
+# Get the root directory of the project
+root_dir = Path(__file__).resolve().parents[3]
+# print(root_dir)
+# get the data path (might change)
+data_path = get_data_path(root_dir)
 
 
 def make_text_file(project_name, res=0.3, compression="i_lzw_25"):
     dir_images = (
-        root_dir
-        / f"data/ML_prediction/topredict/image/res_{res}/{project_name}/{compression}/"
+        data_path
+        / f"ML_prediction/topredict/image/res_{res}/{project_name}/{compression}/"
     )
 
     pred_file = open(
-        root_dir
-        / f"data/ML_prediction/dataset/pred_{project_name}_{res}_{compression}.txt",
+        data_path
+        / f"ML_prediction/dataset/pred_{project_name}_{res}_{compression}.txt",
         "w",
     )
 

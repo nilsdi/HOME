@@ -320,3 +320,122 @@ val_IoU: 0.731001
 lr: 0.00024009999999999998
 
 
+[epoch: 46]
+batch_loss: 2.8010
+epoch_loss: 6339.5773
+val_IoU: 0.730406
+lr: 0.00024009999999999998
+
+
+[epoch: 47]
+batch_loss: 4.0358
+epoch_loss: 6370.2493
+val_IoU: 0.694487
+lr: 0.00024009999999999998
+
+
+[epoch: 48]
+batch_loss: 4.0451
+epoch_loss: 6458.0710
+val_IoU: 0.696094
+lr: 0.00016806999999999998
+
+
+[epoch: 49]
+batch_loss: 3.4041
+epoch_loss: 6368.8777
+val_IoU: 0.745905
+lr: 0.00016806999999999998
+
+
+[epoch: 50]
+batch_loss: 3.8648
+epoch_loss: 6312.2349
+val_IoU: 0.725025
+lr: 0.00016806999999999998
+
+
+[epoch: 51]
+batch_loss: 4.0284
+epoch_loss: 6313.8962
+val_IoU: 0.667050
+lr: 0.00016806999999999998
+
+
+[epoch: 52]
+batch_loss: 3.8727
+epoch_loss: 6263.3088
+val_IoU: 0.733546
+lr: 0.00016806999999999998
+
+
+[epoch: 53]
+batch_loss: 2.7444
+epoch_loss: 6247.0073
+val_IoU: 0.683458
+lr: 0.00016806999999999998
+
+
+[epoch: 54]
+batch_loss: 4.3830
+epoch_loss: 6298.9021
+val_IoU: 0.695328
+lr: 0.00011764899999999998
+
+
+[epoch: 55]
+batch_loss: 3.5273
+epoch_loss: 6308.1862
+val_IoU: 0.681371
+lr: 0.00011764899999999998
+
+
+[epoch: 56]
+batch_loss: 4.6686
+epoch_loss: 6260.2479
+val_IoU: 0.704591
+lr: 0.00011764899999999998
+
+
+[epoch: 57]
+batch_loss: 4.2770
+epoch_loss: 6223.1556
+val_IoU: 0.725747
+lr: 0.00011764899999999998
+
+
+[epoch: 58]
+batch_loss: 4.5164
+epoch_loss: 6299.7995
+val_IoU: 0.728449
+lr: 8.235429999999999e-05
+
+
+[epoch: 59]
+batch_loss: 3.5138
+epoch_loss: 6264.5408
+val_IoU: 0.734036
+lr: 8.235429999999999e-05
+
+
+[epoch: 60]
+batch_loss: 4.0655
+epoch_loss: 6238.7587
+val_IoU: 0.707205
+lr: 8.235429999999999e-05
+
+
+[epoch: 61]
+batch_loss: 3.2053
+epoch_loss: 6225.7052
+val_IoU: 0.742715
+lr: 8.235429999999999e-05
+
+
+[epoch: 62]
+batch_loss: 4.1351
+epoch_loss: 6278.6404
+val_IoU: 0.745996
+lr: 5.764800999999999e-05
+
+

@@ -14,6 +14,7 @@ import argparse
 from osgeo import gdal
 import pandas as pd
 import geopandas as gpd
+from scipy.sparse import load_npz
 from HOME.ML_training.preprocessing.get_label_data.get_labels import get_labels
 
 # Increase the maximum number of pixels OpenCV can handle
@@ -48,12 +49,13 @@ def tile_images_no_labels(
     """
     # Load the prediction mask we have premade if no other is provided
     if prediction_mask is None:
-        prediction_mask = pd.read_csv(
-            data_path / f"ML_prediction/prediction_mask/prediction_mask_{res}.csv",
-            index_col=0,
+        path = (
+            data_path
+            / f"ML_prediction/prediction_mask/masksparse_0.2_-1688_144001.npz",
         )
-        prediction_mask.columns = prediction_mask.columns.astype(int)
-        prediction_mask.index = prediction_mask.index.astype(int)
+        prediction_mask = load_npz(path)
+        min_x = -1688
+        min_y = 144001
 
     skipped_tiles = 0
     # Create output directories if they don't exist
@@ -295,7 +297,7 @@ def tile_generation(project_name, res, compression, prediction_mask=None):
     tile_images_no_labels(
         input_dir_images,
         output_dir_images,
-        tile_size=512,
+        tile_size=224,
         overlap_rate=0.00,
         project_name=project_name,
         res=res,
