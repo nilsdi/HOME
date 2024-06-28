@@ -5,8 +5,15 @@ from pathlib import Path
 from mpl_toolkits.axes_grid1 import host_subplot
 import mpl_toolkits.axisartist as AA
 from matplotlib.ticker import FuncFormatter
+from HOME.get_data_path import get_data_path
 
-root_dir = Path(__file__).parents[3]
+# Get the root directory of the project
+root_dir = Path(__file__).resolve().parents[3]
+# print(root_dir)
+# get the data path (might change)
+data_path = get_data_path(root_dir)
+# print(data_path)
+
 
 # %% define a plotter based on the results file of training
 
@@ -99,18 +106,41 @@ def plot_training(results_file_path: str, save_as: str = None):
 
 # %%
 if __name__ == "__main__":
-    res1 = root_dir / "data/ML_model/metrics/results20240418-174149.txt"
+    """
+    res1 = data_path / "ML_model/metrics/results20240418-174149.txt"
     results_files_folder = root_dir / "data/ML_model/metrics"
     results_files = [f for f in results_files_folder.glob("*.txt")]
     print(f"files in metrics folder: {results_files}")
-    weights_folders = root_dir / "data/ML_model/save_weights"
+    """
+    weights_folders = data_path / "ML_model/save_weights"
     weights_folders = [f for f in weights_folders.glob("*")]
     # find the text files in each weights folder
+    result_files = {}
     for folder in weights_folders:
         txt_files = [f for f in folder.glob("*.txt")]
-        if results_files:
-            print(f"files in folder {folder}: {txt_files}")
-    last_training = "/scratch/mueller_andco/demolition_footprints/demolition_footprints/data/ML_model/save_weights/run_7/results20240618-122443.txt"
-    plot_training(
-        last_training, save_as="training_metrics_run7_res0.2_RGB_20240618-122443.png"
-    )
+        results = None
+        description = None
+        for txt in txt_files:
+            if "results" in str(txt):
+                results = txt
+            elif "description" in str(txt):
+                description = txt
+        folder_name = str(folder).split("/")[-1]
+        result_files[folder_name] = {"results": results, "description": description}
+    # print(f"result files: {result_files}")
+    # pick which run you want displayed:
+
+    chosen_run = "run_7"
+
+    if result_files[chosen_run]["description"]:
+        plot_training(
+            result_files[chosen_run]["results"],
+            save_as=f"training_metrics_{chosen_run}.png",
+        )
+        if result_files[chosen_run]["description"]:
+            with open(result_files[chosen_run]["description"], "r") as file:
+                print(f"Description of the run:\n {file.read()}")
+    # last_training = data_path / "ML_model/save_weights/run_8/results20240624-152124.txt"
+    # plot_training(last_training, save_as="training_metrics_run8_res0.2_BW_20240624-152124.png")
+
+# %%

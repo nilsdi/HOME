@@ -91,9 +91,9 @@ def tile_images_no_labels(
         image = cv2.imread(image_path)
         image = cv2.copyMakeBorder(
             image,
-            int(np.round(offset_x_px)),
-            0,
             int(np.round(offset_y_px)),
+            0,
+            int(np.round(offset_x_px)),
             0,
             cv2.BORDER_CONSTANT,
             value=[0, 0, 0],

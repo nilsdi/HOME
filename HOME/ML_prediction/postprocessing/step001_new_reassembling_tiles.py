@@ -10,6 +10,23 @@ process in one go.
 # %% functions
 
 
+def extract_tile_numbers(filename: str) -> tuple[int, int]:
+    """
+    Extracts the x/col and y/row (coordinates) from a filename
+    of pattern '_x_y'.
+
+    Args:
+        filename (str): name of a tile cut from a larger image.
+
+    Returns:
+        tuple: row, col number of the tile  in the absolute system of , meaning a tile with the name '_0_0' is the top left tile.
+    """
+    parts = filename.split("_")
+    col = int(parts[-2])  # x_coord
+    row = int(parts[-1].split(".")[0])  # y_coord
+    return col, row
+
+
 def get_large_tiles(
     tiles: list[str], n_tiles_edge: int, n_overlap: int
 ) -> dict[list[int]]:
@@ -41,15 +58,19 @@ def assemble_large_tile(large_tile_coords: list[int], small_tiles: list[str]):
     return  # a large tile
 
 
-def get_EPSG25833_coords(row, col, tile_size: int, res: float):
+def get_EPSG25833_coords(
+    row, col, tile_size: int, res: float
+) -> tuple[list[int], list[int]]:
     """
-    Get the coordinates of the top left corner of a tile in EPSG:25833, based on its
-    row and column in the grid of tiles.
+    Get the coordinates of the top left corner and bottom right corner of a tile in
+    EPSG:25833, based on its  row and column in the grid of tiles.
     """
     # get the coordinates of the top left corner of the tile
-    x = col * tile_size * res
-    y = (row + 1) * tile_size * res
-    return [x, y]
+    x_tl = col * tile_size * res
+    y_tl = row * tile_size * res
+    x_br = (x_tl + 1) * tile_size * res
+    y_br = (y_tl - 1) * tile_size * res
+    return [x_tl, y_tl], [x_br, y_br]
 
 
 def get_transform(large_tile_coords: list[int], tile_size: int, res: float):
