@@ -439,3 +439,535 @@ val_IoU: 0.745996
 lr: 5.764800999999999e-05
 
 
+[epoch: 63]
+batch_loss: 3.7451
+epoch_loss: 6246.6366
+val_IoU: 0.686835
+lr: 5.764800999999999e-05
+
+
+[epoch: 64]
+batch_loss: 3.6705
+epoch_loss: 6225.9504
+val_IoU: 0.715743
+lr: 5.764800999999999e-05
+
+
+[epoch: 65]
+batch_loss: 3.8204
+epoch_loss: 6220.3929
+val_IoU: 0.668237
+lr: 5.764800999999999e-05
+
+
+[epoch: 66]
+batch_loss: 4.4536
+epoch_loss: 6202.2485
+val_IoU: 0.741285
+lr: 5.764800999999999e-05
+
+
+[epoch: 67]
+batch_loss: 3.7325
+epoch_loss: 6242.0538
+val_IoU: 0.697913
+lr: 4.035360699999999e-05
+
+
+[epoch: 68]
+batch_loss: 3.5803
+epoch_loss: 6225.6117
+val_IoU: 0.733217
+lr: 4.035360699999999e-05
+
+
+[epoch: 69]
+batch_loss: 3.4824
+epoch_loss: 6213.1111
+val_IoU: 0.719965
+lr: 4.035360699999999e-05
+
+
+[epoch: 70]
+batch_loss: 4.2108
+epoch_loss: 6212.7073
+val_IoU: 0.674927
+lr: 4.035360699999999e-05
+
+
+[epoch: 71]
+batch_loss: 4.2448
+epoch_loss: 6239.6382
+val_IoU: 0.716237
+lr: 2.8247524899999994e-05
+
+
+[epoch: 72]
+batch_loss: 2.1941
+epoch_loss: 6230.0639
+val_IoU: 0.667711
+lr: 2.8247524899999994e-05
+
+
+[epoch: 73]
+batch_loss: 3.7334
+epoch_loss: 6216.1506
+val_IoU: 0.657209
+lr: 2.8247524899999994e-05
+
+
+[epoch: 74]
+batch_loss: 3.7851
+epoch_loss: 6208.3342
+val_IoU: 0.688089
+lr: 2.8247524899999994e-05
+
+
+[epoch: 75]
+batch_loss: 3.9571
+epoch_loss: 6243.5217
+val_IoU: 0.694370
+lr: 1.9773267429999995e-05
+
+
+[epoch: 76]
+batch_loss: 2.7687
+epoch_loss: 6221.3904
+val_IoU: 0.690837
+lr: 1.9773267429999995e-05
+
+
+[epoch: 77]
+batch_loss: 3.8877
+epoch_loss: 6218.6641
+val_IoU: 0.696522
+lr: 1.9773267429999995e-05
+
+
+[epoch: 78]
+batch_loss: 3.2178
+epoch_loss: 6215.1658
+val_IoU: 0.692515
+lr: 1.9773267429999995e-05
+
+
+[epoch: 79]
+batch_loss: 3.4011
+epoch_loss: 6238.7808
+val_IoU: 0.721008
+lr: 1.3841287200999995e-05
+
+
+[epoch: 80]
+batch_loss: 4.7524
+epoch_loss: 6227.1379
+val_IoU: 0.716542
+lr: 1.3841287200999995e-05
+
+
+[epoch: 81]
+batch_loss: 2.9175
+epoch_loss: 6219.6082
+val_IoU: 0.737816
+lr: 1.3841287200999995e-05
+
+
+[epoch: 82]
+batch_loss: 1.8956
+epoch_loss: 6212.4220
+val_IoU: 0.728314
+lr: 1.3841287200999995e-05
+
+
+[epoch: 83]
+batch_loss: 4.8388
+epoch_loss: 6238.5294
+val_IoU: 0.709672
+lr: 9.688901040699997e-06
+
+
+[epoch: 84]
+batch_loss: 3.8826
+epoch_loss: 6229.3497
+val_IoU: 0.719795
+lr: 9.688901040699997e-06
+
+
+[epoch: 85]
+batch_loss: 2.4693
+epoch_loss: 6223.9642
+val_IoU: 0.724693
+lr: 9.688901040699997e-06
+
+
+[epoch: 86]
+batch_loss: 1.9704
+epoch_loss: 6221.4071
+val_IoU: 0.703340
+lr: 9.688901040699997e-06
+
+
+[epoch: 87]
+batch_loss: 4.2444
+epoch_loss: 6243.9291
+val_IoU: 0.731893
+lr: 6.782230728489997e-06
+
+
+[epoch: 88]
+batch_loss: 3.5129
+epoch_loss: 6230.0299
+val_IoU: 0.707422
+lr: 6.782230728489997e-06
+
+
+[epoch: 89]
+batch_loss: 4.7658
+epoch_loss: 6223.9338
+val_IoU: 0.689872
+lr: 6.782230728489997e-06
+
+
+[epoch: 90]
+batch_loss: 4.0556
+epoch_loss: 6220.5580
+val_IoU: 0.705837
+lr: 6.782230728489997e-06
+
+
+[epoch: 91]
+batch_loss: 4.1962
+epoch_loss: 6241.6994
+val_IoU: 0.730007
+lr: 4.747561509942998e-06
+
+
+[epoch: 92]
+batch_loss: 3.6013
+epoch_loss: 6236.3217
+val_IoU: 0.717983
+lr: 4.747561509942998e-06
+
+
+[epoch: 93]
+batch_loss: 3.4462
+epoch_loss: 6226.7438
+val_IoU: 0.708329
+lr: 4.747561509942998e-06
+
+
+[epoch: 94]
+batch_loss: 3.4074
+epoch_loss: 6219.2308
+val_IoU: 0.728263
+lr: 4.747561509942998e-06
+
+
+[epoch: 95]
+batch_loss: 3.8666
+epoch_loss: 6243.3201
+val_IoU: 0.736716
+lr: 3.323293056960098e-06
+
+
+[epoch: 96]
+batch_loss: 2.9062
+epoch_loss: 6226.3372
+val_IoU: 0.732860
+lr: 3.323293056960098e-06
+
+
+[epoch: 97]
+batch_loss: 3.3975
+epoch_loss: 6228.4148
+val_IoU: 0.723396
+lr: 3.323293056960098e-06
+
+
+[epoch: 98]
+batch_loss: 3.3139
+epoch_loss: 6227.0117
+val_IoU: 0.728982
+lr: 3.323293056960098e-06
+
+
+[epoch: 99]
+batch_loss: 3.5776
+epoch_loss: 6240.3761
+val_IoU: 0.740764
+lr: 2.3263051398720685e-06
+
+
+[epoch: 100]
+batch_loss: 3.0355
+epoch_loss: 6240.5904
+val_IoU: 0.731740
+lr: 2.3263051398720685e-06
+
+
+[epoch: 101]
+batch_loss: 4.5949
+epoch_loss: 6231.8370
+val_IoU: 0.734968
+lr: 2.3263051398720685e-06
+
+
+[epoch: 102]
+batch_loss: 3.8791
+epoch_loss: 6227.9813
+val_IoU: 0.725953
+lr: 2.3263051398720685e-06
+
+
+[epoch: 103]
+batch_loss: 2.8927
+epoch_loss: 6248.8572
+val_IoU: 0.744196
+lr: 1.6284135979104478e-06
+
+
+[epoch: 104]
+batch_loss: 3.7142
+epoch_loss: 6233.5829
+val_IoU: 0.737296
+lr: 1.6284135979104478e-06
+
+
+[epoch: 105]
+batch_loss: 2.8381
+epoch_loss: 6236.4721
+val_IoU: 0.734206
+lr: 1.6284135979104478e-06
+
+
+[epoch: 106]
+batch_loss: 6.0490
+epoch_loss: 6229.1104
+val_IoU: 0.723957
+lr: 1.6284135979104478e-06
+
+
+[epoch: 107]
+batch_loss: 4.3786
+epoch_loss: 6246.7780
+val_IoU: 0.744572
+lr: 1.1398895185373134e-06
+
+
+[epoch: 108]
+batch_loss: 4.2802
+epoch_loss: 6242.8409
+val_IoU: 0.737861
+lr: 1.1398895185373134e-06
+
+
+[epoch: 109]
+batch_loss: 2.9381
+epoch_loss: 6234.9874
+val_IoU: 0.742092
+lr: 1.1398895185373134e-06
+
+
+[epoch: 110]
+batch_loss: 4.8500
+epoch_loss: 6235.4541
+val_IoU: 0.722416
+lr: 1.1398895185373134e-06
+
+
+[epoch: 111]
+batch_loss: 3.0496
+epoch_loss: 6249.4168
+val_IoU: 0.746714
+lr: 7.979226629761193e-07
+
+
+[epoch: 112]
+batch_loss: 3.7645
+epoch_loss: 6241.2798
+val_IoU: 0.735210
+lr: 7.979226629761193e-07
+
+
+[epoch: 113]
+batch_loss: 3.1206
+epoch_loss: 6235.1180
+val_IoU: 0.745056
+lr: 7.979226629761193e-07
+
+
+[epoch: 114]
+batch_loss: 4.2951
+epoch_loss: 6237.9298
+val_IoU: 0.725298
+lr: 7.979226629761193e-07
+
+
+[epoch: 115]
+batch_loss: 3.5015
+epoch_loss: 6236.8251
+val_IoU: 0.731414
+lr: 7.979226629761193e-07
+
+
+[epoch: 116]
+batch_loss: 3.0608
+epoch_loss: 6247.8953
+val_IoU: 0.739627
+lr: 5.585458640832835e-07
+
+
+[epoch: 117]
+batch_loss: 3.2541
+epoch_loss: 6234.8415
+val_IoU: 0.731147
+lr: 5.585458640832835e-07
+
+
+[epoch: 118]
+batch_loss: 3.4516
+epoch_loss: 6235.8329
+val_IoU: 0.725706
+lr: 5.585458640832835e-07
+
+
+[epoch: 119]
+batch_loss: 5.7993
+epoch_loss: 6239.8960
+val_IoU: 0.738426
+lr: 5.585458640832835e-07
+
+
+[epoch: 120]
+batch_loss: 3.6492
+epoch_loss: 6242.9069
+val_IoU: 0.743161
+lr: 3.9098210485829847e-07
+
+
+[epoch: 121]
+batch_loss: 4.2942
+epoch_loss: 6244.0223
+val_IoU: 0.740885
+lr: 3.9098210485829847e-07
+
+
+[epoch: 122]
+batch_loss: 3.3953
+epoch_loss: 6243.6348
+val_IoU: 0.737727
+lr: 3.9098210485829847e-07
+
+
+[epoch: 123]
+batch_loss: 2.5298
+epoch_loss: 6246.1995
+val_IoU: 0.739209
+lr: 3.9098210485829847e-07
+
+
+[epoch: 124]
+batch_loss: 4.1609
+epoch_loss: 6249.1559
+val_IoU: 0.743762
+lr: 2.736874734008089e-07
+
+
+[epoch: 125]
+batch_loss: 3.1976
+epoch_loss: 6242.8834
+val_IoU: 0.736966
+lr: 2.736874734008089e-07
+
+
+[epoch: 126]
+batch_loss: 4.6212
+epoch_loss: 6246.0862
+val_IoU: 0.748047
+lr: 2.736874734008089e-07
+
+
+[epoch: 127]
+batch_loss: 2.7806
+epoch_loss: 6237.1200
+val_IoU: 0.742813
+lr: 2.736874734008089e-07
+
+
+[epoch: 128]
+batch_loss: 2.3757
+epoch_loss: 6241.0079
+val_IoU: 0.741050
+lr: 2.736874734008089e-07
+
+
+[epoch: 129]
+batch_loss: 4.4533
+epoch_loss: 6241.4996
+val_IoU: 0.741004
+lr: 2.736874734008089e-07
+
+
+[epoch: 130]
+batch_loss: 3.0726
+epoch_loss: 6237.3346
+val_IoU: 0.737427
+lr: 2.736874734008089e-07
+
+
+[epoch: 131]
+batch_loss: 3.8853
+epoch_loss: 6241.9625
+val_IoU: 0.740725
+lr: 1.9158123138056623e-07
+
+
+[epoch: 132]
+batch_loss: 4.6055
+epoch_loss: 6239.3415
+val_IoU: 0.739969
+lr: 1.9158123138056623e-07
+
+
+[epoch: 133]
+batch_loss: 4.3001
+epoch_loss: 6236.5344
+val_IoU: 0.734008
+lr: 1.9158123138056623e-07
+
+
+[epoch: 134]
+batch_loss: 2.3695
+epoch_loss: 6244.2442
+val_IoU: 0.739916
+lr: 1.9158123138056623e-07
+
+
+[epoch: 135]
+batch_loss: 2.7827
+epoch_loss: 6237.6315
+val_IoU: 0.740631
+lr: 1.3410686196639635e-07
+
+
+[epoch: 136]
+batch_loss: 4.6229
+epoch_loss: 6241.4425
+val_IoU: 0.736760
+lr: 1.3410686196639635e-07
+
+
+[epoch: 137]
+batch_loss: 4.1012
+epoch_loss: 6236.8540
+val_IoU: 0.743283
+lr: 1.3410686196639635e-07
+
+
+[epoch: 138]
+batch_loss: 3.3561
+epoch_loss: 6235.8634
+val_IoU: 0.740393
+lr: 1.3410686196639635e-07
+
+
