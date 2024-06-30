@@ -130,3 +130,34 @@ folium.Rectangle(
 m
 
 # %%
+import folium
+import rasterio
+from rasterio.warp import transform_bounds
+from folium.raster_layers import ImageOverlay
+
+
+# Open the GeoTIFF file
+with rasterio.open(tile_path) as src:
+    # Transform the bounding box to EPSG:4326
+    bbox_4326 = transform_bounds(src.crs, "EPSG:4326", *src.bounds, densify_pts=21)
+
+    # Calculate the center of the transformed bounding box
+    center = [(bbox_4326[1] + bbox_4326[3]) / 2, (bbox_4326[0] + bbox_4326[2]) / 2]
+
+# Create a Folium map centered at the transformed bounding box center
+m = folium.Map(location=center, zoom_start=12)
+
+# Add the GeoTIFF as an overlay
+ImageOverlay(
+    name="GeoTIFF Overlay",
+    image=str(tile_path),
+    bounds=[[bbox_4326[1], bbox_4326[0]], [bbox_4326[3], bbox_4326[2]]],
+    opacity=0.6,
+    interactive=True,
+    cross_origin=False,
+    zindex=1,
+).add_to(m)
+
+# Add layer control and display the map
+folium.LayerControl().add_to(m)
+m

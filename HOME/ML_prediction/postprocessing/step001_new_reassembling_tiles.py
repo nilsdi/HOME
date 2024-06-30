@@ -152,40 +152,20 @@ def assemble_large_tile(
     large_tile = np.full((extend_x_t_px, extend_y_t_px, channels), 0, dtype=np.uint8)
 
     # fill in the large tile with the small tiles
-    counter = 0
     for tile in small_tiles:
         [col, row] = extract_tile_numbers(tile)
-        # print(
-        #    f"this tile has row {row} and col {col} (top left is {top_left}, bottom right is {bottom_right})"
-        # )
         # now the pixel coordinates within the large tile:
-        px_x_tl = (bottom_right[0] - col - 1) * tile_size_px
-        px_x_tl = (col - top_left[0]) * tile_size_px
+        # px_x_tl = (bottom_right[0] - col - 1) * tile_size_px # tested to work, don't know why
+        px_x_tl = (col - top_left[0]) * tile_size_p  # tested to work, don't know why
         px_y_tl = (top_left[1] - row + 1) * tile_size_px
         # px_y_tl = (row - bottom_right[1]) * tile_size_px
         # read the small tile
         small_tile = cv2.imread(tile)
         # add the small tile to the large tile
-        """
-        print(f"for this tile, we use the following coordinates: {px_x_tl}, {px_y_tl}")
-        print(
-            f"yielding an extend from {px_x_tl} to {px_x_tl + tile_size_px} and {px_y_tl - tile_size_px}to {px_y_tl} "
-        )
-        print(f"the shape of the large tile in general is: {large_tile.shape}")
-        print(
-            f"and of this area in particular: {large_tile[px_x_tl : px_x_tl + tile_size_px,px_y_tl - tile_size_px: px_y_tl ].shape}"
-        )
-        """
         large_tile[
             px_y_tl - tile_size_px : px_y_tl,
             px_x_tl : px_x_tl + tile_size_px,
-        ] = small_tile  # np.rot90(small_tile, k=3)
-        if counter < 10:
-            # plt.imshow(small_tile)
-            # plt.show()
-            # plt.imshow(large_tile)
-            # plt.show()
-            counter += 1
+        ] = small_tile
     return large_tile
 
 
@@ -249,7 +229,6 @@ def reassemble_tiles(
     large_tile_tiles = match_small_tiles_to_large_tiles(tiles, large_tile_coords)
     # assemble the large tiles
     tile_name_base = project_name + "resolution" + str(project_details["resolution"])
-    counter = 0
     for (
         lt_name,
         coords,
@@ -258,13 +237,8 @@ def reassemble_tiles(
         assembled_tile = assemble_large_tile(
             coords, matched_tiles, channels=tif_channels
         )
-        # print(f"assembled tile shape: {assembled_tile.shape}")
         # add georeference to assembled tile
         top_left = get_EPSG25833_coords(coords[0][1], coords[0][0], tile_size, res)[0]
-        # print(
-        #    f"top_left: {top_left}, extend in meters: {assembled_tile.shape[0] * res} ({assembled_tile.shape[0]}x{res})meters"
-        # )
-        # bottom_right = get_EPSG25833_coords(coords[1][0], coords[1][1], tile_size, res)[1]
         # get the affine transformation to go from pixel coordinates to EPSG:25833
         transform = from_origin(top_left[0], top_left[1], res, res)
         metadata = {
@@ -279,21 +253,14 @@ def reassemble_tiles(
         # save the assembled tile
         tile_name = f"{tile_name_base}_{lt_name}.tif"
         # write the assembled tile to disk
-        if counter > 55 and counter < 60:
-            with rasterio.open(save_path / tile_name, "w", **metadata) as dst:
-                if tif_channels == 1:
-                    # For single-band images
-                    dst.write(assembled_tile, 1)
-                else:
-                    # For multi-band images (e.g., RGB)
-                    for i in range(1, tif_channels + 1):
-                        dst.write(assembled_tile[:, :, i - 1], i)
-            # plot tile with imshow
-            plt.imshow(assembled_tile)
-            plt.show()
-        elif counter > 65:
-            break  # just for testing
-        counter += 1
+        with rasterio.open(save_path / tile_name, "w", **metadata) as dst:
+            if tif_channels == 1:
+                # For single-band images (not yet tested!)
+                dst.write(assembled_tile, 1)
+            else:
+                # For multi-band images (e.g., RGB)
+                for i in range(1, tif_channels + 1):
+                    dst.write(assembled_tile[:, :, i - 1], i)
     return
 
 
@@ -301,41 +268,43 @@ def reassemble_tiles(
 # get the tiles
 from HOME.get_data_path import get_data_path
 
-# Get the root directory of the project
-root_dir = Path(__file__).resolve().parents[3]
-# print(root_dir)
-# get the data path (might change)
-data_path = get_data_path(root_dir)
-data_path = root_dir / "data"
-with open(data_path / "ML_prediction/project_log/project_details.json", "r") as file:
-    project_details = json.load(file)
+if __name__ == "__main__":
+    # Get the root directory of the project
+    root_dir = Path(__file__).resolve().parents[3]
+    # print(root_dir)
+    # get the data path (might change)
+    data_path = get_data_path(root_dir)
+    data_path = root_dir / "data"
+    with open(
+        data_path / "ML_prediction/project_log/project_details.json", "r"
+    ) as file:
+        project_details = json.load(file)
 
+    project_name = "trondheim_kommune_2021"
+    project_details = project_details[project_name]
+    tiles = [
+        str(tile)
+        for tile in Path(
+            data_path / f"ML_prediction/topredict/image/res_0.3/{project_name}/i_lzw_25"
+        ).rglob("*.tif")
+    ]
 
-project_name = "trondheim_kommune_2021"
-project_details = project_details[project_name]
-tiles = [
-    str(tile)
-    for tile in Path(
-        data_path / f"ML_prediction/topredict/image/res_0.3/{project_name}/i_lzw_25"
-    ).rglob("*.tif")
-]
-
-n_tiles_edge = 10
-n_overlap = 1
-large_tile_loc = data_path / "ML_prediction/predicted_tiles"
-save_loc = data_path / "temp/test_assembly"
-res = 0.3
-tile_size = 512
-reassemble_tiles(
-    tiles,
-    n_tiles_edge,
-    n_overlap,
-    tile_size,
-    res,
-    large_tile_loc,
-    project_name,
-    project_details,
-    save_loc,
-)
+    n_tiles_edge = 10
+    n_overlap = 1
+    large_tile_loc = data_path / "ML_prediction/predicted_tiles"
+    save_loc = data_path / "temp/test_assembly"
+    res = 0.3
+    tile_size = 512
+    reassemble_tiles(
+        tiles,
+        n_tiles_edge,
+        n_overlap,
+        tile_size,
+        res,
+        large_tile_loc,
+        project_name,
+        project_details,
+        save_loc,
+    )
 
 # %%
