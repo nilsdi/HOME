@@ -137,7 +137,7 @@ def tile_images_no_labels(
                     grid_y = coordgrid_top_left_y - j
 
                     # Only keep that tile if it's in the prediction mask
-                    if prediction_mask.loc[grid_y, grid_x]:
+                    if prediction_mask[grid_y - min_y, grid_x - min_x]:
 
                         # Calculate the tile coordinates within the image
                         x = int(i * effective_tile_size)
