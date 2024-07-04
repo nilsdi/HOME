@@ -11,6 +11,7 @@ import rasterio
 import numpy as np
 import warnings
 from rasterio.errors import NotGeoreferencedWarning
+import os
 
 root_dir = Path(__file__).resolve().parents[4]
 print(root_dir)

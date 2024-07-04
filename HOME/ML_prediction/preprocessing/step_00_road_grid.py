@@ -8,6 +8,7 @@ from rasterio.features import geometry_mask
 from scipy import ndimage
 import argparse
 from HOME.get_data_path import get_data_path
+import scipy
 
 # Get the root directory of the project
 root_dir = Path(__file__).resolve().parents[3]
@@ -66,7 +67,32 @@ def road_grid(grid_size=512, res=0.3):
     )
 
     road_presence.to_csv(
-        data_path / f"ML_prediction/prediction_mask/prediction_mask_{res}.csv"
+        data_path
+        / f"ML_prediction/prediction_mask/prediction_mask_{res}_{grid_size}.csv"
+    )
+
+    data_flat = road_presence.values.flatten()
+
+    x_coords, y_coords = np.meshgrid(
+        np.arange(min_grid_x, max_grid_x), np.arange(max_grid_y, min_grid_y, -1)
+    )
+    y_coords = y_coords.flatten()
+    x_coords = x_coords.flatten()
+
+    min_x = x_coords.min()
+    min_y = y_coords.min()
+
+    x_coords_sparse = (x_coords[data_flat] - min_x).astype(int)
+    y_coords_sparse = (y_coords[data_flat] - min_y).astype(int)
+    data_sparse = data_flat[data_flat].astype(int)
+
+    mask_sparse = scipy.sparse.coo_matrix(
+        (data_sparse, (y_coords_sparse, x_coords_sparse))
+    )
+    mask_sparse_csr = mask_sparse.tocsr()
+
+    scipy.sparse.save_npz(
+        f"masksparse_{res}_{grid_size}_{min_x}_{min_y}.npz", mask_sparse_csr
     )
 
 

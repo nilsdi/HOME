@@ -111,12 +111,12 @@ def main(list_of_projects: list):
             json.dump(project_details, file)
 
         # Step 4: (Optional) Visualize a few tiles.
-        plot_prediction_input(project_name, n_tiles=4, save=True, show=True)
+        # plot_prediction_input(project_name, n_tiles=4, save=True, show=True)
 
 
 # %%
 if __name__ == "__main__":
-    list_of_projects = ["trondheim_kommune_2021"]
+    list_of_projects = ["trondheim_kommune_2022", "trondheim_2017"]
     main(list_of_projects=list_of_projects)
     # print("did something")
 

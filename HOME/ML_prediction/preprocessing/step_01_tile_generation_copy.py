@@ -49,10 +49,16 @@ def tile_images_no_labels(
     """
     # Load the prediction mask we have premade if no other is provided
     if prediction_mask is None:
-        path = "/scratch/mueller_andco/orthophoto/HOME/data/ML_prediction/prediction_mask/masksparse_0.2_-1688_144001.npz"
-        prediction_mask = scipy.sparse.load_npz(path)
-        min_x = -1688
-        min_y = 144001
+        folderpath = data_path / f"ML_prediction/prediction_mask/"
+        filepath = [
+            f
+            for f in os.listdir(folderpath)
+            if (str(res) in f) and (str(tile_size) in f)
+        ][0]
+        prediction_mask = scipy.sparse.load_npz(folderpath / filepath)
+        parts = filepath.split("_")
+        min_x = int(parts[-2])
+        min_y = int(parts[-1].split(".")[0])
 
     skipped_tiles = 0
     # Create output directories if they don't exist
