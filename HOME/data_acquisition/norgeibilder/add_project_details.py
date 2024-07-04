@@ -11,14 +11,20 @@ from osgeo import gdal, osr
 from tqdm import tqdm
 import json
 from datetime import datetime
+from HOME.get_data_path import get_data_path
 
-root_dir = Path(__file__).parents[3]
-print(f"root_dir: {root_dir}")
-# load in metadata:
-path_to_data = root_dir / "data" / "raw" / "orthophoto"
-# list all files (not directories) in the path
+# Get the root directory of the project
+root_dir = Path(__file__).resolve().parents[3]
+# print(root_dir)
+# get the data path (might change)
+data_path = get_data_path(root_dir)
+# print(data_path)
+orthophoto_dir = data_path / "raw" / "orthophoto"
+# %% load the metadata
 metadata_files = [
-    f for f in os.listdir(path_to_data) if os.path.isfile(os.path.join(path_to_data, f))
+    f
+    for f in os.listdir(orthophoto_dir)
+    if os.path.isfile(os.path.join(orthophoto_dir, f))
 ]
 
 
@@ -42,14 +48,12 @@ sorted_files = sorted(metadata_files, key=extract_datetime, reverse=True)
 # The newest file
 newest_file = sorted_files[0]
 print("Newest file:", newest_file)
-print(path_to_data / newest_file)
-with open(path_to_data / newest_file, "r") as f:
+print(orthophoto_dir / newest_file)
+with open(orthophoto_dir / newest_file, "r") as f:
     metadata_all_projects = json.load(f)
 
 # %% open the file and change it
-with open(
-    root_dir / "data/ML_prediction/project_log/project_details.json", "r"
-) as file:
+with open(data_path / "ML_prediction/project_log/project_details.json", "r") as file:
     project_details = json.load(file)
 
 picture_types = {
@@ -72,8 +76,6 @@ for project_name in project_details.keys():
 
 print(project_details)
 # %% save the file
-with open(
-    root_dir / "data/ML_prediction/project_log/project_details.json", "w"
-) as file:
+with open(data_path / "ML_prediction/project_log/project_details.json", "w") as file:
     json.dump(project_details, file, indent=4)
 # %%
