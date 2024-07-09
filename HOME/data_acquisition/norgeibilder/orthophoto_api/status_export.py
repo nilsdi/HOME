@@ -1,3 +1,10 @@
+"""Manages the checking on production of requested orthophotos from the Norgeibilder
+
+Contains 2 functions:
+- status_export: Request the status of an export job
+- save_download_url: Manage the url and job id json
+"""
+
 import requests
 import json
 import time
@@ -17,12 +24,15 @@ def status_export(JobID: int) -> Tuple[bool, Optional[str]]:
     Request the status of an export job specified by the JobID.
     The status returned can be used to check if the export is complete.
 
-    Arguments:
+    Args:
     - JobID: The JobID of the export request.
 
     Returns:
     - The status of the export request. If true, the string is the url for
         the download.
+
+    Raises:
+    - Exception: If the request failed (for any reason)
     """
     rest_status_url = "https://tjenester.norgeibilder.no/rest/" + "exportStatus.ashx"
     # Get the directory of the current script file
@@ -67,6 +77,20 @@ def save_download_url(
 ) -> None:
     """
     Save the download url to a file for later reference.
+
+    Args:
+    - download_url (str): The url to the download.
+    - project (str): The name of the project (regular name including spaces)
+    - resolution (float): The resolution of the orthophoto in m/px
+    - compression_method (int): The compression method used encoded
+    - compression_value (float): The compression value used (0-100)
+    - mosaic (bool): Whether the orthophoto is a mosaic or not
+
+    Returns:
+    - None
+
+    Raises:
+    - Exception: If the compression method is not supported yet
     """
     greatgrandparent_dir = Path(__file__).resolve().parents[4]
 

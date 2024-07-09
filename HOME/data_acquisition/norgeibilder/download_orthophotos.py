@@ -1,13 +1,15 @@
-"""
-downloads all orthophotos which were requested and finished processing.
+""" Checking available projects and actually download the data
 
-We check the status of all processing jobs using the `status_export` function and the
-JobID stored in the JSON files in the `data/temp/norgeibilder/jobids/` directory.
-If the job is complete, it saves the download URL using the `save_download_url` function,
-and moves the job file to the `used_jobids` directory.
-The files are then downloaded  to the `data/raw/orthophotos/` directory.
-
-This script continues to check the status of all jobs in a loop until all jobs are complete.
+Contains a two functions and a main block:
+- check_all_jobs: Checks the status to see if some project is ready for download
+- download_all_possible: Downloads the projects that are ready for download
+- main block: running the above functions in a loop until all projects are downloaded:
+    check the status of all processing jobs using the `status_export` function and the JobID 
+    stored in the JSON files in the `data/temp/norgeibilder/jobids/` directory. If the job is 
+    complete, it saves the download URL using the `save_download_url` function, 
+    and moves the job file to the `used_jobids` directory.
+    The files are then downloaded  to the data/ 'raw/orthophotos/` directory.
+    This script continues to check the status of all jobs in a loop until all jobs are complete.
 """
 
 # %% imports
@@ -30,11 +32,17 @@ root_dir = Path(__file__).resolve().parents[3]
 # print(root_dir)
 # get the data path (might change)
 data_path = get_data_path(root_dir)
+
+
 # print(data_path)
 # %% check job status
-
-
 def check_all_jobs() -> bool:
+    """
+    Goes through the jobid jsons in the temp folder in data to check status
+
+    Returns:
+    - all_jobs_complete: True if all jobs are complete, False otherwise
+    """
     jobids_dir = data_path / "temp/norgeibilder/jobids/"
     jobs = [j for j in os.listdir(jobids_dir) if "." in j]
     print(f"available jobs: {jobs}.")
@@ -58,12 +66,13 @@ def check_all_jobs() -> bool:
     return all_jobs_complete
 
 
-# check once manually
-all_jobs_complete = check_all_jobs()
-
-
-# immediatly download the finished jobs
 def download_all_possible():
+    """
+    Goes through the list of urls in the data/temp folder and downloads the projects
+
+    Returns:
+    - None
+    """
     urls_dir = data_path / "temp/norgeibilder/urls/"
     possible_downloads = [
         d for d in os.listdir(urls_dir) if "." in d
@@ -87,17 +96,19 @@ def download_all_possible():
     return
 
 
-# download once manually
-download_all_possible()
-
-
-while not all_jobs_complete:
-    print(
-        "Not all jobs are complete. Waiting for 60 minutes before" + " checking again."
-    )
-    time.sleep(3600)  # Wait for 60 minutes
+if __name__ == "__main__":
+    # check once manually
     all_jobs_complete = check_all_jobs()
+    # immediatly download the finished jobs (once manually)
     download_all_possible()
+    # afterwards we check regularly
+    while not all_jobs_complete:
+        print(
+            "Not all jobs are complete. Waiting for 60 minutes before checking again."
+        )
+        time.sleep(3600)  # Wait for 60 minutes
+        all_jobs_complete = check_all_jobs()
+        download_all_possible()
 
 
 # %%

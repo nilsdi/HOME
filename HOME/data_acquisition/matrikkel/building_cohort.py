@@ -1,5 +1,8 @@
-"""
-Extract building number and building construction year from the matrikkel data.
+"""Extract building number and building construction year from the matrikkel data.
+
+Contains two functions and a main block for applying them:
+- extract_cohorts_from_building: matrikkel estimated cohort from matrikkel building object
+- municipality_pickle_to_building_cohorts: extract building numbers and years from a list of building objects coming from matrikkel via a pickle file.
 """
 
 # %% Imports
@@ -17,7 +20,14 @@ print(root_dir)
 # %% function defintions
 def extract_cohorts_from_building(building_object: dict) -> int:
     """
-    Returns something that looks like the cohort - not sure actually.
+    Takes in a building object from matrikkel (dict from the suds object)
+    and returns the date of the first building history, or -1 if none are available.
+
+    Args:
+        building_object (dict): a building object from the matrikkel data
+
+    Returns:
+        year (int): the year of the first building history (or -1 if none are available)
     """
     b_histories = building_object["bygningsstatusHistorikker"]
 
@@ -37,7 +47,16 @@ def extract_cohorts_from_building(building_object: dict) -> int:
 
 def municipality_pickle_to_building_cohorts(pickle_path: Path) -> Tuple[list]:
     """
-    Load the matrikkel data from a pickle file and return a list of buildings.
+    Load the data from a request of all buildings from a municipality
+    via the matrikkel API and returns a list of the building number and
+    the building years (years of the first building history).
+
+    Args:
+        pickle_path (Path): path to the pickle file containing building objects (!)
+
+    Returns:
+        building_numbers (list): list of building numbers
+        building_years (list): list of building years (estimated based on matrikkel)
     """
     with open(pickle_path, "rb") as f:
         description, buildings = pickle.load(f)

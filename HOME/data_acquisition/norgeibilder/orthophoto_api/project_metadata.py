@@ -1,3 +1,10 @@
+"""Managing the requesting of metadata from the norgeibilder API
+
+This module contains 2 functions of metadata requests from the norgeibilder API:
+- get_all_projects: Get all orthophoto projects available for export.
+- get_project_metadata: Get all the metadata of the orthophoto project(s) specified.
+"""
+
 import requests
 import json
 
@@ -30,14 +37,18 @@ def get_project_metadata(projects: list[str], geometry: bool = False) -> dict:
     Get the metadata of the orthophoto project specified.
     Seems to not work as of now (05.03.2024) - not clear if the purpose of this service
     is to get medata back for specific projects, or just to give a list of projects fitting the
-    search criteria.
+    search criteria. Note that the coordinates come in the default system of EPSG25833.
 
-    Arguments:
+    Args:
     - projects: a list of project IDs of the orthophoto to get metadata from.
+    - geometry: whether to include the geometry of the orthophoto project in the metadata.
 
     Returns:
     - A dictionary containing the metadata of the orthophoto project.
-      Note that the coordinates come in the default system of 25833.
+
+    Raises:
+    - ValueError: If the number of projects is greater than 100 (limit for the API request)
+    - Exception: If the request failed (for any reason)
     """
     # Base URL
     base_url = "https://tjenester.norgeibilder.no/rest/projectMetadata.ashx"

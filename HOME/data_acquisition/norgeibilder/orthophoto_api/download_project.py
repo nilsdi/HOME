@@ -1,5 +1,7 @@
-"""
-Handles download of orthophoto data from the API, including unzipping and adjusting crs.
+"""Handles download of orthophoto data from Norgeibilder once we have an url.
+
+Contains one function:
+- download_project: Download based on an url and project details
 """
 
 # %% imports
@@ -27,6 +29,19 @@ def download_project(
     compression_value: float,
     mosaic: bool,
 ) -> None:
+    """
+    Download zipped orthophoto data from given url, unzips and saves it into
+    the correct folder structure. Also checks the CRS of the orthophoto.
+
+    Args:
+        download_url (str): url generated via the status API
+        project (str): name of the project (for folder structure)
+        resolution (float): resolution of the orthophoto (for folder structure)
+        compression_name (str): name of the compression used (for folder structure)
+        compression_value (float): value of the compression used (for folder structure)
+        mosaic (bool): whether the orthophoto is a mosaic or not (for folder structure)
+    """
+
     # Retrieve data
     response = requests.get(download_url, allow_redirects=True, stream=True)
     print(f"we get status_code {response.status_code}.")
