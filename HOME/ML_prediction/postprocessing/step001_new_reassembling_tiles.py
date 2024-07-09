@@ -1,7 +1,7 @@
-"""
-Minimal version of how to reassemble tiles (e.g. from a prediction) into larger
-tiles with some overlap. This is useful for large images that are too big to
-process in one go.
+""" Reassembly of the 512x512 tifs into larger geotifs.
+
+Ready to take any set of tiles that are named according to the tile grid 
+and reassemble them into larger tiles with proper georeferencing.
 """
 
 # %% imports
@@ -39,6 +39,15 @@ def extract_tile_numbers(filename: str) -> list[int, int]:
 def get_max_min_extend(tiles: list[str]) -> list[int, int, int, int]:
     """
     Get the extend of all tiles given in tile coordinates
+
+    Args:
+    - tiles: list of strings with the names of all the tiles we want to reassemble
+
+    Returns:
+    - min_x: minimum x coordinate of the tiles
+    - max_x: maximum x coordinate of the tiles
+    - min_y: minimum y coordinate of the tiles
+    - max_y: maximum y coordinate of the tiles
     """
     tile_coords = [extract_tile_numbers(tile) for tile in tiles]
     min_x = min([coord[0] for coord in tile_coords])
@@ -55,10 +64,15 @@ def get_large_tiles(
     Checks the number of large tiles needed to host all given tiles assuming
     we want a grid of uniform reassambled tiles with a given number of small tiles
     as the overlap, and square assembled tiles with n_tiles_edge on each side.
+
     Args:
     - extend_tile_coords: list of the minx, maxx, miny, maxy of the tiles
     - n_tiles_edge: number of tiles on each side of the large tiles
     - n_overlap: number of tiles to overlap (typically 1)
+
+    Returns:
+    - large_tile_coords: dictionary based on tile name (based on  grid position) 
+        and coordinates of the large tiles - top left & bottom right (in global tile grid)
     """
     # get the extend of the tiles given in tile coordinates
     min_x, max_x, min_y, max_y = extend_tile_coords
@@ -105,10 +119,14 @@ def match_small_tiles_to_large_tiles(
     """
     Matches the small tiles to the large tiles given the coordinates of the large tiles.
     returns a list with the names of all the small tiles that belong to each large tile.
+
     Args:
     - tiles: list of strings with the names of all the tiles we want to reassemble
     - large_tile_coords: dictionary with the coordinates of the large tiles - first the top left
     and then the bottom right corner.
+
+    Returns:
+    - large_tile_tiles: dictionary to assign small tiles to large tile name (see above)
     """
     large_tile_tiles = {lt_name: [] for lt_name in large_tile_coords.keys()}
     for tile in tiles:
@@ -129,14 +147,18 @@ def assemble_large_tile(
     small_tiles: list[str],
     tile_size_px: int = 512,
     channels: int = 3,
-):
+) -> np.array:
     """
     Assembles a large tile from the small tiles (without coordinates)
+    
     Args:
     - coords: list of the top left and bottom right coordinates of the large tile
     - small_tiles: list of the names of the small tiles that belong to the large tile
     - tile_size_px: size of the small tiles in pixels
     - channels: number of channels in the small tiles
+
+    Returns:
+    - large_tile: np.array with the large tile
     """
     # sort the small tiles by their coordinates in x and y
     small_tiles.sort(key=lambda x: extract_tile_numbers(x)[0])
