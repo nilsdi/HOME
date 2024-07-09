@@ -1,3 +1,10 @@
+"""Manages the requests of orthophotos from the Norge i bilder API.
+
+Contains two functions:
+- start_export: Request an export of the orthophoto project specified. (causes an email!)
+- save_export_job: Save the export job details to a file for later reference.
+"""
+
 import requests
 from pathlib import Path
 import json
@@ -24,16 +31,16 @@ def start_export(
     The export JobID returned can be used to fetch the status of the export.
     User and password are taken from the geonorge_login.json file.
 
-    Arguments:
-    - project: The project ID of the orthophoto to be exported.
-    - resolution: The resolution of the orthophoto to be exported in meters.
-    - format: The format of the orthophoto to be exported (see documentation for details).
-    - compression_method: The compression method to be used for the export (see doc).
-    - compression_value: The compression value to be used for the export (see doc).
-    - mosaic: Whether to export the orthophoto as a mosaic or not - not yet implemented.
+    Args:
+    - project (str): The project ID of the orthophoto to be exported.
+    - resolution (float): The resolution of the orthophoto to be exported in meters.
+    - format (int): The format of the orthophoto to be exported (see documentation for details).
+    - compression_method (int): The compression method to be used for the export (see doc).
+    - compression_value (float): The compression value to be used for the export (see doc).
+    - mosaic (bool): Whether to export the orthophoto as a mosaic or not - not yet implemented.
 
     Returns:
-    - The JobID of the export request.
+    - int: The JobID of the export request.
     """
     rest_export_url = "https://tjenester.norgeibilder.no/rest/startExport.ashx"
 
@@ -51,7 +58,7 @@ def start_export(
     export_payload = {
         "Username": login["Username"],
         "Password": login["Password"],
-        "CopyEmail": "nils.dittrich@ntnu.no",
+        "CopyEmail": "nils.dittrich@ntnu.no",  # so both Daniel and I get an email!
         "Format": format,
         "Resolution": resolution,
         "CompressionMethod": str(compression_method),
@@ -96,13 +103,13 @@ def save_export_job(
     """
     Save the export job details to a file for later reference.
 
-    Arguments:
-    - JobID: The JobID of the export request.
-    - project_name: The name of the orthophoto project to be exported.
-    - resolution: The resolution of the orthophoto to be exported in meters.
-    - compression_type: The compression method to be used for the export.
-    - compression_value: The compression value to be used for the export.
-    - mosaic: Whether to export the orthophoto as a mosaic or not.
+    Args:
+    - JobID (int): The JobID of the export request.
+    - project (str): The name of the orthophoto project to be exported.
+    - resolution (float): The resolution of the orthophoto to be exported in meters.
+    - compression_method (int): The compression method to be used for the export.
+    - compression_value (float): The compression value to be used for the export.
+    - mosaic (bool): Whether to export the orthophoto as a mosaic or not.
 
     Returns:
     - None
