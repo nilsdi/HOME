@@ -1,8 +1,9 @@
 The documentation of how we get pictures.
 ====================================================
 
-.. toctree::
-   :maxdepth: 2
+.. autosummary::
+   :toctree: _autosummary
+   :recursive:
    :caption: Contents:
-   
-   orthophoto_api
+
+   data_acquisition
