@@ -1,15 +1,15 @@
-""" Checking available projects and actually download the data
+"""Checking available projects and actually download the data
 
 Contains a two functions and a main block:
 - check_all_jobs: Checks the status to see if some project is ready for download
 - download_all_possible: Downloads the projects that are ready for download
 - main block: running the above functions in a loop until all projects are downloaded:
-    check the status of all processing jobs using the `status_export` function and the JobID 
-    stored in the JSON files in the `data/temp/norgeibilder/jobids/` directory. If the job is 
-    complete, it saves the download URL using the `save_download_url` function, 
-    and moves the job file to the `used_jobids` directory.
-    The files are then downloaded  to the data/ 'raw/orthophotos/` directory.
-    This script continues to check the status of all jobs in a loop until all jobs are complete.
+check the status of all processing jobs using the `status_export` function and the JobID 
+stored in the JSON files in the `data/temp/norgeibilder/jobids/` directory. If the job is 
+complete, it saves the download URL using the `save_download_url` function, 
+and moves the job file to the `used_jobids` directory.
+The files are then downloaded  to the data/ 'raw/orthophotos/` directory.
+This script continues to check the status of all jobs in a loop until all jobs are complete.
 """
 
 # %% imports
