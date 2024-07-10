@@ -89,3 +89,11 @@ if not (project_log_dir / "project_details.json").exists():
         json.dump(project_details, f)
 
 # %%
+print(
+    f"very long messssssssssssssssssssssssssssssss"
+    + "sssssssssssssssssssssssssssssssssssssssssssssssssssage"
+)
+print(f"Very long message" + "dkjsdkj      ")
+
+testi = {"testi": "testi", "grape": "grape", "stuff": "stuff"}
+print(testi)

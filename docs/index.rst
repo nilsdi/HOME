@@ -10,11 +10,11 @@ training a neural network to detect buildings, applying this model to predict
 building footprints on all orthophotos and finally analyzing the history of buildings.
 ===============================================================
 
-.. autosummary::
-   :toctree: _autosummary
-   :recursive:
+.. toctree::
+   :maxdepth: 2
+   :caption: Contents:
 
-   data_acquisition
+   modules 
 
 Indices and tables
 ==================
