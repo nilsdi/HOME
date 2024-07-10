@@ -9,12 +9,13 @@
 project = "HOME"
 copyright = "2024, Nils Dittrich, Francis Barre, Zoe CordHomme"
 author = "Nils Dittrich, Francis Barre, Zoe CordHomme"
+release = "0.1.0"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    "sphinx.ext.autodoc",  # Add this line if it's missing
+    "sphinx.ext.autodoc", 
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
 ]
@@ -39,3 +40,5 @@ root_dir = os.path.abspath("../HOME")
 print(root_dir)
 # Add the project root directory to the Python path
 sys.path.insert(0, root_dir)
+
+# norgeibilder
