@@ -40,6 +40,12 @@ def download_project(
         compression_name (str): name of the compression used (for folder structure)
         compression_value (float): value of the compression used (for folder structure)
         mosaic (bool): whether the orthophoto is a mosaic or not (for folder structure)
+
+    Returns:
+        None
+
+    Raises:
+        Exception: if the download request fails for any reason
     """
 
     # Retrieve data
