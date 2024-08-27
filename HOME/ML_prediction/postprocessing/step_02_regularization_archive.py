@@ -120,7 +120,6 @@ plt.show()
 #%%
 # Overlay with the TIFF file (prediction)
 
-# Overlay with the TIFF file (prediction)
 
 with rasterio.open(segimg) as src:
     # Read the raster data

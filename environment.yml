@@ -34,3 +34,5 @@ dependencies: # not specifying versions to allow for solving during the build pr
   - geopandas #==0.12.2
   - ipykernel #==6.28.0
   - opencv #==4.6.0
+  - sphinx 
+  - sphinx_rtd_theme
