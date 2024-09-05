@@ -102,7 +102,7 @@ def predict(project_name, res=0.3, compression="i_lzw_25", BW=False):
         Dataset = "NOCI_BW"
         read_name = f"HDNet_NOCI_{res}_BW_best"
     else:
-        dir_checkpoint = data_path / "ML_model/save_weights/run_3/"
+        dir_checkpoint = data_path / "ML_model/save_weights/run_7/"
         Dataset = "NOCI"
         read_name = f"HDNet_NOCI_{res}_C_best"
 

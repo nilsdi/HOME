@@ -28,8 +28,8 @@ def partition_and_crop_images(
     input_dir_labels,
     output_dir_images,
     output_dir_labels,
-    tile_size,
-    overlap_rate,
+    tile_size=512,
+    overlap_rate=0.01,
     image_size=None,
     imbalance_threshold=(0.005, 0.9),
     res=0.2,
@@ -122,7 +122,7 @@ def partition_and_crop_images(
                     if ratio < imbalance_threshold[0] or (
                         ratio > imbalance_threshold[1]
                     ):
-                        if random.random() > 0.1:
+                        if random.random() > 0.15:
                             skipped += 1
                             pbar.update(1)
                             continue
@@ -132,23 +132,19 @@ def partition_and_crop_images(
                     # Crop the tile from the image
                     image_tile = image[y : y + tile_size, x : x + tile_size]
 
-                    if np.sum(image_tile) > 0:
-                        # Save the image tile to the output directory
-                        image_tile_filename = f"{image_file[:-4]}_{i}_{j}.tif"
-                        image_tile_path = os.path.join(
-                            output_dir_images, image_tile_filename
-                        )
-                        cv2.imwrite(image_tile_path, image_tile)
+                    # Save the image tile to the output directory
+                    image_tile_filename = f"{image_file[:-4]}_{i}_{j}.tif"
+                    image_tile_path = os.path.join(
+                        output_dir_images, image_tile_filename
+                    )
+                    cv2.imwrite(image_tile_path, image_tile)
 
-                        # Save the label tile to the output directory
-                        label_tile_filename = f"{image_file[:-4]}_{i}_{j}.tif"
-                        label_tile_path = os.path.join(
-                            output_dir_labels, label_tile_filename
-                        )
-                        cv2.imwrite(label_tile_path, label_tile)
-                    else:
-                        empty_tiles += 1
-                        print(f"Empty tile: {image_tile_filename}")
+                    # Save the label tile to the output directory
+                    label_tile_filename = f"{image_file[:-4]}_{i}_{j}.tif"
+                    label_tile_path = os.path.join(
+                        output_dir_labels, label_tile_filename
+                    )
+                    cv2.imwrite(label_tile_path, label_tile)
                     pbar.update(1)
 
             # Move the processed image and label to the archive directory

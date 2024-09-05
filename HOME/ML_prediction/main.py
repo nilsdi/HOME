@@ -57,7 +57,7 @@ def main(list_of_projects: list):
 
     # load prediction mask
     prediction_mask = pd.read_csv(
-        data_path / f"ML_prediction/prediction_mask/prediction_mask_{pred_res}_512.csv",
+        data_path / f"ML_prediction/prediction_mask/prediction_mask_{pred_res}.csv",
         index_col=0,
     )
     prediction_mask.columns = prediction_mask.columns.astype(int)
@@ -116,12 +116,7 @@ def main(list_of_projects: list):
 
 # %%
 if __name__ == "__main__":
-    list_of_projects = [
-        "trondheim_kommune_2020",
-        "trondheim_kommune_2021",
-        "trondheim_kommune_2022",
-        "trondheim_2019",
-    ]
+    list_of_projects = ["trondheim_kommune_2022", "trondheim_2017"]
     main(list_of_projects=list_of_projects)
     # print("did something")
 

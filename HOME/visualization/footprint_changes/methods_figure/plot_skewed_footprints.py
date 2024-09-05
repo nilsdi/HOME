@@ -197,7 +197,7 @@ if __name__ == "__main__":
     fig, ax = plt.subplots()
     stacked_skewed_footprints(
         [[h1, h2], [h1, h2], [h1, h2], [h1, h2], [h1, h2]],
-        [0, 2, 5, 14, 8],
+        [0, 2, 5, 6.8, 8],
         ax=ax,
         skew=0.4,
         flatten=0.5,
@@ -206,71 +206,4 @@ if __name__ == "__main__":
     plt.axis("off")
     ax.set_aspect("equal")
     plt.show()
-# %%
-#testing on the pickled data
-import pickle
-import os
-import matplotlib
-from pathlib import Path
-from geopy.distance import geodesic
-
-root_dir = Path(__file__).parents[4]
-
-# Parameters
-project_name = "trondheim_kommune_2021"  # Example project name
-
-pickle_file_path = root_dir / f"data/ML_prediction/polygons/{project_name}_combined_geodata.pkl"
-
-#unpackage the data
-with open(pickle_file_path, "rb") as f:
-    footprints_t = pickle.load(f)
-    f.close()
-
-#only look at a box 20 by 20 meters around the center of the data
-
-#in lat and long
-lat = 63.392307
-lon = 10.413476
-box_size = 20  # in meters
-#only take the polygons within that box
-# Estimate the equivalent box size in latitude and longitude
-new_latitude  = latitude  + dy/(111*1000)
-new_longitude = longitude + dx / (111*1000) / cos(latitude * pi/180)
-# Filter the polygons within the box
-footprints_t = [
-    [
-        list(v) for v in geom.exterior.coords
-        if lon - box_size_lon / 2 < v[0] < lon + box_size_lon / 2 and lat - box_size_lat / 2 < v[1] < lat + box_size_lat / 2
-    ]
-    for geom in geom_polyg
-]
-#%%
-
-# Define our custom "footprints"
-fig, ax = plt.subplots()
-
-# geom_polyg = footprints_t['geometry']
-# #transform the geometry to vertices
-# footprints_t = [[list(v) for v in geom.exterior.coords] for geom in geom_polyg]
-
-plot_skewed_footprints(footprints_t, ax=ax, skew=0.25, flatten=0.7)
-
-plt.axis("off")
-ax.set_aspect("equal")
-plt.show()
-
-# new test
-fig, ax = plt.subplots()
-stacked_skewed_footprints(
-    [footprints_t, footprints_t, footprints_t, footprints_t, footprints_t],
-    [0, 2, 5, 6.8, 8],
-    ax=ax,
-    skew=0.4,
-    flatten=0.5,
-    overlap=0.1,
-)
-plt.axis("off")
-ax.set_aspect("equal")
-plt.show()
-
 # %%

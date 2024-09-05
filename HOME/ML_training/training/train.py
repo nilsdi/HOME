@@ -46,7 +46,7 @@ def parse_args(parser, args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="pytorch HDNet training")
     parser.add_argument("-n", "--numrun", required=True, type=int)
-    parser.add_argument("-r", "--res", required=False, type=float, default=0.3)
+    parser.add_argument("-r", "--res", required=False, type=float, default=0.2)
     parser.add_argument("-bw", "--BW", required=False, type=bool, default=False)
     parser.add_argument("-rn", "--read_name", required=False, type=str, default="")
     parser.add_argument(

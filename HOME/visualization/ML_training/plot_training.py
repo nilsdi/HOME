@@ -130,7 +130,7 @@ if __name__ == "__main__":
     # print(f"result files: {result_files}")
     # pick which run you want displayed:
 
-    chosen_run = "run_3"
+    chosen_run = "run_7"
 
     if result_files[chosen_run]["description"]:
         plot_training(

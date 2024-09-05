@@ -1,5 +1,5 @@
 # %% imports
-from step_01_reassembling_tiles import (
+from step001_new_reassembling_tiles import (
     extract_tile_numbers,
     get_max_min_extend,
     get_large_tiles,
@@ -161,5 +161,3 @@ ImageOverlay(
 # Add layer control and display the map
 folium.LayerControl().add_to(m)
 m
-
-# %%

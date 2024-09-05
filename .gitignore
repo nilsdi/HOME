@@ -6,7 +6,6 @@ __pycache__/
 # login credentials
 geonorge_login.json
 
-
 # data folders
 data/
 data_eptx/
