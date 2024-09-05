@@ -18,6 +18,6 @@ def get_data_path(root_dir: str):
     except IOError:
         print("cannot accss the dat_path.txt file - falling back to default (data)")
         # Default to 'data' if the file cannot be read
-        mode = "data"
+        mode = "data_eptx"
 
     return Path(os.path.join(root_dir, mode))

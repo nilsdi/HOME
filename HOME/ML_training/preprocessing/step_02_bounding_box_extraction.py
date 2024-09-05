@@ -71,7 +71,7 @@ def make_training_data(city, res):
 
 parser = argparse.ArgumentParser(description="Tile generation")
 parser.add_argument(
-    "--res", default=0.2, type=float, help="resolution of the tiles in meters"
+    "--res", default=0.3, type=float, help="resolution of the tiles in meters"
 )
 args = parser.parse_args()
 res = args.res

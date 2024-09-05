@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 root_dir = Path(__file__).parents[3]
 
 # Parameters
-project_name = "trondheim_kommune_2020"  # Example project name
+project_name = "trondheim_kommune_2021"  # Example project name
 
 project_dict_path = root_dir / "data/ML_prediction/project_log/project_details.json"
 # Open and read the JSON file
@@ -36,70 +36,12 @@ compression_name = project_dict[project_name]['compression_name']
 compression_value = project_dict[project_name]['compression_value']
 
 # path to the reassembled tiles
-tile_dir = root_dir / f"data/ML_prediction/predictions/res_{resolution}/{project_name}/reassembled_tiles"
+tile_dir = root_dir / f"data/ML_prediction/large_tiles/res_{resolution}/{project_name}"
 
-def process_project_tiles(files_info):
 
-    # # Function to process a single image
-    # def process_image(img_path):
-    #     src_ds = gdal.Open(str(img_path), gdal.GA_ReadOnly)
-    #     srcband = src_ds.GetRasterBand(1)
-    #     myarray = srcband.ReadAsArray()
-
-    #     mypoly = []
-    #     for vec in rasterio.features.shapes(myarray):
-    #         mypoly.append(shape(vec[0]))
-
-    #     filtered_polygons = [polygon for polygon in mypoly if polygon.area < 450*450 and polygon.area > 15*15]
-    #     simplified_polygons = [polygon.simplify(5, preserve_topology=True) for polygon in filtered_polygons]
-    #     rounded_polygons = [polygon.buffer(1, join_style=3, single_sided=True) for polygon in simplified_polygons]
-    #     #rounded_polygons_ext = [polygon.exterior for polygon in rounded_polygons]
-    #     geoms = list(rounded_polygons_ext)
-    #     gdf = gpd.GeoDataFrame({'geometry': geoms})
-    #     return gdf
-
-    def process_image(img_path):
-        # Open the image with rasterio to access both data and metadata
-        with rasterio.open(str(img_path)) as src:
-            # Read the first band
-            myarray = src.read(1)
-
-            # Extract polygons from the array
-            mypoly = [shape(vec[0]) for vec in rasterio.features.shapes(myarray, transform=src.transform)]
-            
-            # Filter and simplify polygons
-            filtered_polygons = [polygon for polygon in mypoly if 5*5 < polygon.area < 450*450]
-            simplified_polygons = [polygon.simplify(5, preserve_topology=True) for polygon in filtered_polygons]
-            rounded_polygons = [polygon.buffer(1, join_style=3, single_sided=True) for polygon in simplified_polygons]
-            
-            # Create a GeoDataFrame with the correct CRS
-            gdf = gpd.GeoDataFrame({'geometry': rounded_polygons}, crs=src.crs)
-            
-        return gdf
-    # Process all images in the project directory
-    all_gdfs = []
-    
-    for info in tqdm(files_info, desc="Processing tiles"):
-        img_path = info['file_path']
-        gdf = process_image(img_path)
-        all_gdfs.append(gdf)
+def process_project_tiles(processed_img_path):
         
-        # # Plotting the GeoDataFrame for the current image
-        plt.figure(figsize=(10, 10))
-        gdf.plot(ax=plt.gca(), facecolor='none', edgecolor='red')
-        plt.axis('off')
-        plt.title(f"Polygons for {img_path}")
-        plt.show()
-
-    #Combine all GeoDataFrames into one
-    combined_gdf = gpd.GeoDataFrame(pd.concat(all_gdfs, ignore_index=True))
-    return combined_gdf
-
-#%%
-
-def process_project_tiles(files_info):
-        
-    def process_image(processed_img_path, original_img_path):
+    def process_image(processed_img_path):#, original_img_path):
         # Open the processed image with rasterio to access both data and metadata
         with rasterio.open(str(processed_img_path)) as src:
             # Read the first band
@@ -116,20 +58,38 @@ def process_project_tiles(files_info):
             # Create a GeoDataFrame with the correct CRS
             gdf = gpd.GeoDataFrame({'geometry': rounded_polygons}, crs=src.crs)
             
-        return gdf, original_img_path
+        return gdf, processed_img_path
 
     # Process all images in the project directory
     all_gdfs = []
 
-    for info in tqdm(files_info, desc="Processing tiles"):
-        processed_img_path = info['file_path']
-        original_img_path = info['original_file_path']  # Assuming this key exists in info
-        gdf, original_img_path = process_image(processed_img_path, original_img_path)
+    for info in tqdm(processed_img_path, desc="Processing tiles"):
+        #original_img_path = info['original_file_path']  # Assuming this key exists in info
+        gdf, processed_img_path = process_image(processed_img_path)
         all_gdfs.append(gdf)
         
         # Plotting the GeoDataFrame over the original image
         plt.figure(figsize=(10, 10))
-        with rasterio.open(original_img_path) as src:
+        with rasterio.open(processed_img_path) as src:
+            # Read the first band of the image
+            img_array = src.read()
+            # Plot the image
+            plt.imshow(img_array[0], cmap='gray', extent=[src.bounds.left, src.bounds.right, src.bounds.bottom, src.bounds.top])
+        
+        # Plot the polygons on top of the image
+        gdf.plot(ax=plt.gca(), facecolor='none', edgecolor='red')
+        plt.axis('off')
+        plt.title(f"Polygons for {processed_img_path}")
+        plt.show()
+
+        for info in tqdm(processed_img_path, desc="Processing tiles"):
+        #original_img_path = info['original_file_path']  # Assuming this key exists in info
+        gdf, processed_img_path = process_image(processed_img_path)
+        all_gdfs.append(gdf)
+        
+        # Plotting the GeoDataFrame over the original image
+        plt.figure(figsize=(10, 10))
+        with rasterio.open(processed_img_path) as src:
             # Read the first band of the image
             img_array = src.read()
             # Plot the image
@@ -159,44 +119,45 @@ if __name__ == '__main__':
     compression_name = project_dict[project_name]['compression_name']
     compression_value = project_dict[project_name]['compression_value']
     
-    folder_path = root_dir / f"data/ML_prediction/predictions/res_{resolution}/{project_name}/reassembled_tiles"
-    original_folder_path = root_dir / f"data/ML_prediction/topredict/image/res_{resolution}/{project_name}/reassembled_tiles"
+    folder_path = tile_dir #root_dir / f"data/ML_prediction/predictions/res_{resolution}/{project_name}/reassembled_tiles"
+    #original_folder_path = root_dir / f"data/ML_prediction/topredict/image/res_{resolution}/{project_name}/reassembled_tiles"
     # Regular expression to match the file format
-    file_pattern = re.compile(r'^stitched_tif_(?P<project_name>.+)_(?P<col>\d+)_(?P<row>\d+)\.tif$')
+    file_pattern = re.compile(r'(?P<project_name>.+)_(?P<col>\d+)_(?P<row>\d+)\.tif$')
 
-    # List to store file paths and parsed information
-    files_info = []
+    # # List to store file paths and parsed information
+    # files_info = []
 
-    #maybe instead of this I should just write a text file with the file names and then read it
+    # #maybe instead of this I should just write a text file with the file names and then read it
 
-    # Iterate over all .tif files in the folder
-    for file_path in glob.glob(os.path.join(folder_path, '*.tif')):
-        # Get the file name from the file path
-        file_name = os.path.basename(file_path)
-        # Match the file name against the pattern
-        match = file_pattern.match(file_name)
-        if match:
-            # Extract information from the file name
-            project_name = match.group('project_name')
-            row = int(match.group('row'))
-            col = int(match.group('col'))
+    # # Iterate over all .tif files in the folder
+    # for file_path in glob.glob(os.path.join(folder_path, '*.tif')):
+    #     # Get the file name from the file path
+    #     file_name = os.path.basename(file_path)
+    #     # Match the file name against the pattern
+    #     match = file_pattern.match(file_name)
+    #     if match:
+    #         # Extract information from the file name
+    #         project_name = match.group('project_name')
+    #         row = int(match.group('row'))
+    #         col = int(match.group('col'))
             
-            original_file_path = os.path.join(original_folder_path, file_name)
+    #         original_file_path = os.path.join(original_folder_path, file_name)
 
 
-            # Add the file information to the list
-            files_info.append({
-                'file_path': file_path,
-                'original_file_path': original_file_path, 
-                'project_name': project_name,
-                'row': row,
-                'col': col
-            })
+    #         # Add the file information to the list
+    #         files_info.append({
+    #             'file_path': file_path,
+    #             'original_file_path': original_file_path, 
+    #             'project_name': project_name,
+    #             'row': row,
+    #             'col': col
+    #         })
 
 #%%
 
-    files_info = files_info[1:2]
-    combined_gdf = process_project_tiles(files_info)
+file_path = str(root_dir / f"data/ML_prediction/large_tiles/res_{resolution}/{project_name}/trondheim_kommune_2021resolution0.3_21_14.tif")
+
+combined_gdf = process_project_tiles(file_path)
 
 
 #%%

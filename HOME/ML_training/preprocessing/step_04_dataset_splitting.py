@@ -6,7 +6,7 @@ import json
 
 # %%
 
-total_share = 0.5
+total_share = 1
 
 val_share = 0.1
 test_share = 0.2
@@ -26,6 +26,10 @@ val_file = open(root_dir / "data/ML_training/dataset/val.txt", "w")
 test_file = open(root_dir / "data/ML_training/dataset/test.txt", "w")
 
 random.seed(42)
+n_train = 0
+n_val = 0
+n_test = 0
+
 for city in cities[:-1]:  # exclude Fredrikstad
     tiles = [
         os.path.splitext(tile)[0] for tile in os.listdir(data_path) if city in tile
@@ -57,8 +61,21 @@ for city in cities[:-1]:  # exclude Fredrikstad
     for tile in test_tiles:
         test_file.write(f"{tile}\n")
 
+    n_train += len(train_tiles)
+    n_val += len(val_tiles)
+    n_test += len(test_tiles)
+
 train_file.close()
 val_file.close()
 test_file.close()
+
+print(
+    "Dataset splitting done! \nNumber of training images: ",
+    n_train,
+    "\nNumber of validation images: ",
+    n_val,
+    "\nNumber of testing images: ",
+    n_test,
+)
 
 # %%

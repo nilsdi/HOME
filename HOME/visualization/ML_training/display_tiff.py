@@ -94,9 +94,7 @@ def display_rgb_geotiff_subset(
 
 # %%
 
-file_path = (
-    root_dir + "/data/raw/orthophoto/res_0.3/trondheim_1999/i_lzw_25/Eksport-nib-2.tif"
-)
+file_path = root_dir + "/data/temp/pretrain/images/archive/stavanger_1_0.3_2023.tif"
 
 display_rgb_geotiff_subset(file_path, 0, 0, dpi=150)
 

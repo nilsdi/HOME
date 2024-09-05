@@ -1,34 +1,25 @@
-# %%
+""" Reassembly of the 512x512 tifs into larger geotifs.
 
-import os
-from osgeo import gdal
+Ready to take any set of tiles that are named according to the tile grid 
+and reassemble them into larger tiles with proper georeferencing.
+"""
+
+# %% imports
 import numpy as np
-from pathlib import Path
+import cv2
+import rasterio
+from rasterio.transform import from_origin
 import json
 
-# %%
+from pathlib import Path
 
-root_dir = Path(__file__).parents[3]
-current_dir = Path(__file__).parents[0]
+import matplotlib.pyplot as plt
+from typing import Dict
 
-# Parameters
-project_name = "trondheim_kommune_2020"  # Example project name
-
-overlap_rate = 0  # 0% overlap (prediction tiles)
-x_nb_tiles = 20  # number of tiles in x direction larger tiles
-y_overlap_nb_tiles = 0  # number of tiles in y direction overlap
-
-"""
-- still some issues with the naming of the tiles but works + coordinates in the geotifs should be right
-
-"""
+# %% functions
 
 
-# %%
-
-
-# Function to parse filename and extract its coordinates: row and col
-def extract_tile_numbers(filename: str) -> tuple[int, int]:
+def extract_tile_numbers(filename: str) -> list[int, int]:
     """
     Extracts the x/col and y/row (coordinates) from a filename
     of pattern '_x_y'.
@@ -42,300 +33,353 @@ def extract_tile_numbers(filename: str) -> tuple[int, int]:
     parts = filename.split("_")
     col = int(parts[-2])  # x_coord
     row = int(parts[-1].split(".")[0])  # y_coord
-    return col, row
+    return [col, row]
 
 
-def get_top_left(filenames: list[str]) -> tuple[int, int]:
-    # Initialize minimum column and max row values (top left is actually smallest col and largest row)
-    min_col, max_row = np.inf, 0
-    for filename in filenames:
-        col, row = extract_tile_numbers(filename)
-        # Update minimum column and row values
-        if col < min_col:
-            min_col = col
-        if row > max_row:
-            max_row = row
-    return min_col, max_row
-
-
-def get_min_row(filenames: list[str]) -> int:
-    # Initialize minimum row value
-    min_row = np.inf
-    for filename in filenames:
-        row = extract_tile_numbers(filename)[1]
-        # Update minimum row value: bottom of the image
-        if row < min_row:
-            min_row = row
-    return min_row
-
-
-def get_nb_row_col(filenames: list[str]) -> tuple[int, int]:
-    # Determine grid size
-    cols, rows = 0, 0
-    col0 = get_top_left(filenames)[0]
-    minrow = get_min_row(filenames)
-    for filename in filenames:
-        col, row = extract_tile_numbers(filename)
-        if row - minrow + 1 > rows:
-            rows = rows + 1
-        if col - col0 + 1 > cols:
-            cols = cols + 1
-    return cols, rows
-
-
-def order_files_by_xy(files):
+def get_max_min_extend(tiles: list[str]) -> list[int, int, int, int]:
     """
-    Orders a list of filenames in the pattern '_1_0_x_y' by growing x and y.
+    Get the extend of all tiles given in tile coordinates
 
     Args:
-        files (list of str): List of filenames to order.
+    - tiles: list of strings with the names of all the tiles we want to reassemble
 
     Returns:
-        list of str: List of filenames ordered by growing x and y.
+    - min_x: minimum x coordinate of the tiles
+    - max_x: maximum x coordinate of the tiles
+    - min_y: minimum y coordinate of the tiles
+    - max_y: maximum y coordinate of the tiles
     """
-    # Extract x and y numbers from each filename using the extract_tile_numbers function
-    file_info = [extract_tile_numbers(filename) for filename in files]
-
-    # Sort the filenames by x and then by y
-    ordered_files = sorted(
-        files,
-        key=lambda x: (file_info[files.index(x)][0], file_info[files.index(x)][1]),
-    )
-
-    return ordered_files
+    tile_coords = [extract_tile_numbers(tile) for tile in tiles]
+    min_x = min([coord[0] for coord in tile_coords])
+    max_x = max([coord[0] for coord in tile_coords])
+    min_y = min([coord[1] for coord in tile_coords])
+    max_y = max([coord[1] for coord in tile_coords])
+    return min_x, max_x, min_y, max_y
 
 
-# %%
+def get_large_tiles(
+    extend_tile_coords: list[int], n_tiles_edge: int, n_overlap: int
+) -> dict[list[int]]:
+    """
+    Checks the number of large tiles needed to host all given tiles assuming
+    we want a grid of uniform reassambled tiles with a given number of small tiles
+    as the overlap, and square assembled tiles with n_tiles_edge on each side.
 
-# here I want to make a function that would create the corresponding indices for the tiles sets.
-"""let's say the big tiff is a large matrix A, size (rows, cols). We add padding to make it square.
-Then we create submatrices of size (x_nb_tiles, x_nb_tiles) with overlap of y_nb_tiles.
-We create a list of corresponding indices for each submatrix. these are the tiles that shoulod be in the 
-same set, if they exist. If none of the tiles exist, we leave it empty. If some, we add them and fill out the 
-rest with black tiles. We keep in mind the top left corner of each set, to get the coordinates"""
+    Args:
+    - extend_tile_coords: list of the minx, maxx, miny, maxy of the tiles
+    - n_tiles_edge: number of tiles on each side of the large tiles
+    - n_overlap: number of tiles to overlap (typically 1)
 
+    Returns:
+    - large_tile_coords: dictionary based on tile name (based on  grid position)
+        and coordinates of the large tiles - top left & bottom right (in global tile grid)
+    """
+    # get the extend of the tiles given in tile coordinates
+    min_x, max_x, min_y, max_y = extend_tile_coords
+    x_dist = max_x - min_x
+    y_dist = max_y - min_y
 
-def get_indices_for_tile_sets_with_top_left(
-    row0, col0, rows, cols, x_nb_tiles, y_nb_tiles
-):
-    # Calculate padding needed to make rows and cols a multiple of tile size
-    row_padding = (x_nb_tiles - (rows % x_nb_tiles)) % x_nb_tiles
-    col_padding = (x_nb_tiles - (cols % x_nb_tiles)) % x_nb_tiles
+    # get the area that is uniquely covered by each large tile
+    edge_coverage = n_tiles_edge - n_overlap
+    center_coverage = n_tiles_edge - 2 * n_overlap
 
-    # Adjusted matrix size to include padding
-    padded_rows = rows + row_padding
-    padded_cols = cols + col_padding
+    # fit a grid of n_tiles_edge x n_tiles_edge tiles with n_overlap overlap
+    n_large_tiles_x = 2 + (x_dist - 2 * edge_coverage) // center_coverage
+    n_large_tiles_y = 2 + (y_dist - 2 * edge_coverage) // center_coverage
 
-    # Use the padded sizes to calculate max_size
-    max_size = max(padded_rows, padded_cols)
-    list_of_submatrices_indexes = []
-    top_left_indices = []  # List to store top left indices of each submatrix
-    step_size = x_nb_tiles - y_nb_tiles  # Effective step size after considering overlap
-
-    for row_start in range(row0 - y_nb_tiles, row0 + max_size, step_size):
-        for col_start in range(col0 - y_nb_tiles, col0 + max_size, step_size):
-            # Ensure row_end and col_end do not exceed padded matrix dimensions
-            row_end = min(row_start + x_nb_tiles + 2 * y_nb_tiles, row0 + padded_rows)
-            col_end = min(col_start + x_nb_tiles + 2 * y_nb_tiles, col0 + padded_cols)
-            # Generate submatrix indices, clamping to the padded matrix boundaries
-            submatrix_indexes = [
-                (col, row)
-                for row in range(row_start, row_end)
-                for col in range(col_start, col_end)
-            ]
-            list_of_submatrices_indexes.append(submatrix_indexes)
-            top_left_indices.append((col_start, row_end))  # Capture the top left index
-
-    return list_of_submatrices_indexes, top_left_indices
-
-
-# %%
-
-"""here we should modify this one to integrate get_indices_for_tile_sets"""
-
-
-def make_tile_sets(ordered_files_og, ordered_files, x_nb_tiles, y_overlap_nb_tiles):
-
-    # determine the number of rows and columns
-    num_cols, num_rows = get_nb_row_col(ordered_files_og)
-    # find the top left corner of the first tile
-    col0, row_max = get_top_left(ordered_files_og)
-    row0 = row_max - num_rows
-    # get all indices possible for the tile sets + top left coordinates
-    indices_tile_sets, top_left_coords = get_indices_for_tile_sets_with_top_left(
-        row0, col0, num_rows, num_cols, x_nb_tiles, y_overlap_nb_tiles
-    )
-    # determine how many sets of tiles we need
-    nb_sets = len(indices_tile_sets)
-
-    # initialize the list of tile sets
-    tile_sets = [[] for _ in range(nb_sets)]
-
-    for set_index, indices in enumerate(indices_tile_sets):
-        for col, row in indices:
-            tile_name = f"{project_name}_b_{col}_{row}.tif"
-            if tile_name in ordered_files:
-                tile_sets[set_index].append(tile_name)
-            else:
-                tile_sets[set_index].append(f"black_tile_{col}_{row}")
-    tile_sets_dict = {
-        top_left: tile_set
-        for top_left, tile_set in zip(top_left_coords, tile_sets)
-        if not all(tile.startswith("black_tile") for tile in tile_set) and tile_set
-    }
-    return tile_sets_dict
-
-
-# %%
-def stitch_tiles_together(
-    ordered_files, top_left, tile_files, output_file, input_dir, tile_size_px=512
-):
-    sample_path = os.path.join(input_dir, ordered_files[0])
-    sample_dataset = gdal.Open(sample_path)
-    if not sample_dataset:
-        raise FileNotFoundError(f"Unable to open sample TIFF file: {sample_path}")
-    original_tile_width = tile_size_px
-    original_tile_height = tile_size_px
-    # get the number of rows and columns
-    # set up the new tiles
-    overlap_width = int(original_tile_width * overlap_rate)
-    overlap_height = int(original_tile_height * overlap_rate)
-    # small tiles
-    tile_width = original_tile_width - overlap_width
-    tile_height = original_tile_height - overlap_height
-    # larger tiles
-    total_width = (x_nb_tiles + 2 * y_overlap_nb_tiles) * tile_width
-    total_height = (x_nb_tiles + 2 * y_overlap_nb_tiles) * tile_height
-
-    # create the output file
-    driver = gdal.GetDriverByName("GTiff")
-    # col0, row0 = get_top_left(tile_files)
-    col0, row_max = top_left
-    row0 = row_max - (x_nb_tiles - 2 * y_overlap_nb_tiles)
-
-    # calculate the coordinates (top left)
-    x_coord = col0 * resolution * tile_size_px
-    y_coord = (row_max - 1) * resolution * tile_size_px
-    # now the coordinates in the metadata are the top left corner
-    # but the names indicate bottom left still so maybe I should change that
-
-    # set the metadata of the new tif to include the coordinates
-    geo_transform = (x_coord, resolution, 0, y_coord, 0, -resolution)
-
-    combined_dataset = driver.Create(
-        str(output_file),
-        total_width,
-        total_height,
-        sample_dataset.RasterCount,
-        sample_dataset.GetRasterBand(1).DataType,
-    )
-    combined_dataset.SetGeoTransform(geo_transform)
-    combined_dataset.SetProjection(sample_dataset.GetProjection())
-
-    # create a black tile
-    black_tile = np.full(
-        (tile_height, tile_width, sample_dataset.RasterCount), 0, dtype=np.uint8
-    )
-
-    for tile_name in tile_files:
-        if "black_tile" in tile_name:
-            # Handle black tiles
-            parts = tile_name.split("_")
-            row = int(parts[-1]) - row0
-            col = int(parts[-2]) - col0
-            x_offset = col * tile_width
-            y_offset = total_height - ((row + 1) * tile_height)
-            # add the black tile in the dataset
-            for band in range(1, sample_dataset.RasterCount + 1):
-                combined_dataset.GetRasterBand(band).WriteArray(
-                    black_tile[:, :, band - 1], x_offset, y_offset
-                )
-            # continue  # Skip the rest of the loop for this iteration
+    # get the coordinates of the large tiles
+    # n_large_tiles = n_large_tiles_x * n_large_tiles_y
+    large_tile_coords = {}
+    for x_column in range(n_large_tiles_x):
+        if x_column == 0:
+            x_coord_l = min_x
+            x_coord_r = min_x + n_tiles_edge
         else:
-            # Handle regular tiles
-            tile_path = os.path.join(input_dir, tile_name)
+            x_coord_l = x_coord_l + n_tiles_edge - n_overlap
+            x_coord_r = x_coord_l + n_tiles_edge
+        for y_row in range(n_large_tiles_y):
+            if y_row == 0:
+                y_coord_u = min_y - 1 + n_tiles_edge
+                y_coord_d = y_coord_u - n_tiles_edge
+            else:
+                y_coord_u = y_coord_u + n_tiles_edge - n_overlap
+                y_coord_d = y_coord_u - n_tiles_edge
+            # save the coordinates of the large tile (named "x_y") with top left, bottom right
+            large_tile_coords[f"{x_column}_{y_row}"] = [
+                [x_coord_l, y_coord_u],
+                [x_coord_r, y_coord_d],
+            ]
 
-            tile_dataset = gdal.Open(tile_path)
-            if tile_dataset:
-                col, row = extract_tile_numbers(tile_name)
-                col, row = col - col0, row - row0
-                x_offset = col * tile_size_px
-                y_offset = total_height - ((row + 1) * tile_height)
-                for band in range(1, tile_dataset.RasterCount + 1):
-                    data = tile_dataset.GetRasterBand(band).ReadAsArray()
-                    combined_dataset.GetRasterBand(band).WriteArray(
-                        data, x_offset, y_offset
-                    )
-
-    print(f"Final stitched image saved as {output_file}")
-    combined_dataset = None
+    return large_tile_coords
 
 
-# %%
+def match_small_tiles_to_large_tiles(
+    tiles: list[str], large_tile_coords: dict[list[list[int]]]
+) -> dict[list[str]]:
+    """
+    Matches the small tiles to the large tiles given the coordinates of the large tiles.
+    returns a list with the names of all the small tiles that belong to each large tile.
 
-# Main script
+    Args:
+    - tiles: list of strings with the names of all the tiles we want to reassemble
+    - large_tile_coords: dictionary with the coordinates of the large tiles - first the top left
+    and then the bottom right corner.
+
+    Returns:
+    - large_tile_tiles: dictionary to assign small tiles to large tile name (see above)
+    """
+    large_tile_tiles = {lt_name: [] for lt_name in large_tile_coords.keys()}
+    for tile in tiles:
+        tile_coords = extract_tile_numbers(tile)
+        for lt_name, coords in large_tile_coords.items():
+            if (
+                tile_coords[0] >= coords[0][0]
+                and tile_coords[0] < coords[1][0]
+                and tile_coords[1] <= coords[0][1]
+                and tile_coords[1] > coords[1][1]
+            ):
+                large_tile_tiles[lt_name].append(tile)
+    return large_tile_tiles
+
+
+def assemble_large_tile(
+    coords: list[list[int]],
+    small_tiles: list[str],
+    tile_size_px: int = 512,
+    channels: int = 3,
+) -> tuple[np.array, bool]:
+    """
+    Assembles a large tile from the small tiles (without coordinates)
+
+    Args:
+    - coords: list of the top left and bottom right coordinates of the large tile
+    - small_tiles: list of the names of the small tiles that belong to the large tile
+    - tile_size_px: size of the small tiles in pixels
+    - channels: number of channels in the small tiles
+
+    Returns:
+    - large_tile: np.array with the large tile
+    - success: boolean, True if the large tile contains any information
+    """
+    if len(small_tiles) == 0:
+        return np.array([]), False
+
+    # sort the small tiles by their coordinates in x and y
+    small_tiles.sort(key=lambda x: extract_tile_numbers(x)[0])
+    small_tiles.sort(key=lambda x: extract_tile_numbers(x)[1])
+
+    top_left = coords[0]
+    bottom_right = coords[1]
+    # create a large tile with the right size (in pixels)
+    extend_x_t = coords[1][0] - coords[0][0]
+    extend_y_t = coords[0][1] - coords[1][1]
+    extend_x_t_px = extend_x_t * tile_size_px
+    extend_y_t_px = extend_y_t * tile_size_px
+    large_tile = np.full((extend_x_t_px, extend_y_t_px, channels), 0, dtype=np.uint8)
+
+    # fill in the large tile with the small tiles
+    for tile in small_tiles:
+        [col, row] = extract_tile_numbers(tile)
+        # now the pixel coordinates within the large tile:
+        # px_x_tl = (bottom_right[0] - col - 1) * tile_size_px # tested to work, don't know why
+        px_x_tl = (col - top_left[0]) * tile_size_px  # tested to work, don't know why
+        px_y_tl = (top_left[1] - row + 1) * tile_size_px
+        # px_y_tl = (row - bottom_right[1]) * tile_size_px
+        # read the small tile
+        small_tile = cv2.imread(tile)
+        # add the small tile to the large tile
+        large_tile[
+            px_y_tl - tile_size_px : px_y_tl,
+            px_x_tl : px_x_tl + tile_size_px,
+        ] = small_tile
+    return large_tile, True
+
+
+def get_EPSG25833_coords(
+    row, col, tile_size: int, res: float
+) -> tuple[list[int], list[int]]:
+    """
+    Get the coordinates of the top left corner and bottom right corner of a tile in
+    EPSG:25833, based on its  row and column in the grid of tiles.
+    """
+    # get the coordinates of the top left corner of the tile
+    x_tl = col * tile_size * res
+    y_tl = row * tile_size * res
+    x_br = (x_tl + 1) * tile_size * res
+    y_br = (y_tl - 1) * tile_size * res
+    return [x_tl, y_tl], [x_br, y_br]
+
+
+def reassemble_tiles(
+    tiles: list[str],
+    n_tiles_edge: int,
+    n_overlap: int,
+    tile_size: int,
+    res: float,
+    project_name: str,
+    project_details: dict,
+    save_path: str,
+):
+    """
+    Reassembles a list of tiles into a smaller number of larger tiles with overlap.
+    Args:
+    - tiles: list of strings with the names of all (!) the tiles we want to reassemble
+    - n_tiles_edge: number of tiles on each side of the large tile
+    - n_overlap: number of tiles to overlap
+    - tile_size: size of the small tiles in pixels
+    - res: resolution of the tiles in m/px
+    - project_name: name of the project (for naming the large tiles)
+    - project_details: dictionary with the details of the project (for naming the large tiles)
+    - save_path: location to save the large tiles
+    """
+    project_channels = project_details["channels"]
+    tif_channels = 3
+    if project_channels == "BW":
+        tif_channels = 1
+    # extend of all tiles we want to reassemble
+    extend_tile_coords = get_max_min_extend(tiles)
+    # get the large tiles
+    large_tile_coords = get_large_tiles(extend_tile_coords, n_tiles_edge, n_overlap)
+    # match the small tiles to the large tiles
+    large_tile_tiles = match_small_tiles_to_large_tiles(tiles, large_tile_coords)
+    # assemble the large tiles
+    tile_name_base = project_name + "resolution" + str(project_details["resolution"])
+    for (
+        lt_name,
+        coords,
+    ) in large_tile_coords.items():
+        matched_tiles = large_tile_tiles[lt_name]
+        assembled_tile, contains_information = assemble_large_tile(
+            coords, matched_tiles, channels=tif_channels
+        )
+        if contains_information:
+            # add georeference to assembled tile
+            top_left = get_EPSG25833_coords(coords[0][1], coords[0][0], tile_size, res)[
+                0
+            ]
+            # get the affine transformation to go from pixel coordinates to EPSG:25833
+            transform = from_origin(top_left[0], top_left[1], res, res)
+            metadata = {
+                "driver": "GTiff",
+                "dtype": "uint8",
+                "count": tif_channels,
+                "height": assembled_tile.shape[0],
+                "width": assembled_tile.shape[1],
+                "transform": transform,
+                "crs": "EPSG:25833",
+            }
+            # save the assembled tile
+            tile_name = f"{tile_name_base}_{lt_name}.tif"
+            # write the assembled tile to disk
+            with rasterio.open(save_path / tile_name, "w", **metadata) as dst:
+                if tif_channels == 1:
+                    # For single-band images (not yet tested!)
+                    dst.write(assembled_tile, 1)
+                else:
+                    # For multi-band images (e.g., RGB)
+                    for i in range(1, tif_channels + 1):
+                        dst.write(assembled_tile[:, :, i - 1], i)
+    return
+
+
+def get_project_details(project_name: str, data_path: str) -> Dict:
+    """
+    Get the details of the project from the project details file.
+    """
+    with open(
+        data_path / "ML_prediction/project_log/project_details.json", "r"
+    ) as file:
+        project_details = json.load(file)
+    return project_details[project_name]
+
+
+def get_tiles(project_name: str, resolution: str, data_path: str) -> list[str]:
+    """
+    Get the tiles for the project.
+    """
+    return [
+        str(tile)
+        for tile in Path(
+            data_path
+            / f"ML_prediction/predictions/res_{resolution}/{project_name}/i_lzw_25"
+        ).rglob("*.tif")
+    ]
+
+
+# %% test the entire thing
+# get the tiles
+from HOME.get_data_path import get_data_path
 
 if __name__ == "__main__":
+    root_dir = Path(__file__).resolve().parents[3]
+    # print(root_dir)
+    # get the data path (might change)
+    data_path = get_data_path(root_dir)
 
-    project_dict_path = root_dir / "data/ML_prediction/project_log/project_details.json"
-    # Open and read the JSON file
-    with open(project_dict_path, "r") as file:
-        project_dict = json.load(file)
+    # project details and the prediction tiles:
+    project_name = "trondheim_2019"
+    project_details = get_project_details(project_name, data_path)
+    resolution = str(project_details["resolution"])
+    tiles = get_tiles(project_name, resolution, data_path)
 
-    # Get the resolutiom and other details
-    resolution = project_dict[project_name]["resolution"]
-    compression_name = project_dict[project_name]["compression_name"]
-    compression_value = project_dict[project_name]["compression_value"]
-
-    # path to the prediction tiles
-    # input_dir = root_dir / f"data/ML_prediction/predictions/res_{resolution}/{project_name}/i_{compression_name}_{compression_value}"
-    # path to the og tiles
-    input_dir_og = (
-        root_dir
-        / f"data/ML_prediction/topredict/image/res_{resolution}/{project_name}/i_{compression_name}_{compression_value}"
+    n_tiles_edge = 10
+    n_overlap = 2
+    large_tile_loc = (
+        data_path / f"ML_prediction/large_tiles/res_{resolution}/{project_name}"
     )
-    input_dir = input_dir_og
-    # output location for the reassembled tile: in a diff folder
-    # output for og tiles (for testing purposes)
-    output_dir = (
-        root_dir
-        / f"data/ML_prediction/topredict/image/res_{resolution}/{project_name}/reassembled_tiles"
-    )
-    # output for prediction tiles
-    # output_dir = root_dir / f"data/ML_prediction/predictions/res_{resolution}/{project_name}/reassembled_tiles"
+    # make the directory if it does not exist
+    large_tile_loc.mkdir(parents=True, exist_ok=True)
+    res = 0.3
+    tile_size = 512
 
-    # assuming we keep the same format for tile names (include row and column)
-    # Use glob to find all .tif files in the directory
-    tif_files = list(input_dir.glob("*.tif"))
-    tif_filenames = [file.name for file in tif_files]
-    # Create the output directory if it does not exist
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    ordered_files = order_files_by_xy(tif_filenames)
-
-    tif_files_og = list(input_dir_og.glob("*.tif"))
-    tif_filenames_og = [file.name for file in tif_files_og]
-    ordered_files_og = order_files_by_xy(tif_filenames_og)
-
-    tile_sets_dict = make_tile_sets(
-        ordered_files_og, ordered_files, x_nb_tiles, y_overlap_nb_tiles
+    reassemble_tiles(
+        tiles,
+        n_tiles_edge,
+        n_overlap,
+        tile_size,
+        res,
+        project_name,
+        project_details,
+        large_tile_loc,
     )
 
-    for top_left, tile_set in tile_sets_dict.items():
-        # Define the output file for the stitched image
-        final_output_file = (
-            output_dir / f"stitched_tif_{project_name}_{top_left[0]}_{top_left[1]}.tif"
-        )
-        # Stitch back together the tile
-        stitch_tiles_together(
-            ordered_files,
-            top_left,
-            tile_set,
-            final_output_file,
-            input_dir,
-            tile_size_px=512,
-        )
 
+if __name__ == "__tests__":
+    # Get the root directory of the project
+    root_dir = Path(__file__).resolve().parents[3]
+    # get the data path (might change)
+    data_path = get_data_path(root_dir)
+    # print(data_path)
+    with open(
+        data_path / "ML_prediction/project_log/project_details.json", "r"
+    ) as file:
+        project_details = json.load(file)
+
+    project_name = "trondheim_kommune_2020"
+    project_details = project_details[project_name]
+    tiles = [
+        str(tile)
+        for tile in Path(
+            data_path / f"ML_prediction/predictions/res_0.3/{project_name}/i_lzw_25"
+        ).rglob("*.tif")
+    ]
+    # print(f"Number of tiles: {len(tiles)}, names: {tiles[0]}")
+    n_tiles_edge = 10
+    n_overlap = 2
+    large_tile_loc = data_path / "ML_prediction/predicted_tiles"
+    save_loc = data_path / "temp/test_assembly"
+    res = 0.3
+    tile_size = 512
+    reassemble_tiles(
+        tiles,
+        n_tiles_edge,
+        n_overlap,
+        tile_size,
+        res,
+        large_tile_loc,
+        project_name,
+        project_details,
+        save_loc,
+    )
 
 # %%
