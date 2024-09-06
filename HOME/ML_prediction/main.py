@@ -117,10 +117,8 @@ def main(list_of_projects: list):
 # %%
 if __name__ == "__main__":
     list_of_projects = [
-        "trondheim_kommune_2020",
         "trondheim_kommune_2021",
         "trondheim_kommune_2022",
-        "trondheim_2019",
     ]
     main(list_of_projects=list_of_projects)
     # print("did something")

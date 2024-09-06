@@ -5,17 +5,20 @@ and reassemble them into larger tiles with proper georeferencing.
 """
 
 # %% imports
+# general tools
 import numpy as np
+import json
 import cv2
 import rasterio
 from rasterio.transform import from_origin
-import json
 
+# file handling
 from pathlib import Path
 import os
 
-import matplotlib.pyplot as plt
-from typing import Dict
+# analysis of code
+from tqdm import tqdm
+import time
 
 # %% functions
 
@@ -183,7 +186,7 @@ def assemble_large_tile(
         [col, row] = extract_tile_numbers(tile)
         # now the pixel coordinates within the large tile:
         # px_x_tl = (bottom_right[0] - col - 1) * tile_size_px # tested to work, don't know why
-        px_x_tl = (col - top_left[0]) * tile_size_p  # tested to work, don't know why
+        px_x_tl = (col - top_left[0]) * tile_size_px  # tested to work, don't know why
         px_y_tl = (top_left[1] - row + 1) * tile_size_px
         # px_y_tl = (row - bottom_right[1]) * tile_size_px
         # read the small tile
@@ -243,22 +246,30 @@ def reassemble_tiles(
     - project_details: dictionary with the details of the project (for naming the large tiles)
     - save_path: path to save the large tiles
     """
+    start_time = time.time()
+
     project_channels = project_details["channels"]
     tif_channels = 3
     if project_channels == "BW":
         tif_channels = 1
     # extend of all tiles we want to reassemble
     extend_tile_coords = get_max_min_extend(tiles)
+    lab1_time = time.time()
+    print(f"Getting set up took {lab1_time - start_time:.2f} seconds")
     # get the large tiles
     large_tile_coords = get_large_tiles(extend_tile_coords, n_tiles_edge, n_overlap)
     # match the small tiles to the large tiles
+    lab2_time = time.time()
+    print(f"Getting the large tile layout took {lab2_time - lab1_time:.2f} seconds")
     large_tile_tiles = match_small_tiles_to_large_tiles(tiles, large_tile_coords)
+    lab3_time = time.time()
+    print(f"matching small and large tiles took {lab3_time - lab2_time:.2f} seconds")
     # assemble the large tiles
     tile_name_base = project_name + "resolution" + str(project_details["resolution"])
     for (
         lt_name,
         coords,
-    ) in large_tile_coords.items():
+    ) in tqdm(large_tile_coords.items(), desc="Assembling large tiles"):
         matched_tiles = large_tile_tiles[lt_name]
         assembled_tile, contains_data = assemble_large_tile(
             coords, matched_tiles, channels=tif_channels
@@ -289,6 +300,8 @@ def reassemble_tiles(
                 # For multi-band images (e.g., RGB)
                 for i in range(1, tif_channels + 1):
                     dst.write(assembled_tile[:, :, i - 1], i)
+    lab4_time = time.time()
+    print(f"Assembling the large tiles took {lab4_time - lab3_time:.2f} seconds")
     return
 
 
@@ -321,6 +334,7 @@ if __name__ == "__main__":
     project = "trondheim_2019"
     project_details = get_project_details(root_dir, project)
     tiles = get_tiles(project, data_path)
+    print(f"Found {len(tiles)} tiles for project {project}")
 
     n_tiles_edge = 10
     n_overlap = 1
@@ -329,6 +343,7 @@ if __name__ == "__main__":
         / "ML_prediction/large_tiles/"
         / get_project_str_res_name(project_details, project)
     )
+    # save_loc = data_path / "temp/test_assembly/"
     os.makedirs(save_loc, exist_ok=True)
     res = 0.3
     tile_size = 512
