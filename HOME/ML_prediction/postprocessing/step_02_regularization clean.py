@@ -85,9 +85,11 @@ if __name__ == '__main__':
     tile_dir = root_dir / f"data/ML_prediction/large_tiles/res_{resolution}/{project_name}"
     
     # run the function
-    combined_gdf = process_project_tiles(tiles_in_bbox)
+    combined_gdf = process_project_tiles(tile_dir)
     
     # save the combined GeoDataFrame (into a pickle file)
     pickle_file_path = root_dir / f"data/ML_prediction/polygons/{project_name}_combined_geodata.pkl"
     with open(pickle_file_path, 'wb') as f:
         pickle.dump(combined_gdf, f)
+
+# %%

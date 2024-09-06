@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import random
 import argparse
+import pickle
 
 # Increase the maximum number of pixels OpenCV can handle
 os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2, 40))
@@ -17,7 +18,7 @@ root_dir = str(Path(__file__).parents[3])
 
 parser = argparse.ArgumentParser(description="Tile generation")
 parser.add_argument(
-    "--res", default=0.2, type=float, help="resolution of the tiles in meters"
+    "--res", default=0.3, type=float, help="resolution of the tiles in meters"
 )
 args = parser.parse_args()
 res = args.res
@@ -69,6 +70,10 @@ def partition_and_crop_images(
     skipped = 0
     empty_tiles = 0
     random.seed(42)
+
+    empty_but_kept = {}
+    for image_file in image_files:
+        empty_but_kept[image_file] = []
 
     with tqdm(total=total_iterations, desc="Processing") as pbar:
         for image_file in image_files:
@@ -128,6 +133,7 @@ def partition_and_crop_images(
                             continue
                         else:
                             empty_tiles += 1
+                            empty_but_kept[image_file].append((i, j))
 
                     # Crop the tile from the image
                     image_tile = image[y : y + tile_size, x : x + tile_size]
@@ -160,11 +166,16 @@ def partition_and_crop_images(
     print(f"Skipped {skipped} tiles due to class imbalance")
     print(f"Kept {empty_tiles} for training on no buildings")
 
+    with open(
+        os.path.join(root_dir + "/data/ML_training/train/", "empty_but_kept.pkl"), "wb"
+    ) as f:
+        pickle.dump(empty_but_kept, f)
+
 
 input_dir_images = root_dir + "/data/temp/pretrain/images/"
 input_dir_labels = root_dir + "/data/temp/pretrain/labels"
-output_dir_images = root_dir + f"/data/ML_training/train/image/"
-output_dir_labels = root_dir + f"/data/ML_training/train/label/"
+output_dir_images = root_dir + "/data/ML_training/train/image/"
+output_dir_labels = root_dir + "/data/ML_training/train/label/"
 
 print("Partitioning and cropping images with labels")
 partition_and_crop_images(

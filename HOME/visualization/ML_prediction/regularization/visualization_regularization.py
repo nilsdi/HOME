@@ -3,6 +3,12 @@
 from pyproj import Transformer
 import folium
 from shapely.ops import transform
+import random
+from pathlib import Path
+import json
+import pickle
+import matplotlib.pyplot as plt
+import rasterio
 # %%
 # to plot the polygons on top of a folium map 
 
@@ -46,7 +52,7 @@ def extract_tile_numbers(filename: str) -> list[int, int]:
     return [col, row]
 
 # from the tile number to the coordinates
-def tile_number_to_coordinates(tile_number: list[int, int], tile_size: int = 512, resolution: int) -> list[float, float]:
+def tile_number_to_coordinates(tile_number, tile_size, resolution):
     """
     Converts the tile number to the coordinates of the top left corner of the tile.
 
@@ -62,43 +68,119 @@ def tile_number_to_coordinates(tile_number: list[int, int], tile_size: int = 512
     y = tile_number[1] * resolution * tile_size #row
     return [x, y]
 
-def get_EPSG25833_coords(
-    row, col, tile_size: int, res: float
-) -> tuple[list[int], list[int]]:
-    """
-    Get the coordinates of the top left corner and bottom right corner of a tile in
-    EPSG:25833, based on its  row and column in the grid of tiles.
-    """
-    # get the coordinates of the top left corner of the tile
-    x_tl = col * tile_size * res
-    y_tl = row * tile_size * res
-    x_br = (x_tl + 1) * tile_size * res
-    y_br = (y_tl - 1) * tile_size * res
-    return [x_tl, y_tl], [x_br, y_br]
+# function to only select the polygons that are within a given tile
+def filter_polygons_by_tile(gdf, tile_number, tile_size, resolution):
+    # Get the coordinates of the top left corner of the tile
+    x, y = tile_number_to_coordinates(tile_number, tile_size, resolution)
+    x2, y2 = x + tile_size * resolution, y - tile_size * resolution
 
+    #transform the coordinates from utm33n to lat lon
+    x, y = transformer.transform(x, y)
+    x2, y2 =   transformer.transform(x2, y2)
+
+    # Filter the GeoDataFrame to only include polygons within the tile (add a buffer?)
+    gdf_filtered = gdf.cx[x:x2, y:y2]
+    return gdf_filtered
 
 def plot_polygons_on_tile(img_path, gdf):
+    #do everything in one function
+    #tile number
+    tile_number = extract_tile_numbers(img_path.name)
+    #transform into coordinates
+    x, y = tile_number_to_coordinates(tile_number, tile_size, resolution)
+    #filter the polygons
+    gdf_filtered = filter_polygons_by_tile(gdf, tile_number, tile_size, resolution)
+
+    #now plot the polygons on top of the tile
     # Open the GeoTIFF file
     with rasterio.open(img_path) as src:
-        # Transform the polygons to the same CRS as the image
-        gdf_transformed = gdf.to_crs(src.crs)
-# to plot the polygons on top of any corresponding tile
-    # Plotting the GeoDataFrame over the original image
-    plt.figure(figsize=(10, 10))
-    with rasterio.open(processed_img_path) as src:
         # Read the first band of the image
         img_array = src.read()
         # Plot the image
         plt.imshow(img_array[0], cmap='gray', extent=[src.bounds.left, src.bounds.right, src.bounds.bottom, src.bounds.top])
-        
         # Plot the polygons on top of the image
-    gdf.plot(ax=plt.gca(), facecolor='none', edgecolor='red')
+        gdf_filtered.plot(ax=plt.gca(), facecolor='none', edgecolor='gold',linewidth=5)
+
     plt.axis('off')
-    plt.title(f"Polygons for {processed_img_path}")
+    plt.title(f"Polygons for {img_path}")
     plt.show()
 
-# to make a bounding box
 
+
+#%%
+
+if __name__ == "__main__":
+    # get the pickled polygons
+    project_name = "trondheim_kommune_2021" 
+    root_dir = Path(__file__).parents[4]
+    project_dict_path = root_dir / "data/ML_prediction/project_log/project_details.json"
+    # Open and read the JSON file
+    with open(project_dict_path, 'r') as file:
+        project_dict = json.load(file)
+
+    # Get the resolutiom and other details
+    resolution = project_dict[project_name]['resolution']
+    compression_name = project_dict[project_name]['compression_name']
+    compression_value = project_dict[project_name]['compression_value']
+    tile_size = 512
+    # path to the og tiles
+    og_tile_dir = root_dir / f"data/ML_prediction//topredict/image/res_{resolution}/{project_name}/i_{compression_name}_{compression_value}"
+
+
+    #path to the pickled polygons
+    pickle_file_path = root_dir / f"data/ML_prediction/polygons/{project_name}_combined_geodata.pkl"
+    with open(pickle_file_path, 'rb') as f:
+        combined_gdf = pickle.load(f)
+
+    map = plot_gdf_on_map(combined_gdf, polygon_index=0)
+    map
+
+    #plotting polygons on og tiles
+    # get a random tile
+    tile_files = list(og_tile_dir.glob("*.tif"))
+    random_tile = random.choice(tile_files)
+    tile_path = og_tile_dir / random_tile
+
+    # run on the random tile
+    plot_polygons_on_tile(tile_path, combined_gdf)
+
+    #plot the tif file on a folium map
+    # Open the GeoTIFF file
+    with rasterio.open(tile_path) as src:
+        # Get the top left coordinates
+        [x, y] = extract_tile_numbers(tile_path.name)
+
+        #bottom left
+        bottom_left = [x*tile_size*resolution, (y -1)* tile_size * resolution]
+        top_right = [(x+1)*tile_size*resolution, y*tile_size*resolution]
+
+        #print the length and height of the tile
+        print(f"Length: {top_right[0] - bottom_left[0]}")
+        print(f"Height: {top_right[1] - bottom_left[1]}")
+
+        # Transform the coordinates to the correct projection (EPSG:4326)
+        [x_bottom_left, y_bottom_left] = transformer.transform(bottom_left[0], bottom_left[1])
+        [x_top_right, y_top_right] = transformer.transform(top_right[0], top_right[1])
+
+        center_new = [(y_bottom_left + y_top_right) / 2, (x_bottom_left + x_top_right) / 2]
+        bottom_left_new = [y_bottom_left, x_bottom_left]
+        top_right_new = [y_top_right, x_top_right]
+        # Create a folium map
+        m = folium.Map(location=center_new, zoom_start=14)
+
+        # Add the GeoTIFF file to the map
+        folium.raster_layers.ImageOverlay(
+            # show a black square
+            image=src.read(1),
+            bounds=[bottom_left_new, top_right_new],
+            colormap=lambda x: (0, x, 0),
+        ).add_to(m)
+    m
+
+
+
+
+# %%
 #%%
 #bounding box around the center of Trondheim
 # coordinates in lat lon
@@ -161,42 +243,6 @@ def get_tiles_in_bbox(tile_dir, min_lat, max_lat, min_lon, max_lon):
     tiles_in_bbox = [f for f in files if check_tile_in_bbox(f, min_lat, max_lat, min_lon, max_lon)]
     return tiles_in_bbox
 
-#%%
-#run the function
-root_dir = Path(__file__).parents[3]
-
-# Parameters
-project_name = "trondheim_2019"  # Example project name
-
-project_dict_path = root_dir / "data/ML_prediction/project_log/project_details.json"
-# Open and read the JSON file
-with open(project_dict_path, 'r') as file:
-    project_dict = json.load(file)
-
-# Get the resolutiom and other details
-resolution = project_dict[project_name]['resolution']
-compression_name = project_dict[project_name]['compression_name']
-compression_value = project_dict[project_name]['compression_value']
-
-# path to the reassembled tiles
-tile_dir = root_dir / f"data/ML_prediction/large_tiles/res_{resolution}/{project_name}"
 
 # Get the tiles within the bounding box
-tiles_in_bbox = get_tiles_in_bbox(tile_dir, min_lat, max_lat, min_lon, max_lon)
-
-
-#%%
-
-if __name__ == "__main__":
-    # get the pickled polygons
-    pickle_file_path = root_dir / f"data/ML_prediction/polygons/{project_name}_combined_geodata.pkl"
-    with open(pickle_file_path, 'rb') as f:
-        combined_gdf = pickle.load(f)
-    # plot the polygons on a folium map
-    # Apply the transformation to each geometry in the GeoDataFrame
-    combined_gdf['geometry'] = combined_gdf['geometry'].apply(apply_transformation)
-    map = plot_gdf_on_map(combined_gdf, polygon_index=0)
-    map
-    folder_path = tile_dir #root_dir / f"data/ML_prediction/predictions/res_{resolution}/{project_name}/reassembled_tiles"
-    #original_folder_path = root_dir / f"data/ML_prediction/topredict/image/res_{resolution}/{project_name}/reassembled_tiles"
-    # Regular expression to match the file format
+# tiles_in_bbox = get_tiles_in_bbox(tile_dir, min_lat, max_lat, min_lon, max_lon)
