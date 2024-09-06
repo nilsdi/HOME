@@ -29,11 +29,11 @@ net = HighResolutionDecoupledNet(base_channel=48, num_classes=1)
 print("Number of parameters: ", sum(p.numel() for p in net.parameters()))
 
 
-def eval_HRBR(net, device, batch_size, image_folder="train/image"):
+def eval_HRBR(net, device, batch_size, image_folder="train/image", txt_name="test.txt"):
     testdataset = BuildingDataset(
         dataset_dir=data_dir,
         training=False,
-        txt_name="test.txt",
+        txt_name=txt_name,
         data_name=Dataset,
         image_folder=image_folder,
     )
@@ -55,10 +55,13 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="pytorch HDNet training")
     parser.add_argument("-n", "--numrun", required=True, type=int)
-    parser.add_argument("-r", "--res", required=False, type=float, default=0.2)
+    parser.add_argument("-r", "--res", required=False, type=float, default=0.3)
     parser.add_argument("-bw", "--BW", required=False, type=bool, default=False)
     parser.add_argument(
-        "-rn", "--read_name", required=False, type=str, default="HDNet_NOCI_0.2_C_best"
+        "-rn", "--read_name", required=False, type=str, default="HDNet_NOCI_0.3_C_best"
+    )
+    parser.add_argument(
+        "-txt", "--txt_name", required=False, type=str, default="test.txt"
     )
     args = parser.parse_args()
 
@@ -66,6 +69,7 @@ if __name__ == "__main__":
     bw_str_ = "_BW" if args.BW else ""
     image_folder = f"train{bw_str_}/image"
     read_name = args.read_name
+    txt_name = args.txt_name
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -77,9 +81,16 @@ if __name__ == "__main__":
         )
         net_state_dict.update(state_dict)
         net.load_state_dict(net_state_dict, strict=False)  # 删除了down1-3
+        logging.info("Model loaded from directory " + dir_checkpoint)
         logging.info("Model loaded from " + read_name + ".pth")
 
     net = convert_model(net)
     net = torch.nn.parallel.DataParallel(net.to(device))
     torch.backends.cudnn.benchmark = True
-    eval_HRBR(net=net, batch_size=batchsize, device=device, image_folder=image_folder)
+    eval_HRBR(
+        net=net,
+        batch_size=batchsize,
+        device=device,
+        image_folder=image_folder,
+        txt_name=txt_name,
+    )
