@@ -161,3 +161,5 @@ ImageOverlay(
 # Add layer control and display the map
 folium.LayerControl().add_to(m)
 m
+
+# %%

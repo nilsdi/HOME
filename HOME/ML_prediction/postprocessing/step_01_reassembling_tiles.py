@@ -20,6 +20,8 @@ import os
 from tqdm import tqdm
 import time
 
+from HOME.utils.project_paths import get_project_details, get_project_str_res_name
+
 # %% functions
 
 
@@ -136,6 +138,7 @@ def match_small_tiles_to_large_tiles(
     large_tile_tiles = {lt_name: [] for lt_name in large_tile_coords.keys()}
     for tile in tiles:
         tile_coords = extract_tile_numbers(tile)
+        # find the large tile that the small tile belongs to
         for lt_name, coords in large_tile_coords.items():
             if (
                 tile_coords[0] >= coords[0][0]
@@ -144,6 +147,55 @@ def match_small_tiles_to_large_tiles(
                 and tile_coords[1] > coords[1][1]
             ):
                 large_tile_tiles[lt_name].append(tile)
+    return large_tile_tiles
+
+
+from scipy.spatial import KDTree
+import numpy as np
+
+
+def match_small_tiles_to_large_tiles_new(tiles, large_tile_coords):
+    """
+    Args:
+    - tiles: list of strings with the names of all the tiles we want to reassemble
+    - large_tile_coords: dictionary with the coordinates of the large tiles - first the top left
+    and then the bottom right corner.
+
+    Returns:
+    - large_tile_tiles: dictionary to assign small tiles to large tile name (see above)
+    """
+    large_tile_tiles = {lt_name: [] for lt_name in large_tile_coords.keys()}
+
+    # Prepare data for KDTree
+    large_tile_centers = []
+    large_tile_names = []
+    for lt_name, coords in large_tile_coords.items():
+        center_x = (coords[0][0] + coords[1][0]) / 2
+        center_y = (coords[0][1] + coords[1][1]) / 2
+        large_tile_centers.append((center_x, center_y))
+        large_tile_names.append(lt_name)
+
+    # Build KDTree
+    kdtree = KDTree(large_tile_centers)
+
+    for tile in tiles:
+        tile_coords = extract_tile_numbers(tile)
+        tile_center = (tile_coords[0] + 0.5, tile_coords[1] - 0.5)
+
+        # Query KDTree to find the nearest large tile
+        dist, idx = kdtree.query(tile_center)
+        lt_name = large_tile_names[idx]
+
+        # Check if the tile is within the bounds of the large tile
+        coords = large_tile_coords[lt_name]
+        if (
+            tile_coords[0] >= coords[0][0]
+            and tile_coords[0] < coords[1][0]
+            and tile_coords[1] <= coords[0][1]
+            and tile_coords[1] > coords[1][1]
+        ):
+            large_tile_tiles[lt_name].append(tile)
+
     return large_tile_tiles
 
 
@@ -305,14 +357,16 @@ def reassemble_tiles(
     return
 
 
-def get_tiles(project_name: str, data_path: Path) -> list[str]:
+def get_tiles(project_name: str, project_details: dict, data_path: Path) -> list[str]:
     """
     Get the tiles for a project.
     """
     tiles = [
         str(tile)
         for tile in Path(
-            data_path / f"ML_prediction/topredict/image/res_0.3/{project_name}/i_lzw_25"
+            data_path
+            / f"ML_prediction/predictions/"  # /image/res_0.3/{project_name}/i_lzw_25"
+            / get_project_str(project_details, project_name)
         ).rglob("*.tif")
     ]
     return tiles
@@ -321,7 +375,7 @@ def get_tiles(project_name: str, data_path: Path) -> list[str]:
 # %% test the entire thing
 # get the tiles
 from HOME.get_data_path import get_data_path
-from HOME.utils.project_paths import get_project_details, get_project_str_res_name
+
 
 if __name__ == "__main__":
     # Get the root directory of the project
@@ -333,15 +387,15 @@ if __name__ == "__main__":
 
     project = "trondheim_2019"
     project_details = get_project_details(root_dir, project)
-    tiles = get_tiles(project, data_path)
+    tiles = get_tiles(project, project_details, data_path)
     print(f"Found {len(tiles)} tiles for project {project}")
 
     n_tiles_edge = 10
     n_overlap = 1
     save_loc = (
-        data_path
-        / "ML_prediction/large_tiles/"
-        / get_project_str_res_name(project_details, project)
+        data_path / "ML_prediction/large_tiles/"
+        "/test_speed/KDTree/"
+        # / get_project_str_res_name(project_details, project)
     )
     # save_loc = data_path / "temp/test_assembly/"
     os.makedirs(save_loc, exist_ok=True)
