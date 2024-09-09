@@ -120,7 +120,7 @@ def get_large_tiles(
     return large_tile_coords
 
 
-def match_small_tiles_to_large_tiles(
+def match_small_tiles_to_large_tiles_old(
     tiles: list[str], large_tile_coords: dict[list[list[int]]]
 ) -> dict[list[str]]:
     """
@@ -154,7 +154,7 @@ from scipy.spatial import KDTree
 import numpy as np
 
 
-def match_small_tiles_to_large_tiles_new(tiles, large_tile_coords):
+def match_small_tiles_to_large_tiles(tiles, large_tile_coords):
     """
     Args:
     - tiles: list of strings with the names of all the tiles we want to reassemble
@@ -239,8 +239,8 @@ def assemble_large_tile(
         # now the pixel coordinates within the large tile:
         # px_x_tl = (bottom_right[0] - col - 1) * tile_size_px # tested to work, don't know why
         px_x_tl = (col - top_left[0]) * tile_size_px  # tested to work, don't know why
-        px_y_tl = (top_left[1] - row + 1) * tile_size_px
-        # px_y_tl = (row - bottom_right[1]) * tile_size_px
+        # px_y_tl = (top_left[1] - row + 1) * tile_size_px
+        px_y_tl = (row - bottom_right[1]) * tile_size_px
         # read the small tile
         small_tile = cv2.imread(tile)
         # add the small tile to the large tile
@@ -365,8 +365,9 @@ def get_tiles(project_name: str, project_details: dict, data_path: Path) -> list
         str(tile)
         for tile in Path(
             data_path
-            / f"ML_prediction/predictions/"  # /image/res_0.3/{project_name}/i_lzw_25"
-            / get_project_str(project_details, project_name)
+            / f"ML_prediction/topredict/image/res_0.3/{project_name}/i_lzw_25"
+            #
+            # /predictions/"  / get_project_str(project_details, project_name)
         ).rglob("*.tif")
     ]
     return tiles
@@ -394,7 +395,7 @@ if __name__ == "__main__":
     n_overlap = 1
     save_loc = (
         data_path / "ML_prediction/large_tiles/"
-        "/test_speed/KDTree/"
+        "/test_assembly/KDTree/correct_order/"
         # / get_project_str_res_name(project_details, project)
     )
     # save_loc = data_path / "temp/test_assembly/"
