@@ -6,8 +6,8 @@ from step_01_reassembling_tiles import (
 )
 
 # %% test get_large_tiles
-extend_tile_coords = [2, 42, 2, 52]
-n_tiles_edge = 8
+extend_tile_coords = [17, 31, 9, 24]
+n_tiles_edge = 6
 n_overlap = 1
 large_tiles = get_large_tiles(extend_tile_coords, n_tiles_edge, n_overlap)
 print(large_tiles)

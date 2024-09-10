@@ -20,7 +20,11 @@ import os
 from tqdm import tqdm
 import time
 
-from HOME.utils.project_paths import get_project_details, get_project_str_res_name
+from HOME.utils.project_paths import (
+    get_project_details,
+    get_project_str_res_name,
+    get_project_str,
+)
 
 # %% functions
 
@@ -83,6 +87,11 @@ def get_large_tiles(
     """
     # get the extend of the tiles given in tile coordinates
     min_x, max_x, min_y, max_y = extend_tile_coords
+    # round the minimum points down with n_edge - n-overlap
+    # so that all large tiles are aligned across projects
+    edge_coverage = n_tiles_edge - n_overlap
+    min_x = (min_x // edge_coverage) * edge_coverage
+    min_y = (min_y // edge_coverage) * edge_coverage
     x_dist = max_x - min_x
     y_dist = max_y - min_y
 
@@ -91,8 +100,8 @@ def get_large_tiles(
     center_coverage = n_tiles_edge - 2 * n_overlap
 
     # fit a grid of n_tiles_edge x n_tiles_edge tiles with n_overlap overlap
-    n_large_tiles_x = 2 + (x_dist - 2 * edge_coverage) // center_coverage
-    n_large_tiles_y = 2 + (y_dist - 2 * edge_coverage) // center_coverage
+    n_large_tiles_x = 3 + (x_dist - 2 * edge_coverage) // center_coverage
+    n_large_tiles_y = 3 + (y_dist - 2 * edge_coverage) // center_coverage
 
     # get the coordinates of the large tiles
     # n_large_tiles = n_large_tiles_x * n_large_tiles_y
@@ -182,19 +191,21 @@ def match_small_tiles_to_large_tiles(tiles, large_tile_coords):
         tile_coords = extract_tile_numbers(tile)
         tile_center = (tile_coords[0] + 0.5, tile_coords[1] - 0.5)
 
-        # Query KDTree to find the nearest large tile
-        dist, idx = kdtree.query(tile_center)
-        lt_name = large_tile_names[idx]
+        # Query KDTree to find the 4 nearest large tiles
+        dists, indices = kdtree.query(tile_center, k=4)
 
-        # Check if the tile is within the bounds of the large tile
-        coords = large_tile_coords[lt_name]
-        if (
-            tile_coords[0] >= coords[0][0]
-            and tile_coords[0] < coords[1][0]
-            and tile_coords[1] <= coords[0][1]
-            and tile_coords[1] > coords[1][1]
-        ):
-            large_tile_tiles[lt_name].append(tile)
+        for idx in indices:
+            lt_name = large_tile_names[idx]
+
+            # Check if the tile is within the bounds of the large tile
+            coords = large_tile_coords[lt_name]
+            if (
+                tile_coords[0] >= coords[0][0]
+                and tile_coords[0] < coords[1][0]
+                and tile_coords[1] <= coords[0][1]
+                and tile_coords[1] > coords[1][1]
+            ):
+                large_tile_tiles[lt_name].append(tile)
 
     return large_tile_tiles
 
@@ -239,8 +250,8 @@ def assemble_large_tile(
         # now the pixel coordinates within the large tile:
         # px_x_tl = (bottom_right[0] - col - 1) * tile_size_px # tested to work, don't know why
         px_x_tl = (col - top_left[0]) * tile_size_px  # tested to work, don't know why
-        # px_y_tl = (top_left[1] - row + 1) * tile_size_px
-        px_y_tl = (row - bottom_right[1]) * tile_size_px
+        px_y_tl = (top_left[1] - row + 1) * tile_size_px
+        # px_y_tl = (row - bottom_right[1]) * tile_size_px
         # read the small tile
         small_tile = cv2.imread(tile)
         # add the small tile to the large tile
@@ -365,9 +376,9 @@ def get_tiles(project_name: str, project_details: dict, data_path: Path) -> list
         str(tile)
         for tile in Path(
             data_path
-            / f"ML_prediction/topredict/image/res_0.3/{project_name}/i_lzw_25"
-            #
-            # /predictions/"  / get_project_str(project_details, project_name)
+            / f"ML_prediction"  # /topredict/image/res_0.3/{project_name}/i_lzw_25"
+            / "predictions"
+            / get_project_str(project_details, project_name)
         ).rglob("*.tif")
     ]
     return tiles
@@ -386,31 +397,38 @@ if __name__ == "__main__":
     data_path = get_data_path(root_dir)
     data_path = root_dir / "data"
 
-    project = "trondheim_2019"
-    project_details = get_project_details(root_dir, project)
-    tiles = get_tiles(project, project_details, data_path)
-    print(f"Found {len(tiles)} tiles for project {project}")
+    projects = [
+        "trondheim_kommune_2020",
+        "trondheim_kommune_2021",
+        "trondheim_kommune_2022",
+        "trondheim_2019",
+    ]
+    for project in projects:
+        project_details = get_project_details(root_dir, project)
+        tiles = get_tiles(project, project_details, data_path)
+        print(f"Found {len(tiles)} tiles for project {project}")
 
-    n_tiles_edge = 10
-    n_overlap = 1
-    save_loc = (
-        data_path / "ML_prediction/large_tiles/"
-        "/test_assembly/KDTree/correct_order/"
-        # / get_project_str_res_name(project_details, project)
-    )
-    # save_loc = data_path / "temp/test_assembly/"
-    os.makedirs(save_loc, exist_ok=True)
-    res = 0.3
-    tile_size = 512
-    reassemble_tiles(
-        tiles,
-        n_tiles_edge,
-        n_overlap,
-        tile_size,
-        res,
-        project,
-        project_details,
-        save_loc,
-    )
+        n_tiles_edge = 10
+        n_overlap = 1
+        save_loc = (
+            data_path
+            / "ML_prediction/large_tiles"
+            # / "test_topredict_tiles"
+            / get_project_str_res_name(project_details, project)
+        )
+        # save_loc = data_path / "temp/test_assembly/"
+        os.makedirs(save_loc, exist_ok=True)
+        res = 0.3
+        tile_size = 512
+        reassemble_tiles(
+            tiles,
+            n_tiles_edge,
+            n_overlap,
+            tile_size,
+            res,
+            project,
+            project_details,
+            save_loc,
+        )
 
 # %%
