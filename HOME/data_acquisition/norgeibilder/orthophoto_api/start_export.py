@@ -14,8 +14,6 @@ from HOME.get_data_path import get_data_path
 
 root_dir = Path(__file__).parents[4]
 # print(root_dir)
-data_path = get_data_path(root_dir)
-# print(data_path)
 
 
 def start_export(
@@ -25,6 +23,7 @@ def start_export(
     compression_method: int = 5,
     compression_value: float = 50,
     mosaic: bool = False,
+    data_path: Path = None,
 ) -> int:
     """
     Request an export of the orthophoto project specified.
@@ -99,22 +98,25 @@ def save_export_job(
     compression_method: int,
     compression_value: float,
     mosaic: bool,
+    data_path: Path = None,
 ) -> None:
     """
     Save the export job details to a file for later reference.
 
     Args:
-    - JobID (int): The JobID of the export request.
-    - project (str): The name of the orthophoto project to be exported.
-    - resolution (float): The resolution of the orthophoto to be exported in meters.
-    - compression_method (int): The compression method to be used for the export.
-    - compression_value (float): The compression value to be used for the export.
-    - mosaic (bool): Whether to export the orthophoto as a mosaic or not.
+        JobID (int): The JobID of the export request.
+        project (str): The name of the orthophoto project to be exported.
+        resolution (float): The resolution of the orthophoto to be exported in meters.
+        compression_method (int): The compression method to be used for the export.
+        compression_value (float): The compression value to be used for the export.
+        mosaic (bool): Whether to export the orthophoto as a mosaic or not.
+        data_path (Path): The path to the data folder, default is None (=> HOME/data).
 
     Returns:
-    - None
+        None
     """
-    # greatgrandparent_dir = Path(__file__).resolve().parents[4]
+    if data_path is None:
+        data_path = root_dir / "data"
 
     # current time for the file name
     current_time = time.strftime("%Y%m%d-%H%M%S")

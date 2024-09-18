@@ -15,8 +15,6 @@ from HOME.get_data_path import get_data_path
 
 root_dir = Path(__file__).parents[4]
 # print(root_dir)
-data_path = get_data_path(root_dir)
-# print(data_path)
 
 
 def status_export(JobID: int) -> Tuple[bool, Optional[str]]:
@@ -25,14 +23,14 @@ def status_export(JobID: int) -> Tuple[bool, Optional[str]]:
     The status returned can be used to check if the export is complete.
 
     Args:
-    - JobID: The JobID of the export request.
+        JobID: The JobID of the export request.
 
     Returns:
-    - The status of the export request. If true, the string is the url for
+        The status of the export request. If true, the string is the url for
         the download.
 
     Raises:
-    - Exception: If the request failed (for any reason)
+        Exception: If the request failed (for any reason)
     """
     rest_status_url = "https://tjenester.norgeibilder.no/rest/" + "exportStatus.ashx"
     # Get the directory of the current script file
@@ -74,26 +72,30 @@ def save_download_url(
     compression_method: int,
     compression_value: float,
     mosaic: bool,
+    data_path: Path = None,
 ) -> None:
     """
     Save the download url to a file for later reference.
 
     Args:
-    - download_url (str): The url to the download.
-    - project (str): The name of the project (regular name including spaces)
-    - resolution (float): The resolution of the orthophoto in m/px
-    - compression_method (int): The compression method used encoded
-    - compression_value (float): The compression value used (0-100)
-    - mosaic (bool): Whether the orthophoto is a mosaic or not
+        download_url (str): The url to the download.
+        project (str): The name of the project (regular name including spaces)
+        resolution (float): The resolution of the orthophoto in m/px
+        compression_method (int): The compression method used encoded
+        compression_value (float): The compression value used (0-100)
+        mosaic (bool): Whether the orthophoto is a mosaic or not
+        data_path (Path): The path to the data folder, default is None (=> HOME/data)
 
     Returns:
-    - None
+        None
 
     Raises:
-    - Exception: If the compression method is not supported yet
+        Exception: If the compression method is not supported yet
     """
     greatgrandparent_dir = Path(__file__).resolve().parents[4]
 
+    if data_path is None:
+        data_path = root_dir / "data"
     # current time for the file name
     current_time = time.strftime("%Y%m%d-%H%M%S")
     file_name = f"Download_{project.lower()}_{current_time}.json"

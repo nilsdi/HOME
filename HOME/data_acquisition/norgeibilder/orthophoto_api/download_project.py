@@ -12,12 +12,11 @@ from pathlib import Path
 from osgeo import gdal, osr
 from tqdm import tqdm
 import json
+import datetime
 from HOME.get_data_path import get_data_path
 
 root_dir = Path(__file__).parents[4]
 # print(root_dir)
-data_path = get_data_path(root_dir)
-# print(data_path)
 
 
 # %% functions
@@ -28,6 +27,7 @@ def download_project(
     compression_name: str,
     compression_value: float,
     mosaic: bool,
+    data_path: Path = None,
 ) -> None:
     """
     Download zipped orthophoto data from given url, unzips and saves it into
@@ -40,13 +40,17 @@ def download_project(
         compression_name (str): name of the compression used (for folder structure)
         compression_value (float): value of the compression used (for folder structure)
         mosaic (bool): whether the orthophoto is a mosaic or not (for folder structure)
+        data_path (Path): path to the data folder, default is None (=> HOME/data)
 
     Returns:
         None
 
     Raises:
         Exception: if the download request fails for any reason
+        AssertionError: if the CRS of the orthophoto is not EPSG:258
     """
+    if data_path is None:
+        data_path = root_dir / "data"
 
     # Retrieve data
     response = requests.get(download_url, allow_redirects=True, stream=True)
@@ -102,22 +106,23 @@ def download_project(
 
     # open the json with all the project details from the project log
     with open(
-        data_path / "ML_prediction/project_log/project_details.json", "r"
+        data_path / "metadata/ortofoto_downloads.json",
+        "r",
     ) as file:
         project_details = json.load(file)
-    # check if the project is already in the json
-    if project.lower().replace(" ", "_") not in project_details.keys():
-        # add the project to the json
-        project_details[project.lower().replace(" ", "_")] = {
-            "status": "downloaded",
-            "resolution": resolution,
-            "compression_name": compression_name,
-            "compression_value": compression_value,
-            "channels": None,
-        }
-    else:
-        # update the project to downloaded
-        project_details[project.lower().replace(" ", "_")]["status"] = "downloaded"
+    # increase available lowest key by 1
+    lowest_key = min([int(k) for k in project_details.keys()])
+    new_key = lowest_key + 1
+    project_details[project.lower().replace(" ", "_")] = {
+        "project_name": project.lower().replace(" ", "_"),
+        "status": "downloaded",
+        "resolution": resolution,
+        "compression_name": compression_name,
+        "compression_value": compression_value,
+        "channels": None,
+        "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
     # save the updated json
     with open(
         os.path.join(data_path, "ML_prediction/project_log/project_details.json"), "w"

@@ -31,18 +31,23 @@ from HOME.get_data_path import get_data_path
 root_dir = Path(__file__).resolve().parents[3]
 # print(root_dir)
 # get the data path (might change)
-data_path = get_data_path(root_dir)
+# data_path = get_data_path(root_dir)
 
 
 # print(data_path)
 # %% check job status
-def check_all_jobs() -> bool:
+def check_all_jobs(data_path: Path = None) -> bool:
     """
     Goes through the jobid jsons in the temp folder in data to check status
 
+    Args:
+        data_path: Path to the data folder, default is None (=> HOME/data)
+
     Returns:
-    - all_jobs_complete: True if all jobs are complete, False otherwise
+        all_jobs_complete: True if all jobs are complete, False otherwise
     """
+    if data_path is None:
+        data_path = root_dir / "data"
     jobids_dir = data_path / "temp/norgeibilder/jobids/"
     jobs = [j for j in os.listdir(jobids_dir) if "." in j]
     print(f"available jobs: {jobs}.")
