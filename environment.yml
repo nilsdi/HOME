@@ -13,6 +13,7 @@ dependencies: # not specifying versions to allow for solving during the build pr
     - torchvision==0.13.1+cu113
     - torchaudio==0.12.1
     - -f https://download.pytorch.org/whl/torch_stable.html
+    - -e .
   # new approach with pip hopefully makes the 6 lines below obsolete
   #- pytorch==1.12.1=py3.10_cuda11.3_cudnn8.3.2_0 # wont work (June 24) due to 
   # issue with MKL - use pip install after setting up the env instead 
