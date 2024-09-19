@@ -128,10 +128,11 @@ if __name__ == "__main__":
         with open(que_path / f'{project.lower().replace(" ", "_")}.json', "w") as f:
             json.dump(download_details, f)
 
-    #  save the updated project details
-    with open(
-        root_dir / "data/ML_prediction/project_log/project_details.json", "w"
-    ) as file:
-        json.dump(project_details, file, indent=4)
+    if False:
+        #  save the updated project details
+        with open(
+            root_dir / "data/ML_prediction/project_log/project_details.json", "w"
+        ) as file:
+            json.dump(project_details, file, indent=4)
 
 # %%
