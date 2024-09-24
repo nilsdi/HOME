@@ -19,7 +19,7 @@ root_dir = Path(__file__).parents[4]
 def start_export(
     project: str,
     resolution: float,
-    format: int = 4,
+    formati: int = 4,
     compression_method: int = 5,
     compression_value: float = 50,
     mosaic: bool = False,
@@ -58,7 +58,7 @@ def start_export(
         "Username": login["Username"],
         "Password": login["Password"],
         "CopyEmail": "nils.dittrich@ntnu.no",  # so both Daniel and I get an email!
-        "Format": format,
+        "Format": formati,
         "Resolution": resolution,
         "CompressionMethod": str(compression_method),
         "CompressionValue": str(compression_value),
