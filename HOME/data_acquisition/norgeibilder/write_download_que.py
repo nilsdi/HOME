@@ -48,7 +48,7 @@ if __name__ == "__main__":
         metadata_all_projects = json.load(f)
 
     # specify the download details
-    resolution = 0.2
+    resolution = 0.3
     compression_method = 5
     compression_value = 25
     mosaic = False
@@ -82,7 +82,19 @@ if __name__ == "__main__":
         "Trondheim-Gauldal 1947",
     ]
 
-    project_names = []
+    project_names = [
+        "Trondheim 2013",
+        "Trondheim 2014",
+        "Trondheim 2015",
+        "Trondheim 2016",
+        "Trondheim 2017",
+        "Trondheim kommune rektifisert 2018",
+        "Trondheim 2019",
+        "Trondheim kommune 2020",
+        "Trondheim kommune 2021",
+        "Trondheim kommune 2022",
+        "Trondheim kommune 2023",
+    ]
     que_path = root_dir / "data/temp/norgeibilder/download_que/"
 
     # read in the json for project management:
@@ -92,11 +104,6 @@ if __name__ == "__main__":
         project_details = json.load(file)
     #  create the jsons
     for project in project_names:
-        # check if the project is already in the que
-        if (que_path / f'{project.lower().replace(" ", "_")}.json').exists():
-            print(f"{project} is already in the que")
-            continue
-
         # check if the project is available in the resolution (from metadata)
         meta_data_index = metadata_all_projects["ProjectList"].index(project)
         properties = metadata_all_projects["ProjectMetadata"][meta_data_index][
@@ -116,23 +123,8 @@ if __name__ == "__main__":
             "compression_value": compression_value,
             "mosaic": mosaic,
         }
-        project_details = {
-            "status": "queued",
-            "channels": None,
-            "resolution": resolution,
-            "compression_name": compression_method,
-            "compression_value": compression_value,
-        }
-        project_details[project.lower().replace(" ", "_")] = project_details
 
         with open(que_path / f'{project.lower().replace(" ", "_")}.json', "w") as f:
             json.dump(download_details, f)
-
-    if False:
-        #  save the updated project details
-        with open(
-            root_dir / "data/ML_prediction/project_log/project_details.json", "w"
-        ) as file:
-            json.dump(project_details, file, indent=4)
 
 # %%

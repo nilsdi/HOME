@@ -19,10 +19,13 @@ data_path = get_data_path(root_dir)
 
 def road_grid(grid_size=512, res=0.3):
     # Read the veg.geojson file
-    root_dir = Path(__file__).parents[3]
-    road_dir = data_path / "raw/FKB_veg/Basisdata_0000_Norge_5973_FKB-Veg_FGDB.gdb"
-    roads = gpd.read_file(road_dir, layer="fkb_veg_omrade")
-    bounds = roads.total_bounds
+    building_dir = (
+        root_dir
+        / "data/raw/FKB_bygning"
+        / "Basisdata_0000_Norge_5973_FKB-Bygning_FGDB.gdb"
+    )
+    buildings = gpd.read_file(building_dir, layer="fkb_bygning_omrade")
+    bounds = buildings.total_bounds
 
     pixel_size = res * grid_size
 
@@ -46,7 +49,7 @@ def road_grid(grid_size=512, res=0.3):
 
     # Create an empty array of the same size as the GeoTIFF
 
-    geometries = roads.geometry.to_list()
+    geometries = buildings.geometry.to_list()
     mask = geometry_mask(
         geometries,
         transform=transform,
@@ -60,18 +63,16 @@ def road_grid(grid_size=512, res=0.3):
         mask = ndimage.binary_dilation(mask)
 
     # Create a DataFrame with the grid coordinates
-    road_presence = pd.DataFrame(
+    building_presence = pd.DataFrame(
         columns=np.arange(min_grid_x, max_grid_x),
         index=np.arange(max_grid_y, min_grid_y, -1),
         data=mask,
     )
 
-    road_presence.to_csv(
-        data_path
-        / f"ML_prediction/prediction_mask/roads/prediction_mask_{res}_{grid_size}.csv"
-    )
+    output_dir = data_path / f"ML_prediction/prediction_mask/buildings"
+    building_presence.to_csv(output_dir / "prediction_mask_{res}_{grid_size}.csv")
 
-    data_flat = road_presence.values.flatten()
+    data_flat = building_presence.values.flatten()
 
     x_coords, y_coords = np.meshgrid(
         np.arange(min_grid_x, max_grid_x), np.arange(max_grid_y, min_grid_y, -1)
@@ -92,7 +93,8 @@ def road_grid(grid_size=512, res=0.3):
     mask_sparse_csr = mask_sparse.tocsr()
 
     scipy.sparse.save_npz(
-        f"masksparse_{res}_{grid_size}_{min_x}_{min_y}.npz", mask_sparse_csr
+        output_dir / f"masksparse_{res}_{grid_size}_{min_x}_{min_y}.npz",
+        mask_sparse_csr,
     )
 
 

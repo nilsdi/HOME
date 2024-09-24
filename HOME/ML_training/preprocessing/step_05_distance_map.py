@@ -81,13 +81,14 @@ def process(inp):
     )
 
 
-indir = osp.join(args.datadir, f"train", "label")
-outdir = osp.join(args.datadir, args.outname)
-args_to_apply = [
-    (indir, outdir, osp.basename(basename))
-    for basename in glob(osp.join(indir, "*.tif"))
-    if "fredrikstad" not in osp.basename(basename)
-]
-print("Processing {} files".format(len(args_to_apply)))
-for i in tqdm(range(0, len(args_to_apply))):
-    process(args_to_apply[i])
+if __name__ == "__main__":
+    indir = osp.join(args.datadir, f"train", "label")
+    outdir = osp.join(args.datadir, args.outname)
+    args_to_apply = [
+        (indir, outdir, osp.basename(basename))
+        for basename in glob(osp.join(indir, "*.tif"))
+        if "fredrikstad" not in osp.basename(basename)
+    ]
+    print("Processing {} files".format(len(args_to_apply)))
+    for i in tqdm(range(0, len(args_to_apply))):
+        process(args_to_apply[i])

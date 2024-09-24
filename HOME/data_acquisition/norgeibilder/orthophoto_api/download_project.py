@@ -115,11 +115,9 @@ def download_project(
     new_key = lowest_key + 1
     project_details[project.lower().replace(" ", "_")] = {
         "project_name": project.lower().replace(" ", "_"),
-        "status": "downloaded",
         "resolution": resolution,
         "compression_name": compression_name,
         "compression_value": compression_value,
-        "channels": None,
         "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
 

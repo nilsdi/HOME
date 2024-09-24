@@ -14,6 +14,7 @@ import argparse
 from osgeo import gdal
 import pandas as pd
 import geopandas as gpd
+import scipy.sparse
 from HOME.ML_training.preprocessing.get_label_data.get_labels import get_labels
 
 # Increase the maximum number of pixels OpenCV can handle
@@ -38,6 +39,7 @@ def tile_images_no_labels(
     move_to_archive=False,
     project_name=None,
     prediction_mask=None,
+    prediction_type="buildings",
 ):
     """
     Creates tiles in tilesize from images in input_dir_images and saves them in
@@ -48,12 +50,16 @@ def tile_images_no_labels(
     """
     # Load the prediction mask we have premade if no other is provided
     if prediction_mask is None:
-        prediction_mask = pd.read_csv(
-            data_path / f"ML_prediction/prediction_mask/prediction_mask_{res}.csv",
-            index_col=0,
-        )
-        prediction_mask.columns = prediction_mask.columns.astype(int)
-        prediction_mask.index = prediction_mask.index.astype(int)
+        folderpath = data_path / f"ML_prediction/prediction_mask/{prediction_type}"
+        filepath = [
+            f
+            for f in os.listdir(folderpath)
+            if (str(res) in f) and (str(tile_size) in f) and f.endswith(".npz")
+        ][0]
+        prediction_mask = scipy.sparse.load_npz(folderpath / filepath)
+        parts = filepath.split("_")
+        min_x = int(parts[-2])
+        min_y = int(parts[-1].split(".")[0])
 
     skipped_tiles = 0
     # Create output directories if they don't exist
@@ -135,7 +141,7 @@ def tile_images_no_labels(
                     grid_y = coordgrid_top_left_y - j
 
                     # Only keep that tile if it's in the prediction mask
-                    if prediction_mask.loc[grid_y, grid_x]:
+                    if prediction_mask[grid_y - min_y, grid_x - min_x]:
 
                         # Calculate the tile coordinates within the image
                         x = int(i * effective_tile_size)
@@ -277,14 +283,16 @@ def tile_labels(
 
 
 # %%
-def tile_generation(project_name, res, compression, prediction_mask=None):
+def tile_generation(
+    project_name, res, compression, prediction_mask=None, prediction_type="buildings"
+):
 
     input_dir_images = (
         data_path / f"raw/orthophoto/res_{res}/{project_name}/{compression}/"
     )
     output_dir_images = (
         data_path
-        / f"ML_prediction/topredict/image/res_{res}/{project_name}/{compression}/"
+        / f"ML_prediction/forfrancis/image/res_{res}/{project_name}/{compression}/"
     )
 
     print(
@@ -295,11 +303,12 @@ def tile_generation(project_name, res, compression, prediction_mask=None):
     tile_images_no_labels(
         input_dir_images,
         output_dir_images,
-        tile_size=512,
+        tile_size=224,
         overlap_rate=0.00,
         project_name=project_name,
         res=res,
         prediction_mask=prediction_mask,
+        prediction_type=prediction_type,
     )
     return
 
@@ -313,60 +322,13 @@ if __name__ == "__main__":
     parser.add_argument("--project_name", required=True, type=str)
     parser.add_argument("--res", required=False, type=float, default=0.2)
     parser.add_argument("--compression", required=False, type=str, default="i_lzw_25")
+    parser.add_argument(
+        "--prediction_type", required=False, type=str, default="buildings"
+    )
     args = parser.parse_args()
-    tile_generation(args.project_name, args.res, args.compression)
-
-
-# # %% Some tests
-
-# padding_left = int(np.round(offset_x_px))
-# padding_right = int(padding_x)
-# padding_top = int(np.round(offset_y_px))
-# padding_bottom = int(offset_y)
-
-# src_band = dataset.GetRasterBand(1)
-
-# # %% Calculate new dimensions with padding
-# new_xsize = dataset.RasterXSize + padding_left + padding_right
-# new_ysize = dataset.RasterYSize + padding_top + padding_bottom
-
-# # %% Create new dataset
-# driver = gdal.GetDriverByName("GTiff")
-# dst_ds = driver.Create(
-#     os.path.join(input_dir_images, f"padded_{image_file}"),
-#     new_xsize,
-#     new_ysize,
-#     1,
-#     src_band.DataType,
-# )
-# dst_band = dst_ds.GetRasterBand(1)
-
-# # %% Adjust geotransform for the new dataset to account for padding
-# gt = list(dataset.GetGeoTransform())
-# gt[0] -= padding_left * gt[1]  # Adjust origin X
-# gt[3] -= (
-#     padding_top * gt[5]
-# )  # Adjust origin Y (note: gt[5] is negative for north-up images)
-# dst_ds.SetGeoTransform(gt)
-
-# # Set projection
-# dst_ds.SetProjection(dataset.GetProjection())
-
-# # Initialize the padded area with no data value or a specific value
-# nodata_value = src_band.GetNoDataValue()
-# if nodata_value is not None:
-#     dst_band.SetNoDataValue(nodata_value)
-#     dst_band.Fill(nodata_value)
-# else:
-#     dst_band.Fill(0)  # Or any other value you wish to use for padding
-
-# # Read data from the original dataset
-# src_data = src_band.ReadAsArray()
-
-# # %% Write data to the new dataset with padding offsets
-# dst_band.WriteArray(src_data, padding_left, padding_top)
-
-# # %% Close datasets
-# dataset = None
-# dst_ds = None
-# # %%
+    tile_generation(
+        args.project_name,
+        args.res,
+        args.compression,
+        prediction_type=args.prediction_type,
+    )

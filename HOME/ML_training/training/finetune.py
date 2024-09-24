@@ -34,9 +34,10 @@ def parse_args(parser, args):
     parser.add_argument("--base-channel", default=48, type=int)
     parser.add_argument("--device", default="cuda", help="training device")
     parser.add_argument("--read-name", default=args.read_name)
-    parser.add_argument("--save-name", default=f"HDNet_NOCI_{res}_{bw_str}")
+    parser.add_argument("--save-name", default=f"HDNet_NOCI_{res}_{bw_str}_tuned")
     parser.add_argument("--DataSet", default="NOCI" + bw_str_)
-    parser.add_argument("--image-folder", default=f"train{bw_str_}/image")
+    parser.add_argument("--image-folder", default=f"tune/image")
+    parser.add_argument("--label-folder", default=f"tune/label")
     args = parser.parse_args()
 
     return args
@@ -48,36 +49,42 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--numrun", required=True, type=int)
     parser.add_argument("-r", "--res", required=False, type=float, default=0.3)
     parser.add_argument("-bw", "--BW", required=False, type=bool, default=False)
-    parser.add_argument("-rn", "--read_name", required=False, type=str, default="")
+    parser.add_argument(
+        "-rn", "--read_name", required=True, type=str, default=f"HDNet_NOCI_0.3"
+    )
     parser.add_argument(
         "-e",
         "--epochs",
-        default=150,
+        default=50,
         type=int,
         metavar="N",
         help="number of total epochs to train",
     )
     parser.add_argument(
+        "--lr", default=0.00001, type=float, help="initial learning rate"
+    )
+    parser.add_argument(
         "-rn",
         "--read_num",
-        required=False,
+        required=True,
         type=int,
         help="directory number to read weights from",
     )
-    parser.add_argument("--lr", default=0.001, type=float, help="initial learning rate")
     args = parser.parse_args()
 
     args = parse_args(parser, args)
 
-    dir_checkpoint = str(root_dir) + f"/data/ML_model/save_weights/run_{args.numrun}/"
-    if args.read_num > 0:
-        read_dir = str(root_dir) + f"/data/ML_model/save_weights/run_{args.read_num}/"
-    else:
-        read_dir = dir_checkpoint
+    dir_checkpoint = (
+        str(root_dir) + f"/data/ML_model/save_weights_tune/run_{args.numrun}/"
+    )
+
+    read_dir = str(root_dir) + f"/data/ML_model/save_weights/run_{args.read_num}/"
+
     if not os.path.exists(dir_checkpoint):
         os.mkdir(dir_checkpoint)
 
     description = (
+        "Fine tuning of HDNet on NOCI dataset\n"
         f"Tile resolution: {args.res} \nBlack and White: {args.BW} \nFrom Existing:"
         f" {args.read_name} \nDate: {datetime.now()}\n\n"
         f"max_epochs: {args.epochs}\n, learning rate: {args.lr}"
@@ -85,4 +92,4 @@ if __name__ == "__main__":
     with open(dir_checkpoint + "training_description.txt", "w") as file:
         file.write(description)
 
-    main(args, dir_checkpoint)
+    main(args, dir_checkpoint, read_dir)

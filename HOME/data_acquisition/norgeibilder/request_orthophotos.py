@@ -20,13 +20,12 @@ import os
 import json
 import shutil
 import time
-from HOME.get_data_path import get_data_path
 
 # Get the root directory of the project
 root_dir = Path(__file__).resolve().parents[3]
 print(root_dir)
 # get the data path (might change)
-data_path = get_data_path(root_dir)
+data_path = root_dir / "data"
 # print(data_path)
 # %%
 if __name__ == "__main__":

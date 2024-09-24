@@ -14,7 +14,6 @@ import argparse
 from osgeo import gdal
 import pandas as pd
 import geopandas as gpd
-import scipy.sparse
 from HOME.ML_training.preprocessing.get_label_data.get_labels import get_labels
 
 # Increase the maximum number of pixels OpenCV can handle
@@ -39,6 +38,7 @@ def tile_images_no_labels(
     move_to_archive=False,
     project_name=None,
     prediction_mask=None,
+    prediction_type="buildings",
 ):
     """
     Creates tiles in tilesize from images in input_dir_images and saves them in
@@ -49,16 +49,13 @@ def tile_images_no_labels(
     """
     # Load the prediction mask we have premade if no other is provided
     if prediction_mask is None:
-        folderpath = data_path / f"ML_prediction/prediction_mask/"
-        filepath = [
-            f
-            for f in os.listdir(folderpath)
-            if (str(res) in f) and (str(tile_size) in f)
-        ][0]
-        prediction_mask = scipy.sparse.load_npz(folderpath / filepath)
-        parts = filepath.split("_")
-        min_x = int(parts[-2])
-        min_y = int(parts[-1].split(".")[0])
+        prediction_mask = pd.read_csv(
+            data_path
+            / f"ML_prediction/prediction_mask/{prediction_type}/prediction_mask_{res}.csv",
+            index_col=0,
+        )
+        prediction_mask.columns = prediction_mask.columns.astype(int)
+        prediction_mask.index = prediction_mask.index.astype(int)
 
     skipped_tiles = 0
     # Create output directories if they don't exist
@@ -140,7 +137,7 @@ def tile_images_no_labels(
                     grid_y = coordgrid_top_left_y - j
 
                     # Only keep that tile if it's in the prediction mask
-                    if prediction_mask[grid_y - min_y, grid_x - min_x]:
+                    if prediction_mask.loc[grid_y, grid_x]:
 
                         # Calculate the tile coordinates within the image
                         x = int(i * effective_tile_size)
@@ -282,14 +279,16 @@ def tile_labels(
 
 
 # %%
-def tile_generation(project_name, res, compression, prediction_mask=None):
+def tile_generation(
+    project_name, res, compression, prediction_mask=None, prediction_type="buildings"
+):
 
     input_dir_images = (
         data_path / f"raw/orthophoto/res_{res}/{project_name}/{compression}/"
     )
     output_dir_images = (
         data_path
-        / f"ML_prediction/forfrancis/image/res_{res}/{project_name}/{compression}/"
+        / f"ML_prediction/topredict/image/res_{res}/{project_name}/{compression}/"
     )
 
     print(
@@ -300,11 +299,12 @@ def tile_generation(project_name, res, compression, prediction_mask=None):
     tile_images_no_labels(
         input_dir_images,
         output_dir_images,
-        tile_size=224,
+        tile_size=512,
         overlap_rate=0.00,
         project_name=project_name,
         res=res,
         prediction_mask=prediction_mask,
+        prediction_type=prediction_type,
     )
     return
 
@@ -318,8 +318,16 @@ if __name__ == "__main__":
     parser.add_argument("--project_name", required=True, type=str)
     parser.add_argument("--res", required=False, type=float, default=0.2)
     parser.add_argument("--compression", required=False, type=str, default="i_lzw_25")
+    parser.add_argument(
+        "--prediction_type", required=False, type=str, default="buildings"
+    )
     args = parser.parse_args()
-    tile_generation(args.project_name, args.res, args.compression)
+    tile_generation(
+        args.project_name,
+        args.res,
+        args.compression,
+        prediction_type=args.prediction_type,
+    )
 
 
 # # %% Some tests
