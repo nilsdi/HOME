@@ -10,6 +10,7 @@ from pathlib import Path
 import json
 import os
 import time
+from requests.auth import HTTPBasicAuth
 from HOME.get_data_path import get_data_path
 
 root_dir = Path(__file__).parents[4]
@@ -19,57 +20,61 @@ root_dir = Path(__file__).parents[4]
 def start_export(
     project: str,
     resolution: float,
-    formati: int = 4,
     compression_method: int = 5,
-    compression_value: float = 50,
-    mosaic: bool = False,
-    data_path: Path = None,
+    compression_value: float = 25,
+    mosaic: int = 3,
+    mapsheet_size: int = 2000,
+    crs: int = 25832,
 ) -> int:
     """
     Request an export of the orthophoto project specified.
-    The export JobID returned can be used to fetch the status of the export.
+    The export exportID returned can be used to fetch the status of the export.
     User and password are taken from the geonorge_login.json file.
+    Details for the settings can be found in the documentation - link below.
+    https://backend-api.klienter-prod-k8s2.norgeibilder.no/swagger/index.html
 
     Args:
     - project (str): The project ID of the orthophoto to be exported.
     - resolution (float): The resolution of the orthophoto to be exported in meters.
-    - format (int): The format of the orthophoto to be exported (see documentation for details).
     - compression_method (int): The compression method to be used for the export (see doc).
     - compression_value (float): The compression value to be used for the export (see doc).
-    - mosaic (bool): Whether to export the orthophoto as a mosaic or not - not yet implemented.
+    - mosaic (int): type of mosaic - see documentation for details.
+    - mapsheet_size (float): The size of the map sheet (not sure which unit...)
+    - crs (int): The coordinate reference system of the orthophoto to be exported.
 
     Returns:
-    - int: The JobID of the export request.
+    - int: The exportID of the export request.
     """
-    rest_export_url = "https://tjenester.norgeibilder.no/rest/startExport.ashx"
+    export_url = "https://backend-api.klienter-prod-k8s2.norgeibilder.no/export/start"
 
     # Get the directory of this file
     current_dir = Path(__file__).resolve().parents[0]
-
     # Construct the path to the JSON file
     json_file_path = os.path.join(current_dir, "geonorge_login.json")
-
     # Open the JSON file
     with open(json_file_path, "r") as file:
         # Load the JSON data
         login = json.load(file)
-
+    # create auth object
+    auth_basic = HTTPBasicAuth(login["Username"], login["Password"])
     export_payload = {
-        "Username": login["Username"],
-        "Password": login["Password"],
-        "CopyEmail": "nils.dittrich@ntnu.no",  # so both Daniel and I get an email!
-        "Format": formati,
-        "Resolution": resolution,
-        "CompressionMethod": str(compression_method),
-        "CompressionValue": str(compression_value),
-        "Projects": project,
-        "Imagemosaic": 2,  # 2 means no mosaic
-        "support_files": 1,  # medata or not - we choose yes
+        "copyEmail": "nils.dittrich@ntnu.no",
+        "comment": "low scale export for HOME project",
+        "cutNationalBorder": True,
+        "format": 4,
+        "resolution": 0.3,
+        "outputWkid": crs,
+        "fillColor": 0,
+        "fillImage": False,
+        "projects": ["Trondheim 2019"],
+        "compressionMethod": compression_method,
+        "compressionValue": compression_value,
+        "imagemosaic": 3,
+        "mapsheetSize": mapsheet_size,
+        "exportFilename": f"{project.lower().replace(' ', '_') }.zip",
     }
-    # we need to send the payload as a json in a request calling it the request
-    export_payload_json = json.dumps(export_payload)
-    export_query = {"request": export_payload_json}
-    export_response = requests.get(rest_export_url, params=export_query)
+
+    export_response = requests.post(export_url, auth=auth_basic, json=export_payload)
 
     if export_response.status_code != 200:
         raise Exception(
@@ -81,9 +86,9 @@ def start_export(
         )
         response_json = export_response.json()
         print(response_json)
-        JobID = export_response.json()["JobID"]
+        exportID = export_response.json()["exportId"]
 
-    return JobID
+    return int(exportID)
 
 
 # remove whitespace from name
@@ -92,25 +97,29 @@ def start_export(
 
 
 def save_export_job(
-    JobID: int,
+    exportID: int,
     project: str,
     resolution: float,
-    compression_method: int,
-    compression_value: float,
-    mosaic: bool,
+    compression_method: int = 5,
+    compression_value: float = 25,
+    mosaic: int = 3,
+    mapsheet_size: int = 2000,
+    crs: int = 25832,
     data_path: Path = None,
 ) -> None:
     """
     Save the export job details to a file for later reference.
 
     Args:
-        JobID (int): The JobID of the export request.
-        project (str): The name of the orthophoto project to be exported.
-        resolution (float): The resolution of the orthophoto to be exported in meters.
-        compression_method (int): The compression method to be used for the export.
-        compression_value (float): The compression value to be used for the export.
-        mosaic (bool): Whether to export the orthophoto as a mosaic or not.
-        data_path (Path): The path to the data folder, default is None (=> HOME/data).
+    - exportID (int): The exportID  from NiB.
+    - project (str): The project ID of the orthophoto to be exported.
+    - resolution (float): The resolution of the orthophoto to be exported in meters.
+    - compression_method (int): The compression method to be used for the export (see doc).
+    - compression_value (float): The compression value to be used for the export (see doc).
+    - mosaic (int): type of mosaic - see documentation for details.
+    - mapsheet_size (float): The size of the map sheet (not sure which unit...)
+    - crs (int): The coordinate reference system of the orthophoto to be exported.
+    - data_path (Path): The path to the data folder.
 
     Returns:
         None
@@ -127,14 +136,16 @@ def save_export_job(
         raise Exception(
             "Only LZW compression (type 5) is supported in saving the job at the moment."
         )
-
     export_job = {
-        "JobID": JobID,
+        "exportID": exportID,
         "project": project,
         "resolution": resolution,
         "compression_method": compression_method,
         "compression_value": compression_value,
         "mosaic": mosaic,
+        "mapsheet_size": mapsheet_size,
+        "crs": crs,
+        "date": current_time,
     }
 
     with open(file_path, "w") as file:

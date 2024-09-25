@@ -13,7 +13,7 @@ from HOME.data_acquisition.norgeibilder.orthophoto_api.start_export import (
 )
 from HOME.data_acquisition.norgeibilder.orthophoto_api.status_export import (
     status_export,
-    save_download_url,
+    save_download_urls,
 )
 from pathlib import Path
 import os
