@@ -27,65 +27,64 @@ from datetime import datetime
 
 
 # %%
+def process_image(processed_img_path):
+    # Open the processed image with rasterio to access both data and metadata
+    with rasterio.open(str(processed_img_path)) as src:
+        # Read the first band
+        myarray = src.read(1)
+
+        # Extract polygons from the array
+        mypoly = [
+            shape(vec[0])
+            for vec in rasterio.features.shapes(myarray, transform=src.transform)
+        ]
+
+        # Filter and simplify polygons
+        simplified_polygons = [
+            polygon.simplify(5, preserve_topology=True) for polygon in mypoly
+        ]
+        rounded_polygons = [
+            polygon.buffer(1, join_style=3, single_sided=True)
+            for polygon in simplified_polygons
+        ]
+
+        # Create a GeoDataFrame with the correct CRS
+        gdf = gpd.GeoDataFrame({"geometry": rounded_polygons}, crs=src.crs)
+
+        # Exclude polygons that have at least one vertex on the edge (within two pixels) of the image
+        def is_within_bounds(geom, width, height):
+            if isinstance(geom, Polygon):
+                coords = geom.exterior.coords
+                return all(
+                    2 <= coord[0] < width - 2 and 2 <= coord[1] < height - 2
+                    for coord in coords
+                )
+            elif isinstance(geom, MultiPolygon):
+                for polygon in geom.geoms:
+                    coords = list(polygon.exterior.coords)
+                    if not all(
+                        2 <= coord[0] < width - 2 and 2 <= coord[1] < height - 2
+                        for coord in coords
+                    ):
+                        return False
+                return True
+            else:
+                return False
+
+        # Filter the GeoDataFrame manually
+        filtered_polygons = [
+            geom
+            for geom in gdf["geometry"]
+            if is_within_bounds(geom, src.width, src.height)
+        ]
+        gdf = gpd.GeoDataFrame({"geometry": filtered_polygons}, crs=src.crs)
+    return gdf, processed_img_path
 
 
 def process_project_tiles(tile_dir: str, output_dir: Path):
     """
     Process all images in the project directory.
     """
-
-    def process_image(processed_img_path):
-        # Open the processed image with rasterio to access both data and metadata
-        with rasterio.open(str(processed_img_path)) as src:
-            # Read the first band
-            myarray = src.read(1)
-
-            # Extract polygons from the array
-            mypoly = [
-                shape(vec[0])
-                for vec in rasterio.features.shapes(myarray, transform=src.transform)
-            ]
-
-            # Filter and simplify polygons
-            simplified_polygons = [
-                polygon.simplify(5, preserve_topology=True) for polygon in mypoly
-            ]
-            rounded_polygons = [
-                polygon.buffer(1, join_style=3, single_sided=True)
-                for polygon in simplified_polygons
-            ]
-
-            # Create a GeoDataFrame with the correct CRS
-            gdf = gpd.GeoDataFrame({"geometry": rounded_polygons}, crs=src.crs)
-
-            # Exclude polygons that have at least one vertex on the edge (within two pixels) of the image
-            def is_within_bounds(geom, width, height):
-                if isinstance(geom, Polygon):
-                    coords = geom.exterior.coords
-                    return all(
-                        2 <= coord[0] < width - 2 and 2 <= coord[1] < height - 2
-                        for coord in coords
-                    )
-                elif isinstance(geom, MultiPolygon):
-                    for polygon in geom.geoms:
-                        coords = list(polygon.exterior.coords)
-                        if not all(
-                            2 <= coord[0] < width - 2 and 2 <= coord[1] < height - 2
-                            for coord in coords
-                        ):
-                            return False
-                    return True
-                else:
-                    return False
-
-            # Filter the GeoDataFrame manually
-            filtered_polygons = [
-                geom
-                for geom in gdf["geometry"]
-                if is_within_bounds(geom, src.width, src.height)
-            ]
-            gdf = gpd.GeoDataFrame({"geometry": filtered_polygons}, crs=src.crs)
-        return gdf, processed_img_path
 
     # Ensure the output directory exists
     os.makedirs(output_dir, exist_ok=True)

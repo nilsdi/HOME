@@ -1,5 +1,5 @@
 # %% imports
-from step_01_reassembling_tiles import (
+from HOME.ML_prediction.postprocessing.step_01_reassembling_tiles import (
     extract_tile_numbers,
     get_max_min_extend,
     get_large_tiles,

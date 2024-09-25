@@ -4,6 +4,7 @@ import pandas as pd
 from pathlib import Path
 import logging
 import torch
+import pickle
 
 from HOME.ML_prediction.preprocessing import (
     step_01_tile_generation,
@@ -30,7 +31,7 @@ data_path = get_data_path(root_dir)
 # print(data_path)
 
 
-def main(list_of_projects: list):
+def main(list_of_projects: list, labels: bool = False):
     """
     Main function to run the prediction pipeline
 
@@ -45,23 +46,28 @@ def main(list_of_projects: list):
     ) as file:
         project_details = json.load(file)
 
-    if list_of_projects == ["all"]:
-        list_of_projects = list(project_details.keys())
-
-    projects_to_run = []
+    projects_to_run = []  # list of IDs of projects to run (integers) in the future,
+    # names of projects right now
     pred_res = 0  # the resolution for which we open the prediction mask
     for project_name in list_of_projects:
         if project_details[project_name]["status"] == "downloaded":
             projects_to_run.append(project_name)
         pred_res = project_details[project_name]["resolution"]
 
-    # load prediction mask
-    prediction_mask = pd.read_csv(
-        data_path / f"ML_prediction/prediction_mask/prediction_mask_{pred_res}_512.csv",
-        index_col=0,
-    )
-    prediction_mask.columns = prediction_mask.columns.astype(int)
-    prediction_mask.index = prediction_mask.index.astype(int)
+    if labels:
+        path_label = (
+            data_path / "raw/FKB_bygning/Basisdata_0000_Norge_5973_FKB-Bygning_FGDB.pkl"
+        )
+        with open(path_label, "rb") as f:
+            gdf_omrade = pickle.load(f)
+        buildings_year = pd.read_csv(
+            data_path / "raw/FKB_bygning/buildings.csv", index_col=0
+        )
+        gdf_omrade = gdf_omrade.merge(
+            buildings_year, left_on="bygningsnummer", right_index=True, how="left"
+        )
+    else:
+        gdf_omrade = None
 
     for project_name in projects_to_run:
         res, compression_name, compression_value, channels = (
@@ -84,7 +90,11 @@ def main(list_of_projects: list):
             project_name=project_name,
             res=res,
             compression=compression,
-            prediction_mask=prediction_mask,
+            prediction_type="buildings",
+            tile_size=512,
+            overlap_rate=0,
+            labels=labels,
+            gdf_omrade=gdf_omrade,
         )
 
         # Step 2: Make text file
@@ -93,10 +103,14 @@ def main(list_of_projects: list):
         )
 
         # Step 3: Predict
-        year = int(project_name.split("_")[-1])
         BW = channels == "BW"
-        predict.predict(
-            project_name=project_name, res=res, compression=compression, BW=BW
+        predict.predict_and_eval(
+            project_name=project_name,
+            res=res,
+            compression=compression,
+            BW=BW,
+            evaluate=labels,
+            batchsize=8,
         )
         # Step 4: Reassemble tiles
         # step_01_reassembling_tiles(project_name)
@@ -117,10 +131,11 @@ def main(list_of_projects: list):
 # %%
 if __name__ == "__main__":
     list_of_projects = [
-        "trondheim_kommune_2021",
-        "trondheim_kommune_2022",
+        # "trondheim_1999",
+        # "trondheim_kommune_2022",
+        "trondheim_mof_2023"
     ]
-    main(list_of_projects=list_of_projects)
+    main(list_of_projects=list_of_projects, labels=True)
     # print("did something")
 
 # %%
