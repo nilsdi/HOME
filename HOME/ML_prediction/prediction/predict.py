@@ -9,7 +9,10 @@ from torch.utils.data import DataLoader
 import cv2
 from tqdm import tqdm
 import argparse
+import numpy as np
 from HOME.get_data_path import get_data_path
+from sklearn.metrics import recall_score
+
 
 # Get the root directory of the project
 root_dir = Path(__file__).resolve().parents[3]
@@ -23,6 +26,7 @@ sys.path.append(str(grandparent_dir / "ISPRS_HD_NET"))
 from ISPRS_HD_NET.utils.sync_batchnorm.batchnorm import convert_model  # type: ignore # noqa
 from ISPRS_HD_NET.model.HDNet import HighResolutionDecoupledNet  # type: ignore # noqa
 from ISPRS_HD_NET.utils.dataset import BuildingDataset  # type: ignore # noqa
+from ISPRS_HD_NET.eval.eval_HDNet import fast_hist  # type: ignore # noqa
 from ISPRS_HD_NET.eval.eval_HDNet import eval_net  # type: ignore # noqa
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -30,68 +34,24 @@ matplotlib.use("tkagg")
 
 # %%
 data_dir = data_path / "ML_prediction/"
-predict = True
 
 
 # %%
 def predict_and_eval(
-    net,
-    device,
-    data_dir,
-    txt_name="test.txt",
-    predict=True,
-    prediction_folder=data_path / "ML_prediction/predictions",
+    project_name,
+    res=0.3,
+    compression="i_lzw_25",
+    BW=False,
     image_folder="topredict/image/",
-    Dataset="NOCI",
-    num_workers=8,
+    label_folder="topredict/label/",
+    predict=True,
+    evaluate=False,
     batchsize=16,
-    read_name="",
+    num_workers=8,
+    data_dir=data_dir,
+    prediction_folder=data_path / "ML_prediction/predictions",
+    Dataset="NOCI",
 ):
-    dataset = BuildingDataset(
-        dataset_dir=data_dir,
-        training=False,
-        txt_name=txt_name,
-        data_name=Dataset,
-        image_folder=image_folder,
-        predict=predict,
-    )
-
-    loader = DataLoader(
-        dataset,
-        batch_size=batchsize,
-        shuffle=False,
-        num_workers=num_workers,
-        drop_last=False,
-    )
-
-    if predict:
-        save_path = os.path.join(data_dir, prediction_folder)
-        print("Saving predictions in ", save_path)
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        for batch in tqdm(loader):
-            imgs = batch["image"]
-            imgs = imgs.to(device=device, dtype=torch.float32)
-
-            with torch.no_grad():
-                pred = net(imgs)
-                pred1 = (pred[0] > 0).float()
-                label_pred = pred1.squeeze().cpu().int().numpy().astype("uint8") * 255
-
-                for i in range(len(pred1)):
-                    img_name = "/".join(batch["name"][i].split("/")[-4:])
-                    img_path = os.path.join(save_path, img_name)
-                    os.makedirs(os.path.dirname(img_path), exist_ok=True)
-                    wr = cv2.imwrite(img_path, label_pred[i])
-                    if not wr:
-                        print("Save failed!")
-    else:
-        best_score = eval_net(
-            net, loader, device, savename=Dataset + "_" + read_name
-        )  #
-        print("Best iou:", best_score)
-
-
-def predict(project_name, res=0.3, compression="i_lzw_25", BW=False):
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -100,20 +60,18 @@ def predict(project_name, res=0.3, compression="i_lzw_25", BW=False):
     if BW:
         dir_checkpoint = data_path / "ML_model/save_weights/run_2/"
         Dataset = "NOCI_BW"
-        read_name = f"HDNet_NOCI_{res}_BW_best"
+        read_name = [
+            f for f in os.listdir(dir_checkpoint) if ("best" in f) & ("NOCI" in f)
+        ][0][:-4]
     else:
-        dir_checkpoint = data_path / "ML_model/save_weights/run_3/"
+        dir_checkpoint = data_path / "ML_model/save_weights_tune/run_1/"
         Dataset = "NOCI"
-        read_name = f"HDNet_NOCI_{res}_C_best"
+        read_name = [
+            f for f in os.listdir(dir_checkpoint) if ("best" in f) & ("NOCI" in f)
+        ][0][:-4]
 
     pred_name = f"pred_{project_name}_{res}_{compression}.txt"
     # prediction_folder = "predictions/test/"
-
-    prediction_folder = data_path / "ML_prediction/predictions"
-    batchsize = 16
-    num_workers = 8
-
-    image_folder = "topredict/image/"
 
     net = HighResolutionDecoupledNet(base_channel=48, num_classes=1)
 
@@ -132,19 +90,65 @@ def predict(project_name, res=0.3, compression="i_lzw_25", BW=False):
 
     print("Number of parameters: ", sum(p.numel() for p in net.parameters()))
 
-    predict_and_eval(
-        net=net,
-        device=device,
-        data_dir=data_dir,
-        predict=True,
-        prediction_folder=prediction_folder,
-        image_folder=image_folder,
+    dataset = BuildingDataset(
+        dataset_dir=data_dir,
+        training=False,
         txt_name=pred_name,
-        num_workers=num_workers,
-        Dataset=Dataset,
-        batchsize=batchsize,
-        read_name=read_name,
+        data_name=Dataset,
+        image_folder=image_folder,
+        label_folder=label_folder,
+        predict=predict & (not evaluate),
     )
+
+    loader = DataLoader(
+        dataset,
+        batch_size=batchsize,
+        shuffle=False,
+        num_workers=num_workers,
+        drop_last=False,
+    )
+
+    hist = 0
+    if predict:
+        save_path = os.path.join(data_dir, prediction_folder)
+        print("Saving predictions in ", save_path)
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        for batch in tqdm(loader):
+            imgs = batch["image"]
+            imgs = imgs.to(device=device, dtype=torch.float32)
+
+            with torch.no_grad():
+                pred = net(imgs)
+            pred1 = (pred[0] > 0).float()
+            label_pred = pred1.squeeze().cpu().int().numpy().astype("uint8") * 255
+
+            for i in range(len(pred1)):
+                img_name = "/".join(batch["name"][i].split("/")[-4:])
+                img_path = os.path.join(save_path, img_name)
+                os.makedirs(os.path.dirname(img_path), exist_ok=True)
+                wr = cv2.imwrite(img_path, label_pred[i])
+                if not wr:
+                    print("Save failed!")
+
+            if evaluate:
+                true_labels = batch["label"]
+                hist += fast_hist(
+                    pred1.flatten().cpu().detach().int().numpy(),
+                    true_labels.flatten().cpu().int().numpy(),
+                    2,
+                )
+                # rec += recall_score(
+                #     true_labels.flatten().cpu().int().numpy(),
+                #     pred1.flatten().cpu().detach().int().numpy(),
+                # )
+
+    if evaluate:
+        if predict:
+            acc_R = np.diag(hist) / hist.sum(1) * 100
+            print("Recall: ", acc_R)
+            # print("Recall from sklearn: ", rec / len(loader))
+        else:
+            acc_R = eval_net(net, loader, device)
 
 
 if __name__ == "__main__":
@@ -157,11 +161,41 @@ if __name__ == "__main__":
     parser.add_argument(
         "-c", "--compression", required=False, type=str, default="i_lzw_25"
     )
-    parser.add_argument("-bw", "--BW", required=False, type=bool, default=False)
+    parser.add_argument(
+        "-bw",
+        "--BW",
+        required=False,
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
+    parser.add_argument(
+        "-if", "--image_folder", required=False, type=str, default="topredict/image"
+    )
+    parser.add_argument(
+        "-lf", "--label_folder", required=False, type=str, default="topredict/label"
+    )
+    parser.add_argument(
+        "--predict",
+        required=False,
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument(
+        "--evaluate",
+        required=False,
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
+
     args = parser.parse_args()
-    predict(
+    print(args)
+    predict_and_eval(
         project_name=args.project_name,
         res=args.res,
         compression=args.compression,
         BW=args.BW,
+        image_folder=args.image_folder,
+        label_folder=args.label_folder,
+        predict=args.predict,
+        evaluate=args.evaluate,
     )

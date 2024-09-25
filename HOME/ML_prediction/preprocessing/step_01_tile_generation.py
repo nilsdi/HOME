@@ -16,6 +16,7 @@ import pandas as pd
 import geopandas as gpd
 import scipy.sparse
 from HOME.ML_training.preprocessing.get_label_data.get_labels import get_labels
+import pickle
 
 # Increase the maximum number of pixels OpenCV can handle
 os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2, 40))
@@ -35,7 +36,7 @@ def tile_images_no_labels(
     output_dir_images,
     tile_size,
     res,
-    overlap_rate=0.00,
+    overlap_rate=0,
     move_to_archive=False,
     project_name=None,
     prediction_mask=None,
@@ -54,7 +55,10 @@ def tile_images_no_labels(
         filepath = [
             f
             for f in os.listdir(folderpath)
-            if (str(res) in f) and (str(tile_size) in f) and f.endswith(".npz")
+            if (str(res) in f)
+            and (str(tile_size) in f)
+            and (str(overlap_rate)) in f
+            and f.endswith(".npz")
         ][0]
         prediction_mask = scipy.sparse.load_npz(folderpath / filepath)
         parts = filepath.split("_")
@@ -191,67 +195,90 @@ def tile_images_no_labels(
 
 def tile_labels(
     project_name,
-    res=0.2,
+    res=0.3,
     compression="i_lzw_25",
     tile_size=512,
-    overlap_rate=0.00,
+    overlap_rate=0,
+    output_dir_images=None,
+    output_dir_labels=None,
     image_size=None,
+    gdf_omrade=None,
 ):
 
     year = int(project_name.split("_")[-1])
-    year_dt_utc = pd.to_datetime(year, format="%Y").tz_localize("UTC")
-
-    ### Makes label for a given project
-    dir_images = (
-        data_path
-        / f"ML_prediction/topredict/image/res_{res}/{project_name}/{compression}/"
-    )
-
-    output_dir_labels = (
-        data_path
-        / f"ML_prediction/topredict/label/res_{res}/{project_name}/{compression}/"
-    )
 
     # Create output directories if they don't exist
     os.makedirs(output_dir_labels, exist_ok=True)
 
     # Get list of all image files in the input directory
-    image_tiles = [f for f in os.listdir(dir_images) if f.endswith(".tif")]
+    image_tiles = [f for f in os.listdir(output_dir_images) if f.endswith(".tif")]
 
     # Initialize min and max coordinates
-    min_coord_x = min_coord_y = float("inf")
-    max_coord_x = max_coord_y = float("-inf")
+    min_grid_x = min_grid_y = float("inf")
+    max_grid_x = max_grid_y = float("-inf")
 
     for image_tile in image_tiles:
         # Split the filename on underscore
         parts = image_tile.split(".")[0].split("_")
 
-        # Extract coord_x and coord_y
-        coord_x = int(parts[-2])
-        coord_y = int(parts[-1])
+        # Extract grid_x and grid_y
+        grid_x = int(parts[-2])
+        grid_y = int(parts[-1])
 
         # Update min and max coordinates
-        min_coord_x = min(min_coord_x, coord_x)
-        min_coord_y = min(min_coord_y, coord_y)
-        max_coord_x = max(max_coord_x, coord_x)
-        max_coord_y = max(max_coord_y, coord_y)
+        min_grid_x = min(min_grid_x, grid_x)
+        min_grid_y = min(min_grid_y, grid_y)
+        max_grid_x = max(max_grid_x, grid_x)
+        max_grid_y = max(max_grid_y, grid_y)
 
     effective_tile_size = int(tile_size * (1 - overlap_rate))
     grid_size_m = res * effective_tile_size
 
-    path_label = (
-        data_path / "raw/FKB_bygning"
-        + "/Basisdata_0000_Norge_5973_FKB-Bygning_FGDB.gdb"
-    )
-    gdf_omrade = gpd.read_file(path_label, driver="FileGDB", layer="fkb_bygning_omrade")
-    gdf_omrade_subset = gdf_omrade[gdf_omrade["datafangstdato"] <= year_dt_utc]
+    if gdf_omrade is None:
+        path_label = (
+            data_path / "raw/FKB_bygning/Basisdata_0000_Norge_5973_FKB-Bygning_FGDB.pkl"
+        )
+        with open(path_label, "rb") as f:
+            gdf_omrade = pickle.load(f)
+        buildings_year = pd.read_csv(
+            data_path / "raw/FKB_bygning/buildings.csv", index_col=0
+        )
+        gdf_omrade = gdf_omrade.merge(
+            buildings_year, left_on="bygningsnummer", right_index=True, how="left"
+        )
+
+    # filter by year
+    gdf_omrade_subset = gdf_omrade[gdf_omrade["Building Year"] <= year]
 
     bbox = (
-        np.array([min_coord_x, min_coord_y, max_coord_x + 1, max_coord_y + 1])
-        * grid_size_m
+        np.array([min_grid_x, min_grid_y - 1, max_grid_x + 1, max_grid_y]) * grid_size_m
     )
 
     label, _ = get_labels(gdf_omrade_subset, bbox, res, in_degree=False)
+    label = (
+        cv2.copyMakeBorder(
+            label,
+            0,
+            int(
+                (
+                    np.ceil(label.shape[0] / effective_tile_size)
+                    - label.shape[0] / effective_tile_size
+                )
+                * effective_tile_size
+            ),
+            0,
+            int(
+                (
+                    np.ceil(label.shape[1] / effective_tile_size)
+                    - label.shape[1] / effective_tile_size
+                )
+                * effective_tile_size
+            ),
+            cv2.BORDER_CONSTANT,
+            value=[0, 0],
+        )
+        * 255
+    )
 
     # Calculate the image size if not given
     total_iterations = len(image_tiles)
@@ -262,17 +289,17 @@ def tile_labels(
             # Split the filename on underscore
             parts = image_tile.split(".")[0].split("_")
 
-            # Extract coord_x and coord_y
-            coord_x = int(parts[-2])
-            coord_y = int(parts[-1])
+            # Extract grid_x and grid_y
+            grid_x = int(parts[-2])
+            grid_y = int(parts[-1])
 
-            x = (coord_x - min_coord_x) * effective_tile_size
-            y = (coord_y - min_coord_y) * effective_tile_size
+            x = (grid_x - min_grid_x) * effective_tile_size
+            y = (max_grid_y - grid_y) * effective_tile_size
 
-            label_tile = label[y : y + effective_tile_size, x : x + effective_tile_size]
+            label_tile = label[y : y + tile_size, x : x + tile_size]
 
             # Save the label tile to the output directory
-            label_tile_filename = f"{project_name}_{parts[2]}_{coord_x}_{coord_y}.tif"
+            label_tile_filename = f"{project_name}_{parts[-3]}_{grid_x}_{grid_y}.tif"
             label_tile_path = os.path.join(output_dir_labels, label_tile_filename)
 
             cv2.imwrite(label_tile_path, label_tile)
@@ -284,7 +311,15 @@ def tile_labels(
 
 # %%
 def tile_generation(
-    project_name, res, compression, prediction_mask=None, prediction_type="buildings"
+    project_name,
+    res,
+    compression,
+    prediction_mask=None,
+    prediction_type="buildings",
+    tile_size=512,
+    overlap_rate=0,
+    labels=False,
+    gdf_omrade=None,
 ):
 
     input_dir_images = (
@@ -292,7 +327,7 @@ def tile_generation(
     )
     output_dir_images = (
         data_path
-        / f"ML_prediction/forfrancis/image/res_{res}/{project_name}/{compression}/"
+        / f"ML_prediction/topredict/image/res_{res}/{project_name}/{compression}/"
     )
 
     print(
@@ -303,13 +338,32 @@ def tile_generation(
     tile_images_no_labels(
         input_dir_images,
         output_dir_images,
-        tile_size=224,
-        overlap_rate=0.00,
+        tile_size=tile_size,
+        overlap_rate=overlap_rate,
         project_name=project_name,
         res=res,
         prediction_mask=prediction_mask,
         prediction_type=prediction_type,
     )
+
+    if labels:
+        output_dir_labels = (
+            data_path
+            / f"ML_prediction/topredict/label/res_{res}/{project_name}/{compression}/"
+        )
+        print(
+            f"Tiling labels, project {project_name}, resolution {res}, compression {compression}"
+        )
+        tile_labels(
+            project_name,
+            res=res,
+            compression=compression,
+            tile_size=tile_size,
+            overlap_rate=overlap_rate,
+            output_dir_images=output_dir_images,
+            output_dir_labels=output_dir_labels,
+            gdf_omrade=gdf_omrade,
+        )
     return
 
 
@@ -320,15 +374,17 @@ if __name__ == "__main__":
         description="Tile raw orthophotos for prediction with ML model"
     )
     parser.add_argument("--project_name", required=True, type=str)
-    parser.add_argument("--res", required=False, type=float, default=0.2)
+    parser.add_argument("--res", required=False, type=float, default=0.3)
     parser.add_argument("--compression", required=False, type=str, default="i_lzw_25")
     parser.add_argument(
         "--prediction_type", required=False, type=str, default="buildings"
     )
+    parser.add_argument("-l", "--labels", required=False, type=bool, default=False)
     args = parser.parse_args()
     tile_generation(
         args.project_name,
         args.res,
         args.compression,
         prediction_type=args.prediction_type,
+        labels=args.labels,
     )

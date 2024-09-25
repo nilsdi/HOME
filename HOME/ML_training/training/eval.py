@@ -29,13 +29,21 @@ net = HighResolutionDecoupledNet(base_channel=48, num_classes=1)
 print("Number of parameters: ", sum(p.numel() for p in net.parameters()))
 
 
-def eval_HRBR(net, device, batch_size, image_folder="train/image", txt_name="test.txt"):
+def eval_HRBR(
+    net,
+    device,
+    batch_size,
+    image_folder="train/image",
+    label_folder="train/label",
+    txt_name="test.txt",
+):
     testdataset = BuildingDataset(
         dataset_dir=data_dir,
         training=False,
         txt_name=txt_name,
         data_name=Dataset,
         image_folder=image_folder,
+        label_folder=label_folder,
     )
     test_loader = DataLoader(
         testdataset,
@@ -56,19 +64,46 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="pytorch HDNet training")
     parser.add_argument("-n", "--numrun", required=True, type=int)
     parser.add_argument("-r", "--res", required=False, type=float, default=0.3)
-    parser.add_argument("-bw", "--BW", required=False, type=bool, default=False)
     parser.add_argument(
-        "-rn", "--read_name", required=False, type=str, default="HDNet_NOCI_0.3_C_best"
+        "-bw", "--BW", action=argparse.BooleanOptionalAction, type=bool, default=False
     )
+    parser.add_argument("-rn", "--read_name", required=False, type=str, default=None)
     parser.add_argument(
         "-txt", "--txt_name", required=False, type=str, default="test.txt"
     )
+    parser.add_argument(
+        "--tune_weights",
+        required=False,
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
+    parser.add_argument(
+        "--tune_images",
+        required=False,
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
+
     args = parser.parse_args()
 
-    dir_checkpoint = str(root_dir) + f"/data/ML_model/save_weights/run_{args.numrun}/"
+    tune_str = "_tune" if args.tune_weights else ""
+    dir_checkpoint = (
+        str(root_dir) + f"/data/ML_model/save_weights{tune_str}/run_{args.numrun}/"
+    )
     bw_str_ = "_BW" if args.BW else ""
-    image_folder = f"train{bw_str_}/image"
-    read_name = args.read_name
+
+    if args.tune_images:
+        image_folder = f"tune{bw_str_}/image"
+        label_folder = f"tune{bw_str_}/label"
+    else:
+        image_folder = f"train{bw_str_}/image"
+        label_folder = f"train{bw_str_}/label"
+    if args.read_name is None:
+        read_name = [
+            f for f in os.listdir(dir_checkpoint) if ("best" in f and "NOCI" in f)
+        ][0][:-4]
+    else:
+        read_name = args.read_name
     txt_name = args.txt_name
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -80,7 +115,7 @@ if __name__ == "__main__":
             dir_checkpoint + read_name + ".pth", map_location=device
         )
         net_state_dict.update(state_dict)
-        net.load_state_dict(net_state_dict, strict=False)  # 删除了down1-3
+        net.load_state_dict(net_state_dict, strict=False)
         logging.info("Model loaded from directory " + dir_checkpoint)
         logging.info("Model loaded from " + read_name + ".pth")
 
@@ -93,4 +128,5 @@ if __name__ == "__main__":
         device=device,
         image_folder=image_folder,
         txt_name=txt_name,
+        label_folder=label_folder,
     )

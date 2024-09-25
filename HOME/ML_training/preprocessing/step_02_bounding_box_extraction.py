@@ -12,6 +12,7 @@ from HOME.ML_training.preprocessing.get_label_data.cut_images import (
 )  # noqa
 import os
 import argparse
+import pickle
 
 # %%
 root_dir = Path(__file__).parents[3]
@@ -24,9 +25,10 @@ with open(current_dir / "bbox.json", "r") as f:
 # get the labels
 cities = bbox.keys()
 path_label = (
-    root_dir / "data/raw/FKB_bygning" / "Basisdata_0000_Norge_5973_FKB-Bygning_FGDB.gdb"
+    root_dir / "data/raw/FKB_bygning" / "Basisdata_0000_Norge_5973_FKB-Bygning_FGDB.pkl"
 )
-gdf_omrade = gpd.read_file(path_label, driver="FileGDB", layer="fkb_bygning_omrade")
+with open(path_label, "rb") as f:
+    gdf_omrade = pickle.load(f)
 
 # %%
 

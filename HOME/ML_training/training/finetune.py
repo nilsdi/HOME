@@ -38,6 +38,9 @@ def parse_args(parser, args):
     parser.add_argument("--DataSet", default="NOCI" + bw_str_)
     parser.add_argument("--image-folder", default=f"tune/image")
     parser.add_argument("--label-folder", default=f"tune/label")
+    parser.add_argument("--boundary-folder", default="boundary_tune")
+    parser.add_argument("--train_txt", default=f"train_tune.txt")
+    parser.add_argument("--val_txt", default=f"val_tune.txt")
     args = parser.parse_args()
 
     return args
@@ -47,10 +50,17 @@ def parse_args(parser, args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="pytorch HDNet training")
     parser.add_argument("-n", "--numrun", required=True, type=int)
+    parser.add_argument(
+        "-nr",
+        "--read_num",
+        required=True,
+        type=int,
+        help="directory number to read weights from",
+    )
     parser.add_argument("-r", "--res", required=False, type=float, default=0.3)
     parser.add_argument("-bw", "--BW", required=False, type=bool, default=False)
     parser.add_argument(
-        "-rn", "--read_name", required=True, type=str, default=f"HDNet_NOCI_0.3"
+        "-rn", "--read_name", required=False, type=str, default=f"HDNet_NOCI_0.3_C_best"
     )
     parser.add_argument(
         "-e",
@@ -63,13 +73,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--lr", default=0.00001, type=float, help="initial learning rate"
     )
-    parser.add_argument(
-        "-rn",
-        "--read_num",
-        required=True,
-        type=int,
-        help="directory number to read weights from",
-    )
+
     args = parser.parse_args()
 
     args = parse_args(parser, args)

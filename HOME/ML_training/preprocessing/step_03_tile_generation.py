@@ -33,7 +33,7 @@ def partition_and_crop_images(
     overlap_rate=0.01,
     image_size=None,
     imbalance_threshold=(0.005, 0.9),
-    res=0.2,
+    res=0.3,
 ):
     # Create output directories if they don't exist
     os.makedirs(output_dir_images, exist_ok=True)

@@ -6,7 +6,7 @@ import rasterio
 import os
 import random
 
-root_dir = str(Path(__file__).resolve().parents[2])
+root_dir = str(Path(__file__).resolve().parents[3])
 
 # %% Function to plot side by side image and different predictions
 
@@ -65,12 +65,27 @@ def display_any(
 folders = [
     [
         root_dir
-        + "/data/ML_prediction/topredict/image/res_0.3/trondheim_2019/i_lzw_25/",
-        root_dir + "/data/ML_prediction/predictions/res_0.3/trondheim_2019/i_lzw_25/",
+        + "/data/ML_prediction/topredict/image/res_0.3/trondheim_1999/i_lzw_25/",
+        root_dir + "/data/ML_prediction/predictions/res_0.3/trondheim_1999/i_lzw_25/",
+        root_dir
+        + "/data/ML_prediction/topredict/label/res_0.3/trondheim_1999/i_lzw_25/",
     ]
 ]
-names = ["Image", "Prediction"]
+names = ["Image", "Prediction", "Label"]
 
 fig = display_any(folders, names)
 
+
 # %%
+folders = [
+    [
+        root_dir
+        + "/data/ML_prediction/topredict/image/res_0.3/trondheim_1999/i_lzw_25/",
+        root_dir + "/data/ML_prediction/predictions/res_0.3/trondheim_1999/i_lzw_25/",
+        root_dir
+        + "/data/ML_prediction/topredict/label/res_0.3/trondheim_1999/i_lzw_25/",
+    ]
+]
+names = ["Image", "Prediction", "Label"]
+
+fig = display_any(folders, names)

@@ -9,6 +9,7 @@ from scipy import ndimage
 import argparse
 from HOME.get_data_path import get_data_path
 import scipy
+import pickle
 
 # Get the root directory of the project
 root_dir = Path(__file__).resolve().parents[3]
@@ -17,17 +18,19 @@ root_dir = Path(__file__).resolve().parents[3]
 data_path = get_data_path(root_dir)
 
 
-def road_grid(grid_size=512, res=0.3):
+def road_grid(tile_size=512, res=0.3, overlap_rate=0):
     # Read the veg.geojson file
-    building_dir = (
+    building_path = (
         root_dir
         / "data/raw/FKB_bygning"
-        / "Basisdata_0000_Norge_5973_FKB-Bygning_FGDB.gdb"
+        / "Basisdata_0000_Norge_5973_FKB-Bygning_FGDB.pkl"
     )
-    buildings = gpd.read_file(building_dir, layer="fkb_bygning_omrade")
+    with open(building_path, "rb") as f:
+        buildings = pickle.load(f)
     bounds = buildings.total_bounds
 
-    pixel_size = res * grid_size
+    effective_tile_size = int(tile_size * (1 - overlap_rate))
+    pixel_size = res * effective_tile_size
 
     min_grid_x = int(np.floor(bounds[0] / pixel_size))  # minimum grid x-coordinate
     max_grid_x = int(np.ceil(bounds[2] / pixel_size))  # maximum grid x-coordinate
@@ -93,7 +96,7 @@ def road_grid(grid_size=512, res=0.3):
     mask_sparse_csr = mask_sparse.tocsr()
 
     scipy.sparse.save_npz(
-        output_dir / f"masksparse_{res}_{grid_size}_{min_x}_{min_y}.npz",
+        output_dir / f"masksparse_{overlap_rate}_{res}_{tile_size}_{min_x}_{min_y}.npz",
         mask_sparse_csr,
     )
 
