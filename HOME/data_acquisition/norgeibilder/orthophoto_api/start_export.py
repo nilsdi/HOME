@@ -24,7 +24,7 @@ def start_export(
     compression_value: float = 25,
     mosaic: int = 3,
     mapsheet_size: int = 2000,
-    crs: int = 25832,
+    crs: int = 25833,
 ) -> int:
     """
     Request an export of the orthophoto project specified.
@@ -104,7 +104,7 @@ def save_export_job(
     compression_value: float = 25,
     mosaic: int = 3,
     mapsheet_size: int = 2000,
-    crs: int = 25832,
+    crs: int = 25833,
     data_path: Path = None,
 ) -> None:
     """
@@ -130,7 +130,7 @@ def save_export_job(
     # current time for the file name
     current_time = time.strftime("%Y%m%d-%H%M%S")
     file_name = f"Export_{project.lower()}_{current_time}.json"
-    file_path = os.path.join(data_path, f"temp/norgeibilder/jobids/{file_name}")
+    file_path = os.path.join(data_path, f"temp/norgeibilder/exportIDs/{file_name}")
 
     if compression_method != 5:
         raise Exception(

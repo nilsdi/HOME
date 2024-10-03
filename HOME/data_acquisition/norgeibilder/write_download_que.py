@@ -10,6 +10,8 @@ from pathlib import Path
 import json
 import os
 from datetime import datetime
+import time
+from HOME.utils.get_project_metadata import get_project_details
 
 root_dir = Path(__file__).resolve().parents[3]
 # print(root_dir)
@@ -51,7 +53,7 @@ if __name__ == "__main__":
     resolution = 0.3
     compression_method = 5
     compression_value = 25
-    mosaic = False
+    mosaic = 3
 
     project_names = [
         "Oslo vår 2023",
@@ -85,31 +87,27 @@ if __name__ == "__main__":
     project_names = [
         "Trondheim 2013",
         "Trondheim 2014",
-        "Trondheim 2015",
-        "Trondheim 2016",
-        "Trondheim 2017",
-        "Trondheim kommune rektifisert 2018",
+        # "Trondheim 2015",
+        # "Trondheim 2016",
+        # "Trondheim 2017",
+        # "Trondheim kommune rektifisert 2018",
         "Trondheim 2019",
         "Trondheim kommune 2020",
         "Trondheim kommune 2021",
         "Trondheim kommune 2022",
-        "Trondheim kommune 2023",
+        # "Trondheim kommune 2023 MOF",
+    ]
+    project_names = [
+        "Trondheim 2023",
     ]
     que_path = root_dir / "data/temp/norgeibilder/download_que/"
-
+    # current time for the file name
+    current_time = time.strftime("%Y%m%d-%H%M%S")
     # read in the json for project management:
-    with open(
-        root_dir / "data/ML_prediction/project_log/project_details.json", "r"
-    ) as file:
-        project_details = json.load(file)
     #  create the jsons
     for project in project_names:
-        # check if the project is available in the resolution (from metadata)
-        meta_data_index = metadata_all_projects["ProjectList"].index(project)
-        properties = metadata_all_projects["ProjectMetadata"][meta_data_index][
-            "properties"
-        ]
-        resolution_available = float(properties["pixelstorrelse"])
+        details = get_project_details(project)
+        resolution_available = details["original_resolution"]
         if resolution_available > resolution:
             print(
                 f"{project} is not available in the resolution {resolution}, but only in {resolution_available}"
@@ -122,9 +120,15 @@ if __name__ == "__main__":
             "compression_method": compression_method,
             "compression_value": compression_value,
             "mosaic": mosaic,
+            "mapsheet_size": 2000,
+            "crs": 25833,
         }
 
-        with open(que_path / f'{project.lower().replace(" ", "_")}.json', "w") as f:
+        with open(
+            que_path
+            / f'project_{project.lower().replace(" ", "_")}_time_{current_time}.json',
+            "w",
+        ) as f:
             json.dump(download_details, f)
 
 # %%

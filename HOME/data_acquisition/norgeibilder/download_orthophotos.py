@@ -15,7 +15,7 @@ This script continues to check the status of all jobs in a loop until all jobs a
 # %% imports
 from HOME.data_acquisition.norgeibilder.orthophoto_api.status_export import (
     status_export,
-    save_download_url,
+    save_download_urls,
 )
 from HOME.data_acquisition.norgeibilder.orthophoto_api.download_project import (
     download_project,
@@ -48,7 +48,7 @@ def check_all_jobs(data_path: Path = None) -> bool:
     """
     if data_path is None:
         data_path = root_dir / "data"
-    jobids_dir = data_path / "temp/norgeibilder/jobids/"
+    jobids_dir = data_path / "temp/norgeibilder/exportIDs/"
     jobs = [j for j in os.listdir(jobids_dir) if "." in j]
     print(f"available jobs: {jobs}.")
     all_jobs_complete = True
@@ -56,28 +56,31 @@ def check_all_jobs(data_path: Path = None) -> bool:
         job_path = jobids_dir / current_job
         with open(job_path, "r") as f:
             job_details = json.load(f)
-        complete, url = status_export(job_details["JobID"])
+        complete, urls = status_export(job_details["exportID"])
         print(
-            f'The status of job {job_details["JobID"]} is {complete}, the url is {url}.'
+            f'The status of job {job_details["exportID"]} is {complete}, the urls are {urls}.'
         )
         if complete:
-            print("Export complete, JobID moved to archive")
-            job_details.pop("JobID")
-            save_download_url(url, **job_details)
+            print("Export complete, exportID moved to archive")
+            job_details.pop("exportID")
+            save_download_urls(urls, **job_details)
+            # print(f"saved the following: {urls} ({job_details}).")
             # move the job to archive
-            shutil.move(job_path, jobids_dir / "used_jobids/" / current_job)
+            shutil.move(job_path, jobids_dir / "used_exportIDs/" / current_job)
         else:
             all_jobs_complete = False
     return all_jobs_complete
 
 
-def download_all_possible():
+def download_all_possible(data_path: Path = None):
     """
     Goes through the list of urls in the data/temp folder and downloads the projects
 
     Returns:
     - None
     """
+    if data_path is None:
+        data_path = root_dir / "data"
     urls_dir = data_path / "temp/norgeibilder/urls/"
     possible_downloads = [
         d for d in os.listdir(urls_dir) if "." in d

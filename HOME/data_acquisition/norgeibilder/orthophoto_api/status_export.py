@@ -53,9 +53,9 @@ def status_export(exportID: int) -> Tuple[bool, Optional[list[str]]]:
             "Status request failed with status" + f"code {status_response.status_code}."
         )
     else:
-        status = status_response.json()["Status"]
-        if status == "complete":
-            return True, status_response.json()["Urls"]
+        status = status_response.json()["status"]
+        if status == "finished":
+            return True, status_response.json()["urls"]
         else:
             return False, ""
 
@@ -68,7 +68,7 @@ def save_download_urls(
     compression_value: float,
     mosaic: int = 3,
     mapsheet_size: int = 2000,
-    crs: int = 25832,
+    crs: int = 25833,
     date: str = None,
     data_path: Path = None,
 ) -> None:

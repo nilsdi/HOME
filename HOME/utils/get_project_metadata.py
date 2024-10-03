@@ -4,6 +4,7 @@ from pathlib import Path
 import geopandas as gpd
 from shapely.geometry import shape
 import json
+import os
 
 
 def get_project_metadata(project_name: str) -> dict:
@@ -25,7 +26,7 @@ def get_project_metadata(project_name: str) -> dict:
         x.lower().replace(" ", "_") for x in metadata["ProjectList"]
     ]
     if project_name_adjusted not in project_list_adjusted_names:
-        raise NotFoundError(f"Project {project_name} not found in metadata")
+        raise Exception(f"Project {project_name} not found in metadata")
     project_index = project_list_adjusted_names.index(project_name_adjusted)
     metadata_project = metadata["ProjectMetadata"][project_index]
     return metadata_project
@@ -85,6 +86,7 @@ def get_project_details(project_name: str) -> dict:
         2: "digital",
     }
     project_details = {
+        "original_resolution": float(project_properties["pixelstorrelse"]),
         "capture_date": project_properties["fotodato_date"],
         "original image format": project_properties["opprinneligbildeformat"],
         "bandwidth": image_category_codes[int(project_properties["bildekategori"])],
