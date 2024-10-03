@@ -33,7 +33,6 @@ def parse_args(parser, args):
     parser.add_argument("--num-classes", default=1, type=int)
     parser.add_argument("--base-channel", default=48, type=int)
     parser.add_argument("--device", default="cuda", help="training device")
-    parser.add_argument("--read-name", default=args.read_name)
     parser.add_argument("--save-name", default=f"HDNet_NOCI_{res}_{bw_str}_tuned")
     parser.add_argument("--DataSet", default="NOCI" + bw_str_)
     parser.add_argument("--image-folder", default=f"tune/image")
@@ -59,9 +58,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("-r", "--res", required=False, type=float, default=0.3)
     parser.add_argument("-bw", "--BW", required=False, type=bool, default=False)
-    parser.add_argument(
-        "-rn", "--read_name", required=False, type=str, default=f"HDNet_NOCI_0.3_C_best"
-    )
+    parser.add_argument("-rn", "--read_name", required=False, type=str, default=None)
     parser.add_argument(
         "-e",
         "--epochs",
@@ -76,16 +73,23 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    args = parse_args(parser, args)
-
     dir_checkpoint = (
         str(root_dir) + f"/data/ML_model/save_weights_tune/run_{args.numrun}/"
     )
-
     read_dir = str(root_dir) + f"/data/ML_model/save_weights/run_{args.read_num}/"
+    if args.read_name is None:
+        parser.set_defaults(
+            read_name=[
+                f for f in os.listdir(read_dir) if ("best" in f and "NOCI" in f)
+            ][0][:-4]
+        )
+
+    args = parse_args(parser, args)
 
     if not os.path.exists(dir_checkpoint):
         os.mkdir(dir_checkpoint)
+
+    print(args)
 
     description = (
         "Fine tuning of HDNet on NOCI dataset\n"

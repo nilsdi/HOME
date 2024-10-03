@@ -1,0 +1,28 @@
+[epoch: 0]
+batch_loss: 2.2684
+epoch_loss: 3421.1931
+val_IoU: 0.828316
+lr: 5e-07
+
+
+[epoch: 1]
+batch_loss: 2.1156
+epoch_loss: 3244.7536
+val_IoU: 0.806464
+lr: 5e-07
+
+
+[epoch: 2]
+batch_loss: 1.8189
+epoch_loss: 3007.6889
+val_IoU: 0.810484
+lr: 5e-07
+
+
+[epoch: 3]
+batch_loss: 2.8340
+epoch_loss: 2876.1771
+val_IoU: 0.809745
+lr: 5e-07
+
+

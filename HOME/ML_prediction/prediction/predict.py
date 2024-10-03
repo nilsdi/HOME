@@ -64,7 +64,7 @@ def predict_and_eval(
             f for f in os.listdir(dir_checkpoint) if ("best" in f) & ("NOCI" in f)
         ][0][:-4]
     else:
-        dir_checkpoint = data_path / "ML_model/save_weights_tune/run_1/"
+        dir_checkpoint = data_path / "ML_model/save_weights/run_6/"
         Dataset = "NOCI"
         read_name = [
             f for f in os.listdir(dir_checkpoint) if ("best" in f) & ("NOCI" in f)
