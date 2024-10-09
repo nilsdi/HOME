@@ -21,9 +21,7 @@ data_path = get_data_path(root_dir)
 def road_grid(tile_size=512, res=0.3, overlap_rate=0):
     # Read the veg.geojson file
     building_path = (
-        root_dir
-        / "data/raw/FKB_bygning"
-        / "Basisdata_0000_Norge_5973_FKB-Bygning_FGDB.pkl"
+        data_path / "raw/FKB_bygning" / "Basisdata_0000_Norge_5973_FKB-Bygning_FGDB.pkl"
     )
     with open(building_path, "rb") as f:
         buildings = pickle.load(f)
@@ -101,6 +99,7 @@ def road_grid(tile_size=512, res=0.3, overlap_rate=0):
     )
 
 
+# %%
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--grid_size", type=int, default=512)

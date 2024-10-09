@@ -27,7 +27,9 @@ from datetime import datetime
 
 
 # %%
-def process_image(processed_img_path):
+def process_image(
+    processed_img_path: Path, project_coverage: gpd.GeoJSON
+) -> tuple[gpd.GeoDataFrame, gpd.GeoJSON]:
     # Open the processed image with rasterio to access both data and metadata
     with rasterio.open(str(processed_img_path)) as src:
         # Read the first band
@@ -78,26 +80,67 @@ def process_image(processed_img_path):
             if is_within_bounds(geom, src.width, src.height)
         ]
         gdf = gpd.GeoDataFrame({"geometry": filtered_polygons}, crs=src.crs)
-    return gdf, processed_img_path
+        tile_geom = box(*src.bounds)
+        coverage = tile_coverage_area(tile_geom, project_coverage)
+    return gdf, coverage
 
 
-def process_project_tiles(tile_dir: str, output_dir: Path):
+def tile_coverage_area(
+    tile_geometry: Polygon, project_geometry: gpd.GeoJSON
+) -> gpd.GeoJSON:
     """
-    Process all images in the project directory.
+    Create a GeoDataFrame with the geographic area of prediction
+    that is covered within a tile.
+
+    Args:
+        tile_geometry: Polygon, geometry of the tile
+        project_geometry: gpd.GeoJSON, geometry of the project
+
+    Returns:
+        covered_area: gpd.GeoJSON, the geographic are that we have predictions for
+    """
+    # Get the intersection of the tile and the project geometry
+    covered_area = tile_geometry.intersection(project_geometry)
+    return covered_area
+
+
+def process_project_tiles(tile_dir: Path, output_dir: Path, project_name: str) -> None:
+    """
+    Process all images in the tile directory and save a
+    GeoDataFrame with the polygons to a pickle file (one per tile).
+    Also save the output dir to the log, and add a metadata
+    file detailing the geographic area of prediction that
+    is covered by each GeoDataFrame.
     """
 
     # Ensure the output directory exists
     os.makedirs(output_dir, exist_ok=True)
+    project_coverage = 0
 
     # Process all images in the project directory
     for processed_img_path in tqdm(glob.glob(str(tile_dir / "*.tif"))):
-        gdf, processed_img_path = process_image(processed_img_path)
-
-        # Save the GeoDataFrame to a pickle file. one file per large tile
+        polygons, covered_area = process_image(processed_img_path, project_coverage)
+        # add an ID column:
+        polygons["ID"] = range(len(polygons))
+        # Save the GeoDataFrame to a gjson. one file per large tile
         tile_name = Path(processed_img_path).stem
-        pickle_file_path = output_dir / f"{tile_name}_geodata.pkl"
-        with open(pickle_file_path, "wb") as f:
-            pickle.dump(gdf, f)
+
+        polygon_file_name = output_dir / f"polygons_{tile_name}.gjson"
+        # save the polygons to a gjson file
+        polygons.to_file(polygon_file_name, driver="GeoJSON")
+
+        covered_area_file_name = output_dir / f"covered_area_{tile_name}.gjson"
+        # save the covered area to a gjson file
+        covered_area.to_file(covered_area_file_name, driver="GeoJSON")
+        """
+        polygon_pickle_file_path = output_dir / f"polygons_{tile_name}_gdf.pkl"
+        with open(polygon_pickle_file_path, "wb") as f:
+            pickle.dump(polygons, f)
+        area_pickle_file_path = output_dir / f"area_{tile_name}_gjson.pkl"
+        with open(area_pickle_file_path, "wb") as f:
+            pickle.dump(covered_area, f)
+        """
+    return
 
 
 # %%

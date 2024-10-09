@@ -7,48 +7,87 @@ Function for getting the project path
 import numpy as np
 import json
 from pathlib import Path
-from HOME.get_data_path import get_data_path
+
+root_dir = Path(__file__).parents[2]
 
 
-def get_project_details(root_dir: Path, project_name: str):
+def get_download_details(download_id: int, data_path: Path = None) -> dict:
     """
-    Path (project_log/project_details.json)
+    Get the download details for a specific download id.
+
+    Args:
+        download_id (int): The download id
+        data_path (Path, optional): The path to the data folder. Defaults to None (root_dir / "data").
+
+    Returns:
+        dict: The download details as in the metadat_log/ortofoto_downloads.json file.
     """
-    data_path = get_data_path(root_dir)
+    if data_path is None:
+        data_path = root_dir / "data"
     # print(data_path)
-    project_log = data_path / "ML_prediction/project_log/project_details.json"
-    with open(project_log, "r") as file:
-        all_project_details = json.load(file)
-    project_details = all_project_details[project_name]
-    return project_details
+    download_log = data_path / "metadata_log/ortofoto_downloads.json"
+    with open(download_log, "r") as file:
+        download_log = json.load(file)
+    download_details = download_log[str(download_id)]
+    return download_details
 
 
-def get_project_str_res_name(project_details: dict, project_name: str):
+def get_download_str(download_id: int, data_path: Path = None) -> str:
     """
-    Path (res/name/compression)
+    Get the str for creating the path for a specific download id.
+
+    Args:
+        download_id (int): The download id
+        data_path (Path, optional): The path to the data folder. Defaults to None (root_dir / "data").
+
+    Returns:
+        str: the path past ..data/raw/orthophoto/...
     """
-    res = str(np.round(project_details["resolution"], 1))
-    return f"res_{res}/{project_name}"
+    if data_path is None:
+        data_path = root_dir / "data"
+
+    download_details = get_download_details(download_id, data_path)
+    project_name = download_details["project_name"]
+    resolution = str(np.round(download_details["resolution"], 1))
+    compression_name = download_details["compression_name"]
+    compression_value = download_details["compression_value"]
+    mosaic = download_details["mosaic"]
+    if mosaic == 3:
+        mosaic_name = "im"
+    else:
+        mosaic_name = "i"
+    return f"res_{resolution}/{project_name}/{mosaic_name}_{compression_name}_{compression_value}"
 
 
-def get_project_str(project_details: dict, project_name: str):
+def get_prediction_details(pred_id: int, data_path: Path = None) -> dict:
     """
-    Path (res/name/compression)
-    """
-    res = str(np.round(project_details["resolution"], 1))
-    compression_name = project_details["compression_name"]
-    compression_value = project_details["compression_value"]
+    Get the prediction details for a specific prediction id.
 
-    return f"res_{res}/{project_name}/i_{compression_name}_{compression_value}"
+    Args:
+        pred_id (int): The prediction id
+        data_path (Path, optional): The path to the data folder. Defaults to None (root_dir / "data").
+
+    Returns:
+        dict: The prediction details as in the metadat_log/predictions_log.json file.
+    """
+    if data_path is None:
+        data_path = root_dir / "data"
+    # print(data_path)
+    prediction_log = data_path / "metadata_log/predictions_log.json"
+    with open(prediction_log, "r") as file:
+        prediction_log = json.load(file)
+    prediction_details = prediction_log[str(pred_id)]
+    return prediction_details
 
 
 # %% simple test
 if __name__ == "__main__":
     root_dir = Path(__file__).parents[2]
-    project_name = "trondheim_2017"
-    project_details = get_project_details(root_dir, project_name)
-    print(project_details)
-    print(get_project_str_res_name(project_details, project_name))
-    print(get_project_str(project_details, project_name))
+    download_id = 10001
+    print(get_download_details(download_id))
+    print(get_download_str(download_id))
+
+    prediction_id = 20001
+    print(get_prediction_details(prediction_id))
 
 # %%

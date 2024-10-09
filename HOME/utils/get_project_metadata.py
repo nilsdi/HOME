@@ -32,7 +32,7 @@ def get_project_metadata(project_name: str) -> dict:
     return metadata_project
 
 
-def get_project_geometry(project_name: str) -> dict:
+def get_project_geometry(project_name: str) -> gpd.GeoSeries:
     """
     Get geometry for a project from metadata.
 

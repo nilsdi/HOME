@@ -20,11 +20,7 @@ import os
 from tqdm import tqdm
 import time
 
-from HOME.utils.project_paths import (
-    get_project_details,
-    get_project_str_res_name,
-    get_project_str,
-)
+from HOME.utils.project_paths import get_prediction_details
 
 # %% functions
 
@@ -295,23 +291,28 @@ def reassemble_tiles(
     res: float,
     project_name: str,
     project_details: dict,
+    download_details: dict,
     save_path: str,
 ):
     """
     Reassembles a list of tiles into a smaller number of larger tiles with overlap.
     Args:
-    - tiles: list of strings with the names of all (!) the tiles we want to reassemble
-    - n_tiles_edge: number of tiles on each side of the large tile
-    - n_overlap: number of tiles to overlap
-    - tile_size: size of the small tiles in pixels
-    - res: resolution of the tiles in m/px
-    - project_name: name of the project (for naming the large tiles)
-    - project_details: dictionary with the details of the project (for naming the large tiles)
-    - save_path: path to save the large tiles
+        tiles: list of strings with the names of all (!) the tiles we want to reassemble
+        n_tiles_edge: number of tiles on each side of the large tile
+        n_overlap: number of tiles to overlap
+        tile_size: size of the small tiles in pixels
+        res: resolution of the tiles in m/px
+        project_name: name of the project (for naming the large tiles)
+        project_details: dictionary with the details of the project (for naming the large tiles)
+        download_details: dictionary with the details of the download (for naming the large tiles)
+        save_path: path to save the large tiles
+
+    Returns:
+        None
     """
     start_time = time.time()
 
-    project_channels = project_details["channels"]
+    project_channels = project_details["bandwidth"]
     tif_channels = 3
     if project_channels == "BW":
         tif_channels = 1
@@ -328,7 +329,7 @@ def reassemble_tiles(
     lab3_time = time.time()
     print(f"matching small and large tiles took {lab3_time - lab2_time:.2f} seconds")
     # assemble the large tiles
-    tile_name_base = project_name + "resolution" + str(project_details["resolution"])
+    tile_name_base = project_name + "resolution" + str(download_details["resolution"])
     for (
         lt_name,
         coords,
@@ -378,18 +379,78 @@ def get_tiles(project_name: str, project_details: dict, data_path: Path) -> list
             data_path
             / f"ML_prediction"  # /topredict/image/res_0.3/{project_name}/i_lzw_25"
             / "predictions"
-            / get_project_str(project_details, project_name)
+            # / get_downloproject_details, project_name)
         ).rglob("*.tif")
     ]
     return tiles
 
 
 # %% test the entire thing
+from HOME.utils.project_paths import get_prediction_details, get_download_details
+from HOME.utils.get_project_metadata import get_project_details
+
 # get the tiles
-from HOME.get_data_path import get_data_path
-
-
 if __name__ == "__main__":
+    root_dir = Path(__file__).resolve().parents[3]
+    data_path = root_dir / "data"
+    # read in the json for gdfs:
+    with open(data_path / "metadata_log/polygon_gdfs.json", "r") as file:
+        polygon_gdfs_details = json.load(file)
+    highest_key = max([int(k) for k in polygon_gdfs_details.keys()])
+    large_tile_key = highest_key
+
+    predictions = [
+        20001,
+    ]
+
+    for prediction_id in predictions:
+        large_tile_key += 1
+        prediction_details = get_prediction_details(prediction_id, data_path)
+        prediction_folder = prediction_details["prediction_folder"]
+        download_id = prediction_details["download_id"]
+        project_name = prediction_details["project_name"]
+        project_details = get_project_details(project_name)
+        download_details = get_download_details(download_id, data_path)
+        resolution = np.round(download_details["resolution"], 1)
+
+        tiles = [
+            str(tile) for tile in Path(data_path / prediction_folder).rglob("*.tif")
+        ]
+        print(f"Found {len(tiles)} tiles for project {project_name}")
+
+        n_tiles_edge = 10
+        n_overlap = 1
+        tile_size = 512
+        save_loc = (
+            data_path
+            / "ML_prediction/large_tiles"
+            / get_project_str(prediction_details)
+            / f"prediction_{prediction_id}"
+            / f"tiling_{large_tile_key}"
+        )
+        os.makedirs(save_loc, exist_ok=True)
+
+        reassemble_tiles(
+            tiles,
+            n_tiles_edge,
+            n_overlap,
+            tile_size=tile_size,
+            res=resolution,
+            project_name=project_name,
+            project_details=project_details,
+            download_details=download_details,
+            save_path=save_loc,
+        )
+
+        polygon_gdfs_details[str(large_tile_key)] = {
+            "project_name": project_name,
+            "prediction_id": prediction_id,
+            "download_id": download_id,
+            "gdf_directory": save_loc,
+        }
+
+
+if __name__ == "__main__1":
     # Get the root directory of the project
     root_dir = Path(__file__).resolve().parents[3]
     # print(root_dir)
@@ -404,7 +465,8 @@ if __name__ == "__main__":
         "trondheim_2019",
     ]
     for project in projects:
-        project_details = get_project_details(root_dir, project)
+        # project_details = get_project_details(root_dir, project)
+        # TODO: adjust to new method
         tiles = get_tiles(project, project_details, data_path)
         print(f"Found {len(tiles)} tiles for project {project}")
 
