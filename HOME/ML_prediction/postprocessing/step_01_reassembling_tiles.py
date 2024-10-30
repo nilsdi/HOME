@@ -20,7 +20,7 @@ import os
 from tqdm import tqdm
 import time
 
-from HOME.utils.project_paths import get_prediction_details
+from HOME.utils.project_paths import get_prediction_details, get_download_str
 
 # %% functions
 
@@ -293,7 +293,7 @@ def reassemble_tiles(
     project_details: dict,
     download_details: dict,
     save_path: str,
-):
+) -> dict[dict]:
     """
     Reassembles a list of tiles into a smaller number of larger tiles with overlap.
     Args:
@@ -328,6 +328,8 @@ def reassemble_tiles(
     large_tile_tiles = match_small_tiles_to_large_tiles(tiles, large_tile_coords)
     lab3_time = time.time()
     print(f"matching small and large tiles took {lab3_time - lab2_time:.2f} seconds")
+    geotiff_extends = {"directory": str(save_path)}
+    geotiff_id = 0
     # assemble the large tiles
     tile_name_base = project_name + "resolution" + str(download_details["resolution"])
     for (
@@ -341,7 +343,9 @@ def reassemble_tiles(
         if not contains_data:  # if no small tiles, skip it, don't save it etc.
             continue
         # add georeference to assembled tile
-        top_left = get_EPSG25833_coords(coords[0][1], coords[0][0], tile_size, res)[0]
+        top_left, bottom_right = get_EPSG25833_coords(
+            coords[0][1], coords[0][0], tile_size, res
+        )
         # get the affine transformation to go from pixel coordinates to EPSG:25833
         transform = from_origin(top_left[0], top_left[1], res, res)
         metadata = {
@@ -355,6 +359,18 @@ def reassemble_tiles(
         }
         # save the assembled tile
         tile_name = f"{tile_name_base}_{lt_name}.tif"
+        geotiff_extends[geotiff_id] = {
+            "filename": tile_name,
+            "bounding_box": {
+                "min_x": top_left[0],
+                "min_y": bottom_right[1],
+                "max_x": bottom_right[0],
+                "max_y": top_left[1],
+            },
+            "width": bottom_right[0] - top_left[0],
+            "height": top_left[1] - bottom_right[1],
+        }
+        geotiff_id += 1
         # write the assembled tile to disk
         with rasterio.open(save_path / tile_name, "w", **metadata) as dst:
             if tif_channels == 1:
@@ -366,7 +382,7 @@ def reassemble_tiles(
                     dst.write(assembled_tile[:, :, i - 1], i)
     lab4_time = time.time()
     print(f"Assembling the large tiles took {lab4_time - lab3_time:.2f} seconds")
-    return
+    return geotiff_extends
 
 
 def get_tiles(project_name: str, project_details: dict, data_path: Path) -> list[str]:
@@ -393,18 +409,21 @@ from HOME.utils.get_project_metadata import get_project_details
 if __name__ == "__main__":
     root_dir = Path(__file__).resolve().parents[3]
     data_path = root_dir / "data"
+    print(f"data_path: {data_path}")
     # read in the json for gdfs:
-    with open(data_path / "metadata_log/polygon_gdfs.json", "r") as file:
-        polygon_gdfs_details = json.load(file)
-    highest_key = max([int(k) for k in polygon_gdfs_details.keys()])
-    large_tile_key = highest_key
+    with open(
+        data_path / "metadata_log/reassembled_prediction_tiles.json", "r"
+    ) as file:
+        reassembled_tiles_log = json.load(file)
+    highest_key = max([int(k) for k in reassembled_tiles_log.keys()])
+    assembly_key = highest_key
 
     predictions = [
         20001,
     ]
 
     for prediction_id in predictions:
-        large_tile_key += 1
+        assembly_key += 1
         prediction_details = get_prediction_details(prediction_id, data_path)
         prediction_folder = prediction_details["prediction_folder"]
         download_id = prediction_details["download_id"]
@@ -416,7 +435,14 @@ if __name__ == "__main__":
         tiles = [
             str(tile) for tile in Path(data_path / prediction_folder).rglob("*.tif")
         ]
+        # print(f"the data_path is {data_path}")
+        # print(f"the folder we are looking into is {data_path / prediction_folder}")
         print(f"Found {len(tiles)} tiles for project {project_name}")
+        if len(tiles) == 0:
+            print(
+                f"No tiles found for project {project_name} - we move on to the next!"
+            )
+            continue
 
         n_tiles_edge = 10
         n_overlap = 1
@@ -424,13 +450,13 @@ if __name__ == "__main__":
         save_loc = (
             data_path
             / "ML_prediction/large_tiles"
-            / get_project_str(prediction_details)
+            / get_download_str(download_id)
             / f"prediction_{prediction_id}"
-            / f"tiling_{large_tile_key}"
+            / f"tiling_{assembly_key}"
         )
         os.makedirs(save_loc, exist_ok=True)
 
-        reassemble_tiles(
+        geotiff_extends = reassemble_tiles(
             tiles,
             n_tiles_edge,
             n_overlap,
@@ -442,12 +468,29 @@ if __name__ == "__main__":
             save_path=save_loc,
         )
 
-        polygon_gdfs_details[str(large_tile_key)] = {
+        reassembled_tiles_log[str(assembly_key)] = {
             "project_name": project_name,
             "prediction_id": prediction_id,
             "download_id": download_id,
-            "gdf_directory": save_loc,
+            "tile_directory": str(save_loc),
+            "n_tiles_edge": n_tiles_edge,
+            "n_overlap": n_overlap,
+            "tile_size": tile_size,
         }
+
+    # dump the logs
+    with open(
+        data_path / "metadata_log/reassembled_prediction_tiles.json", "w"
+    ) as file:
+        json.dump(reassembled_tiles_log, file, indent=4)
+
+    with open(
+        data_path
+        / "metadata_log/reassembled_prediction_tiles"
+        / f"assembly_{assembly_key}.json",
+        "w",
+    ) as file:
+        json.dump(geotiff_extends, file, indent=4)
 
 
 if __name__ == "__main__1":
@@ -459,10 +502,10 @@ if __name__ == "__main__1":
     data_path = root_dir / "data"
 
     projects = [
-        "trondheim_kommune_2020",
-        "trondheim_kommune_2021",
+        # "trondheim_kommune_2020",
+        # "trondheim_kommune_2021",
         "trondheim_kommune_2022",
-        "trondheim_2019",
+        # "trondheim_2019",
     ]
     for project in projects:
         # project_details = get_project_details(root_dir, project)

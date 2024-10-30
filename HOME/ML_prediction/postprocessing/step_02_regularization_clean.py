@@ -144,9 +144,53 @@ def process_project_tiles(tile_dir: Path, output_dir: Path, project_name: str) -
 
 
 # %%
-# Main script
 
 if __name__ == "__main__":
+    # Set the paths
+    root_dir = Path(__file__).parents[3]
+    data_path = root_dir / "data"
+
+    # Parameters
+    assemblies = [
+        30001,
+    ]
+
+    with open(
+        data_path / "metadata_log/reassembled_prediction_tiles.json", "r"
+    ) as file:
+        assembly_log = json.load(file)
+
+    with open(data_path / "metadata_log/polygon_gdfs.json", "r") as file:
+        polygon_gdfs_log = json.load(file)
+    highest_polygon_key = max([int(key) for key in polygon_gdfs_log.keys()])
+    polygon_gdf_key = highest_polygon_key + 1
+
+    for assembly_id in assemblies:
+        assembly_metadata = assembly_log[str(assembly_id)]
+        project_name = assembly_metadata["project_name"]
+        prediction_id = assembly_metadata["prediction_id"]
+        tile_directory = assembly_metadata["tile_directory"]
+
+        output_dir = (
+            data_path
+            / f"ML_prediction/polygons"
+            / get_download_str(download_id)
+            / f"prediction_{prediction_id}"
+            / f"tiling_{assembly_id}"
+            / f"polygons_{polygon_gdf_key}"
+        )
+        os.makedirs(output_dir, exist_ok=True)
+
+        # TODO: add more paramters to the processing and write it in dictionary
+        process_project_tiles(tile_directory, output_dir)
+
+        # TODO: dump the metadata to the log
+
+    print("Processing complete.")
+# %%
+# Main script
+
+if __name__ == "__main__1":
     # Set the paths
     root_dir = Path(__file__).parents[3]
 
