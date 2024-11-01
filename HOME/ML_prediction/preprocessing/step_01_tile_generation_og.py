@@ -9,12 +9,8 @@ import os
 import numpy as np
 from tqdm import tqdm
 from pathlib import Path
-import shutil
 import argparse
-import pandas as pd
-import scipy.sparse
-import pickle
-from shapely.geometry import box
+from shapely.geometry import box, Point
 from HOME.ML_training.preprocessing.get_label_data.get_labels import get_labels
 from HOME.utils.project_coverage_area import project_coverage_area
 import geopandas as gpd
@@ -50,28 +46,6 @@ def coords_from_sos(sos_file, grid_size_m):
         image_y_max = float(meta_text[pos_max_no + 10 : space_pos])
         image_x_max = float(meta_text[space_pos + 1 : end_pos])
 
-        crs_id = meta_text[
-            meta_text.find("...KOORDSYS")
-            + 12 : meta_text.find("\n", meta_text.find("...KOORDSYS"))
-        ]
-
-        assert crs_id in ["22", "23"], "CRS not supported"
-
-        crs = 25832 if crs_id == "22" else 25833
-        (
-            image_x_min,
-            image_y_min,
-            image_x_max,
-            image_y_max,
-        ) = (
-            gpd.GeoSeries(
-                box(image_x_min, image_y_min, image_x_max, image_y_max),
-                crs=crs,
-            )
-            .to_crs(25833)[0]
-            .bounds
-        )
-
         image_coords_grid = (
             int(np.floor(image_x_min / grid_size_m)),
             int(np.ceil(image_y_min / grid_size_m)),
@@ -83,13 +57,11 @@ def coords_from_sos(sos_file, grid_size_m):
 
 
 # %%
-def tile_images_no_labels(
+def tile_generation(
     project_name,
     tile_size,
     res,
     overlap_rate=0,
-    prediction_mask=None,
-    prediction_type="buildings",
 ):
     """
     Creates tiles in tilesize from images in input_dir_images and saves them in
@@ -98,23 +70,7 @@ def tile_images_no_labels(
     north and east. The tiles are only created if the corresponding grid cell is in the
     prediction_mask.
     """
-    # Load the prediction mask we have premade if no other is provided
-    if prediction_mask is None:
-        folderpath = data_path / f"ML_prediction/prediction_mask/{prediction_type}"
-        filepath = [
-            f
-            for f in os.listdir(folderpath)
-            if (str(res) in f)
-            and (str(tile_size) in f)
-            and (str(overlap_rate)) in f
-            and f.endswith(".npz")
-        ][0]
-        prediction_mask = scipy.sparse.load_npz(folderpath / filepath)
-        parts = filepath.split("_")
-        min_x = int(parts[-2])
-        min_y = int(parts[-1].split(".")[0])
 
-    skipped_tiles = 0
     # Create output directories if they don't exist
     output_dir_images = (
         data_path / f"ML_prediction/topredict/image/res_{res}/{project_name}/"
@@ -134,15 +90,25 @@ def tile_images_no_labels(
         meta_text = f.read()
         res_original = float(
             meta_text[
-                meta_text.find("..PIXELSTØRRELSE")
-                + 17 : meta_text.find("\n", meta_text.find("..PIXELSTØRRELSE"))
+                meta_text.find("...PIXEL-STØRR")
+                + 15 : meta_text.find(" ", meta_text.find("...PIXEL-STØRR") + 15)
             ]
         )
+
+        crs_id = meta_text[
+            meta_text.find("...KOORDSYS")
+            + 12 : meta_text.find("\n", meta_text.find("...KOORDSYS"))
+        ]
+
+        assert crs_id in ["22", "23"], "CRS not supported"
+        crs = 25832 if crs_id == "22" else 25833
 
     effective_tile_size = tile_size * (1 - overlap_rate)
     grid_size_m = res * effective_tile_size
 
-    tile_coverage = project_coverage_area(project_name, res, tile_size, overlap_rate)
+    tile_coverage = project_coverage_area(
+        project_name, res, tile_size, overlap_rate, crs
+    )
 
     tile_pixels = {(x, y): [] for (x, y) in tile_coverage.index}
 
@@ -170,14 +136,22 @@ def tile_images_no_labels(
                 )
 
                 tile_coords_px = (
-                    int((tile_coords_m[0] - image_coords_m[0]) / res_original),
-                    int((image_coords_m[3] - tile_coords_m[1]) / res_original),
-                    int((tile_coords_m[2] - image_coords_m[0]) / res_original),
-                    int((image_coords_m[3] - tile_coords_m[3]) / res_original),
+                    int(
+                        np.round((tile_coords_m[0] - image_coords_m[0]) / res_original)
+                    ),
+                    int(
+                        np.round((image_coords_m[3] - tile_coords_m[1]) / res_original)
+                    ),
+                    int(
+                        np.round((tile_coords_m[2] - image_coords_m[0]) / res_original)
+                    ),
+                    int(
+                        np.round((image_coords_m[3] - tile_coords_m[3]) / res_original)
+                    ),
                 )
 
                 tile = image[
-                    max(0, tile_coords_px[1]) : min(image.shape[0], tile_coords_px[3]),
+                    max(0, tile_coords_px[3]) : min(image.shape[0], tile_coords_px[1]),
                     max(0, tile_coords_px[0]) : min(image.shape[1], tile_coords_px[2]),
                 ]
 
@@ -199,34 +173,38 @@ def tile_images_no_labels(
                             cv2.BORDER_CONSTANT,
                             value=[0, 0, 0],
                         )
+                        tile_pixels[(x_grid, y_grid)].append(tile)
 
-                    tile_pixels[(x_grid, y_grid)].append(tile)
+                        if (
+                            np.array(tile_pixels[(x_grid, y_grid)]).sum(axis=0) == 0
+                        ).any():
+                            tile_is_complete = False
+                        else:
+                            tile = np.array(tile_pixels[(x_grid, y_grid)]).sum(axis=0)
+                            tile_pixels[(x_grid, y_grid)] = []
+                            tile_is_complete = True
+                    else:
+                        tile_is_complete = True
 
-    offset_x_px = (top_left_x - coordgrid_top_left_x * grid_size_m) / res
-    offset_y_px = (coordgrid_top_left_y * grid_size_m - top_left_y) / res
+                    if tile_is_complete:
+                        tile_in_res = resized_img = cv2.resize(
+                            tile,
+                            None,
+                            fx=tile_size / tile.shape[1],
+                            fy=tile_size / tile.shape[0],
+                            interpolation=cv2.INTER_AREA,
+                        )
+                        tile_filename = f"{project_name}_{x_grid}_{y_grid}.tif"
+                        tile_path = os.path.join(output_dir_images, tile_filename)
+                        cv2.imwrite(tile_path, tile_in_res)
 
-    # Pad the image to ensure that the top right point lies on the grid
-    image = cv2.imread(image_path)
-    image = cv2.copyMakeBorder(
-        image,
-        int(np.round(offset_y_px)),
-        0,
-        int(np.round(offset_x_px)),
-        0,
-        cv2.BORDER_CONSTANT,
-        value=[0, 0, 0],
-    )
-
-    height, width, _ = image.shape
-
-    num_tiles_x = int(np.ceil((width - tile_size) / (effective_tile_size))) + 1
-    num_tiles_y = int(np.ceil((height - tile_size) / (effective_tile_size))) + 1
-
-    # Calculate the required padding
-    padding_x = (num_tiles_x - 1) * effective_tile_size + tile_size - width
-    padding_y = (num_tiles_y - 1) * effective_tile_size + tile_size - height
-
-    print(f"Skipped {skipped_tiles} out of {total_tiles} tiles with no information")
+    # Some tiles might still contain black pixels (edges)
+    for x_grid, y_grid in tile_coverage.index:
+        if tile_pixels[(x_grid, y_grid)] != []:
+            tile = np.array(tile_pixels[(x_grid, y_grid)]).sum(axis=0)
+            tile_filename = f"{project_name}_{x_grid}_{y_grid}.tif"
+            tile_path = os.path.join(output_dir_images, tile_filename)
+            cv2.imwrite(tile_path, tile)
 
     return
 
@@ -239,16 +217,11 @@ if __name__ == "__main__":
     )
     parser.add_argument("--project_name", required=True, type=str)
     parser.add_argument("--res", required=False, type=float, default=0.3)
-    parser.add_argument("--compression", required=False, type=str, default="i_lzw_25")
+    parser.add_argument("--overlap_rate", required=False, type=float, default=0)
+    parser.add_argument("--tile_size", type=int, default=512)
     parser.add_argument(
         "--prediction_type", required=False, type=str, default="buildings"
     )
     parser.add_argument("-l", "--labels", required=False, type=bool, default=False)
     args = parser.parse_args()
-    tile_generation(
-        args.project_name,
-        args.res,
-        args.compression,
-        prediction_type=args.prediction_type,
-        labels=args.labels,
-    )
+    tile_generation(args.project_name, args.res, args.tile_size, args.overlap_rate)

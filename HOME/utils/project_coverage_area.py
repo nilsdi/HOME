@@ -13,11 +13,13 @@ root_dir = Path(__file__).parents[2]
 data_dir = get_data_path(root_dir)
 
 
+# %%
 def project_coverage_area(
     project_name: str,
     res=0.3,
     tile_size=512,
     overlap_rate=0,
+    crs=25833,
     prediction_type: str = "buildings",
 ) -> gpd.GeoDataFrame:
     """
@@ -33,21 +35,24 @@ def project_coverage_area(
     """
     # Open the prediction mask
     folderpath = data_dir / f"ML_prediction/prediction_mask/{prediction_type}"
-    filepath = [
+    filepaths = [
         f
         for f in os.listdir(folderpath)
         if (str(res) in f)
         and (str(tile_size) in f)
         and (str(overlap_rate)) in f
+        and (str(crs)) in f
         and f.endswith(".npz")
-    ][0]
+    ]
+    assert len(filepaths) == 1, "Several masks correspond to the specified parameters"
+    filepath = filepaths[0]
     prediction_mask = scipy.sparse.load_npz(folderpath / filepath)
     parts = filepath.split("_")
     min_x = int(parts[-2])
     min_y = int(parts[-1].split(".")[0])
 
     # project area
-    project_geometry = get_project_geometry(project_name)[0]
+    project_geometry = get_project_geometry(project_name).to_crs(crs)[0]
 
     # Create a GeoDataFrame for the mask, within the project area
     bounds = project_geometry.bounds
@@ -80,9 +85,7 @@ def project_coverage_area(
                     tile_coords.append((x_grid, y_grid))
 
     coords_index = pd.MultiIndex.from_tuples(tile_coords, names=["x_grid", "y_grid"])
-    covered_area = gpd.GeoDataFrame(
-        geometry=rectangles, crs="EPSG:25833", index=coords_index
-    )
+    covered_area = gpd.GeoDataFrame(geometry=rectangles, crs=crs, index=coords_index)
 
     return covered_area.sort_index()
 

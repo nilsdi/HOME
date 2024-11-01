@@ -43,9 +43,11 @@ def get_project_geometry(project_name: str) -> gpd.GeoSeries:
     - project_geometry: geopandas.GeoSeries, geometry of the project
     """
     project_metadata = get_project_metadata(project_name)
-    project_geometry = gpd.GeoSeries(shape(project_metadata["geometry"]))
-    project_geometry.crs = "EPSG:25833"
-    return project_geometry
+    project_crs_id = project_metadata["properties"]["opprinneligbildesys"]
+    assert project_crs_id in ["22", "23"]
+    project_crs = 25832 if project_crs_id == "22" else 25833
+    project_geometry = gpd.GeoSeries(shape(project_metadata["geometry"]), crs=25833)
+    return project_geometry.to_crs(project_crs)
 
 
 def get_project_details(project_name: str) -> dict:
