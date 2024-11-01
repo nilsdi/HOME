@@ -18,13 +18,13 @@ root_dir = Path(__file__).resolve().parents[3]
 data_path = get_data_path(root_dir)
 
 
-def road_grid(tile_size=512, res=0.3, overlap_rate=0):
+def road_grid(tile_size=512, res=0.3, overlap_rate=0, crs=25833):
     # Read the veg.geojson file
     building_path = (
         data_path / "raw/FKB_bygning" / "Basisdata_0000_Norge_5973_FKB-Bygning_FGDB.pkl"
     )
     with open(building_path, "rb") as f:
-        buildings = pickle.load(f)
+        buildings = pickle.load(f).to_crs(crs)
     bounds = buildings.total_bounds
 
     effective_tile_size = int(tile_size * (1 - overlap_rate))
@@ -94,7 +94,8 @@ def road_grid(tile_size=512, res=0.3, overlap_rate=0):
     mask_sparse_csr = mask_sparse.tocsr()
 
     scipy.sparse.save_npz(
-        output_dir / f"masksparse_{overlap_rate}_{res}_{tile_size}_{min_x}_{min_y}.npz",
+        output_dir
+        / f"masksparse_{crs}_{overlap_rate}_{res}_{tile_size}_{min_x}_{min_y}.npz",
         mask_sparse_csr,
     )
 
@@ -102,10 +103,17 @@ def road_grid(tile_size=512, res=0.3, overlap_rate=0):
 # %%
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--grid_size", type=int, default=512)
+    parser.add_argument("--tile_size", type=int, default=512)
     parser.add_argument("--res", type=float, default=0.3)
-    parser.add_argument("--dilate", type=int, default=1)
+    parser.add_argument("--overlap_rate", type=float, default=0)
+    parser.add_argument("--dilate", type=int, default=0)
+    parser.add_argument("--crs", type=int, default=25833)
     args = parser.parse_args()
-    road_grid(grid_size=args.grid_size, res=args.res)
+    road_grid(
+        tile_size=args.tile_size,
+        res=args.res,
+        overlap_rate=args.overlap_rate,
+        crs=args.crs,
+    )
 
 # %%
