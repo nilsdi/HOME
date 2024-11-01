@@ -21,15 +21,26 @@ import rasterio
 import rasterio.features
 import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt
-from shapely.geometry import Polygon, MultiPolygon, shape
+from shapely.geometry import Polygon, MultiPolygon, shape, box
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 
 
+from HOME.utils.project_coverage_area import (
+    project_coverage_area,
+)
+from HOME.utils.project_paths import get_download_str
+
+
 # %%
 def process_image(
-    processed_img_path: Path, project_coverage: gpd.GeoJSON
-) -> tuple[gpd.GeoDataFrame, gpd.GeoJSON]:
+    processed_img_path: Path,
+    project_geometry: gpd.GeoDataFrame,
+    simplification_tolerance: int,
+    buffer_distance: int,
+    buffer_join_style: int,
+    buffer_single_sided: bool,
+) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
     # Open the processed image with rasterio to access both data and metadata
     with rasterio.open(str(processed_img_path)) as src:
         # Read the first band
@@ -43,10 +54,15 @@ def process_image(
 
         # Filter and simplify polygons
         simplified_polygons = [
-            polygon.simplify(5, preserve_topology=True) for polygon in mypoly
+            polygon.simplify(simplification_tolerance, preserve_topology=True)
+            for polygon in mypoly
         ]
         rounded_polygons = [
-            polygon.buffer(1, join_style=3, single_sided=True)
+            polygon.buffer(
+                buffer_distance,
+                join_style=buffer_join_style,
+                single_sided=buffer_single_sided,
+            )
             for polygon in simplified_polygons
         ]
 
@@ -81,30 +97,20 @@ def process_image(
         ]
         gdf = gpd.GeoDataFrame({"geometry": filtered_polygons}, crs=src.crs)
         tile_geom = box(*src.bounds)
-        coverage = tile_coverage_area(tile_geom, project_coverage)
+        coverage = tile_geom.intersection(project_geometry)
+        # tile_coverage_area(tile_geom, project_coverage)
     return gdf, coverage
 
 
-def tile_coverage_area(
-    tile_geometry: Polygon, project_geometry: gpd.GeoJSON
-) -> gpd.GeoJSON:
-    """
-    Create a GeoDataFrame with the geographic area of prediction
-    that is covered within a tile.
-
-    Args:
-        tile_geometry: Polygon, geometry of the tile
-        project_geometry: gpd.GeoJSON, geometry of the project
-
-    Returns:
-        covered_area: gpd.GeoJSON, the geographic are that we have predictions for
-    """
-    # Get the intersection of the tile and the project geometry
-    covered_area = tile_geometry.intersection(project_geometry)
-    return covered_area
-
-
-def process_project_tiles(tile_dir: Path, output_dir: Path, project_name: str) -> None:
+def process_project_tiles(
+    tile_dir: Path,
+    output_dir: Path,
+    project_name: str,
+    simplification_tolerance: int,
+    buffer_distance: int,
+    buffer_join_style: int,
+    buffer_single_sided: bool,
+) -> None:
     """
     Process all images in the tile directory and save a
     GeoDataFrame with the polygons to a pickle file (one per tile).
@@ -115,11 +121,18 @@ def process_project_tiles(tile_dir: Path, output_dir: Path, project_name: str) -
 
     # Ensure the output directory exists
     os.makedirs(output_dir, exist_ok=True)
-    project_coverage = 0
+    project_coverage = project_coverage_area(project_name)
 
     # Process all images in the project directory
-    for processed_img_path in tqdm(glob.glob(str(tile_dir / "*.tif"))):
-        polygons, covered_area = process_image(processed_img_path, project_coverage)
+    for processed_img_path in tqdm(glob.glob(str(Path(tile_dir) / "*.tif"))):
+        polygons, covered_area = process_image(
+            processed_img_path,
+            project_coverage,
+            simplification_tolerance,
+            buffer_distance,
+            buffer_join_style,
+            buffer_single_sided,
+        )
         # add an ID column:
         polygons["ID"] = range(len(polygons))
         # Save the GeoDataFrame to a gjson. one file per large tile
@@ -129,7 +142,7 @@ def process_project_tiles(tile_dir: Path, output_dir: Path, project_name: str) -
         # save the polygons to a gjson file
         polygons.to_file(polygon_file_name, driver="GeoJSON")
 
-        covered_area_file_name = output_dir / f"covered_area_{tile_name}.gjson"
+        covered_area_file_name = output_dir / "coverage" / f"coverage_{tile_name}.gjson"
         # save the covered area to a gjson file
         covered_area.to_file(covered_area_file_name, driver="GeoJSON")
         """
@@ -165,10 +178,18 @@ if __name__ == "__main__":
     highest_polygon_key = max([int(key) for key in polygon_gdfs_log.keys()])
     polygon_gdf_key = highest_polygon_key + 1
 
+    # how to process:
+
+    simplification_tolerance: int = 5
+    buffer_distance: int = 1
+    buffer_join_style: int = 3
+    buffer_single_sided: bool = True
+
     for assembly_id in assemblies:
         assembly_metadata = assembly_log[str(assembly_id)]
         project_name = assembly_metadata["project_name"]
         prediction_id = assembly_metadata["prediction_id"]
+        download_id = assembly_metadata["download_id"]
         tile_directory = assembly_metadata["tile_directory"]
 
         output_dir = (
@@ -180,53 +201,34 @@ if __name__ == "__main__":
             / f"polygons_{polygon_gdf_key}"
         )
         os.makedirs(output_dir, exist_ok=True)
+        os.makedirs(output_dir / "coverage", exist_ok=True)
 
-        # TODO: add more paramters to the processing and write it in dictionary
-        process_project_tiles(tile_directory, output_dir)
+        process_project_tiles(
+            tile_directory,
+            output_dir,
+            project_name,
+            simplification_tolerance,
+            buffer_distance,
+            buffer_join_style,
+            buffer_single_sided,
+        )
 
-        # TODO: dump the metadata to the log
+        polygon_gdfs_log[polygon_gdf_key] = {
+            "download_id": download_id,
+            "prediction_id": prediction_id,
+            "assembly_id": assembly_id,
+            "project_name": project_name,
+            "gdf_directory": str(output_dir),
+            "gdf_coverage_directory": str(output_dir / "coverage"),
+            "date_created": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "simplication_tolerance": simplification_tolerance,
+            "buffer_distance": buffer_distance,
+            "buffer_join_style": buffer_join_style,
+            "buffer_single_sided": buffer_single_sided,
+        }
+        with open(data_path / "metadata_log/polygon_gdfs.json", "w") as file:
+            json.dump(polygon_gdfs_log, file)
 
     print("Processing complete.")
 # %%
 # Main script
-
-if __name__ == "__main__1":
-    # Set the paths
-    root_dir = Path(__file__).parents[3]
-
-    # Parameters
-    project_list = [
-        # "trondheim_2019",
-        "trondheim_kommune_2020",
-        "trondheim_kommune_2021",
-        "trondheim_kommune_2022",
-    ]
-
-    # Get necessary data
-    project_dict_path = root_dir / "data/ML_prediction/project_log/project_details.json"
-    # Open and read the JSON file
-    with open(project_dict_path, "r") as file:
-        project_dict = json.load(file)
-
-    for project_name in project_list:
-        # Get the resolution and other details
-        resolution = project_dict[project_name]["resolution"]
-        compression_name = project_dict[project_name]["compression_name"]
-        compression_value = project_dict[project_name]["compression_value"]
-
-        # Path to the reassembled tiles
-        tile_dir = (
-            root_dir / f"data/ML_prediction/large_tiles/res_{resolution}/{project_name}"
-        )
-        # Output directory for pickled GeoDataFrames with timestamp
-        timestamp = datetime.now().strftime("%m%d%Y")
-        output_dir = (
-            root_dir
-            / f"data/ML_prediction/polygons/{project_name}/{project_name}_ran_{timestamp}"
-        )
-
-        # Run the function
-        process_project_tiles(tile_dir, output_dir)
-
-    print("Processing complete.")
-# %%

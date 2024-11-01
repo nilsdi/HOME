@@ -7,9 +7,9 @@ import numpy as np
 from shapely.geometry import box
 from HOME.get_data_path import get_data_path
 from HOME.utils.get_project_metadata import get_project_geometry
+import pandas as pd
 
-
-root_dir = Path(__file__).parents[3]
+root_dir = Path(__file__).parents[2]
 data_dir = get_data_path(root_dir)
 
 
@@ -59,6 +59,8 @@ def project_coverage_area(
     coordgrid_max_y = int(np.ceil(bounds[3] / grid_size_m))
 
     rectangles = []
+    tile_coords = []
+
     for x_grid in range(coordgrid_min_x, coordgrid_max_x):
         for y_grid in range(coordgrid_max_y, coordgrid_min_y, -1):
             if prediction_mask[y_grid - min_y, x_grid - min_x]:
@@ -75,10 +77,14 @@ def project_coverage_area(
 
                 if bbox.intersects(project_geometry):
                     rectangles.append(bbox.intersection(project_geometry))
+                    tile_coords.append((x_grid, y_grid))
 
-    covered_area = gpd.GeoDataFrame(geometry=rectangles, crs="EPSG:25833")
+    coords_index = pd.MultiIndex.from_tuples(tile_coords, names=["x_grid", "y_grid"])
+    covered_area = gpd.GeoDataFrame(
+        geometry=rectangles, crs="EPSG:25833", index=coords_index
+    )
 
-    return covered_area
+    return covered_area.sort_index()
 
 
 # %%
