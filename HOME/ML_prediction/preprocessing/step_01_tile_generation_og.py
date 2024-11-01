@@ -187,8 +187,8 @@ def tile_generation(
                         tile_is_complete = True
 
                     if tile_is_complete:
-                        tile_in_res = resized_img = cv2.resize(
-                            tile,
+                        tile_in_res = cv2.resize(
+                            tile.astype(np.uint8),
                             None,
                             fx=tile_size / tile.shape[1],
                             fy=tile_size / tile.shape[0],
@@ -199,7 +199,7 @@ def tile_generation(
                         cv2.imwrite(tile_path, tile_in_res)
 
     # Some tiles might still contain black pixels (edges)
-    for x_grid, y_grid in tile_coverage.index:
+    for x_grid, y_grid in tqdm(tile_coverage.index):
         if tile_pixels[(x_grid, y_grid)] != []:
             tile = np.array(tile_pixels[(x_grid, y_grid)]).sum(axis=0)
             tile_filename = f"{project_name}_{x_grid}_{y_grid}.tif"
@@ -222,6 +222,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--prediction_type", required=False, type=str, default="buildings"
     )
-    parser.add_argument("-l", "--labels", required=False, type=bool, default=False)
     args = parser.parse_args()
-    tile_generation(args.project_name, args.res, args.tile_size, args.overlap_rate)
+    tile_generation(
+        project_name=args.project_name,
+        res=args.res,
+        tile_size=args.tile_size,
+        overlap_rate=args.overlap_rate,
+    )
