@@ -13,11 +13,14 @@ import argparse
 from HOME.utils.project_coverage_area import project_coverage_area
 import json
 from datetime import datetime
+import pickle
+import pandas as pd
 
 # Increase the maximum number of pixels OpenCV can handle
 os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2, 40))
 import cv2  # noqa
 from HOME.get_data_path import get_data_path
+from HOME.ML_training.preprocessing.get_label_data.get_labels import get_labels
 
 # Get the root directory of the project
 root_dir = Path(__file__).resolve().parents[3]
@@ -55,11 +58,14 @@ def coords_from_sos(sos_file, grid_size_m):
 
 
 # %%
-def tile_generation(
+def tile_images(
     project_name,
     tile_size,
-    res,
-    overlap_rate=0,
+    grid_size_m,
+    input_dir_images,
+    output_dir_images,
+    tile_coverage,
+    res_original,
 ):
     """
     Creates tiles in tilesize from images in input_dir_images and saves them in
@@ -68,64 +74,7 @@ def tile_generation(
     north and east. The tiles are only created if the corresponding grid cell is in the
     prediction_mask.
     """
-    # Add project metadata to the log
-    with open(data_path / "metadata_log/tiled_projects.json", "r") as file:
-        tiled_projects_log = json.load(file)
-    highest_tile_key = int(max([int(key) for key in tiled_projects_log.keys()]))
-    tile_key = highest_tile_key + 1
-
-    # Create output directories if they don't exist
-    output_dir_images = (
-        data_path / f"ML_prediction/topredict/image/{project_name}/tiles_{tile_key}"
-    )
-    os.makedirs(output_dir_images, exist_ok=True)
-
-    # Create archive directories if they don't exist
-    input_dir_images = os.path.join(
-        data_path, f"raw/orthophoto/originals/{project_name}/"
-    )
-
-    # Get list of all image files in the input directory
     image_files = [f for f in os.listdir(input_dir_images) if f.endswith(".tif")]
-    metadata_files = [f for f in os.listdir(input_dir_images) if f.endswith(".sos")]
-
-    with open(os.path.join(input_dir_images, metadata_files[0]), "r") as f:
-        meta_text = f.read()
-        res_original = float(
-            meta_text[
-                meta_text.find("...PIXEL-STØRR")
-                + 15 : meta_text.find(" ", meta_text.find("...PIXEL-STØRR") + 15)
-            ]
-        )
-
-        crs_id = meta_text[
-            meta_text.find("...KOORDSYS")
-            + 12 : meta_text.find("\n", meta_text.find("...KOORDSYS"))
-        ]
-
-        assert crs_id in ["22", "23"], "CRS not supported"
-        crs = 25832 if crs_id == "22" else 25833
-
-    tiled_projects_log[tile_key] = {
-        "project_name": project_name,
-        "tile_size": tile_size,
-        "res": res,
-        "overlap_rate": overlap_rate,
-        "crs": crs,
-        "tile_directory": str(output_dir_images),
-        "date_created": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    }
-
-    with open(data_path / "metadata_log/tiled_projects.json", "w") as file:
-        json.dump(tiled_projects_log, file, indent=4)
-
-    effective_tile_size = tile_size * (1 - overlap_rate)
-    grid_size_m = res * effective_tile_size
-
-    tile_coverage = project_coverage_area(
-        project_name, res, tile_size, overlap_rate, crs
-    )
-
     tile_pixels = {(x, y): [] for (x, y) in tile_coverage.index}
 
     for image_file in tqdm(image_files):
@@ -230,6 +179,216 @@ def tile_generation(
             cv2.imwrite(tile_path, tile_in_res)
 
     return
+
+
+# %% To validate the prediction with the recall, we need to tile the labels as well.
+
+
+def tile_labels(
+    project_name,
+    res=0.3,
+    tile_size=512,
+    overlap_rate=0,
+    output_dir_images=None,
+    output_dir_labels=None,
+    gdf_omrade=None,
+):
+
+    year = int(project_name.split("_")[-1])
+
+    # Create output directories if they don't exist
+    os.makedirs(output_dir_labels, exist_ok=True)
+
+    # Get list of all image files in the input directory
+    image_tiles = [f for f in os.listdir(output_dir_images) if f.endswith(".tif")]
+
+    # Initialize min and max coordinates
+    min_grid_x = min_grid_y = float("inf")
+    max_grid_x = max_grid_y = float("-inf")
+
+    for image_tile in image_tiles:
+        # Split the filename on underscore
+        parts = image_tile.split(".")[0].split("_")
+
+        # Extract grid_x and grid_y
+        grid_x = int(parts[-2])
+        grid_y = int(parts[-1])
+
+        # Update min and max coordinates
+        min_grid_x = min(min_grid_x, grid_x)
+        min_grid_y = min(min_grid_y, grid_y)
+        max_grid_x = max(max_grid_x, grid_x)
+        max_grid_y = max(max_grid_y, grid_y)
+
+    effective_tile_size = int(tile_size * (1 - overlap_rate))
+    grid_size_m = res * effective_tile_size
+
+    if gdf_omrade is None:
+        path_label = (
+            data_path / "raw/FKB_bygning/Basisdata_0000_Norge_5973_FKB-Bygning_FGDB.pkl"
+        )
+        with open(path_label, "rb") as f:
+            gdf_omrade = pickle.load(f)
+        buildings_year = pd.read_csv(
+            data_path / "raw/FKB_bygning/buildings.csv", index_col=0
+        )
+        gdf_omrade = gdf_omrade.merge(
+            buildings_year, left_on="bygningsnummer", right_index=True, how="left"
+        )
+
+    # filter by year
+    gdf_omrade_subset = gdf_omrade[gdf_omrade["Building Year"] <= year]
+
+    bbox = (
+        np.array([min_grid_x, min_grid_y - 1, max_grid_x + 1, max_grid_y]) * grid_size_m
+    )
+
+    label, _ = get_labels(gdf_omrade_subset, bbox, res, in_degree=False)
+    label = (
+        cv2.copyMakeBorder(
+            label,
+            0,
+            int(
+                (
+                    np.ceil(label.shape[0] / effective_tile_size)
+                    - label.shape[0] / effective_tile_size
+                )
+                * effective_tile_size
+            ),
+            0,
+            int(
+                (
+                    np.ceil(label.shape[1] / effective_tile_size)
+                    - label.shape[1] / effective_tile_size
+                )
+                * effective_tile_size
+            ),
+            cv2.BORDER_CONSTANT,
+            value=[0, 0],
+        )
+        * 255
+    )
+
+    # Calculate the image size if not given
+    total_iterations = len(image_tiles)
+
+    with tqdm(total=total_iterations, desc="Processing") as pbar:
+        for image_tile in image_tiles:
+
+            # Split the filename on underscore
+            parts = image_tile.split(".")[0].split("_")
+
+            # Extract grid_x and grid_y
+            grid_x = int(parts[-2])
+            grid_y = int(parts[-1])
+
+            x = (grid_x - min_grid_x) * effective_tile_size
+            y = (max_grid_y - grid_y) * effective_tile_size
+
+            label_tile = label[y : y + tile_size, x : x + tile_size]
+
+            # Save the label tile to the output directory
+            label_tile_filename = f"{project_name}_{parts[-3]}_{grid_x}_{grid_y}.tif"
+            label_tile_path = os.path.join(output_dir_labels, label_tile_filename)
+
+            cv2.imwrite(label_tile_path, label_tile)
+
+            pbar.update(1)
+
+    return
+
+
+# %%
+
+
+def tile_generation(
+    project_name,
+    tile_size,
+    res,
+    overlap_rate=0,
+    labels=False,
+):
+
+    # Add project metadata to the log
+    with open(data_path / "metadata_log/tiled_projects.json", "r") as file:
+        tiled_projects_log = json.load(file)
+    highest_tile_key = int(max([int(key) for key in tiled_projects_log.keys()]))
+    tile_key = highest_tile_key + 1
+
+    # Create output directories if they don't exist
+    output_dir_images = (
+        data_path / f"ML_prediction/topredict/image/{project_name}/tiles_{tile_key}"
+    )
+    os.makedirs(output_dir_images, exist_ok=True)
+
+    # Create archive directories if they don't exist
+    input_dir_images = os.path.join(
+        data_path, f"raw/orthophoto/originals/{project_name}/"
+    )
+
+    # Get list of all image files in the input directory
+    metadata_files = [f for f in os.listdir(input_dir_images) if f.endswith(".sos")]
+
+    with open(os.path.join(input_dir_images, metadata_files[0]), "r") as f:
+        meta_text = f.read()
+        res_original = float(
+            meta_text[
+                meta_text.find("...PIXEL-STØRR")
+                + 15 : meta_text.find(" ", meta_text.find("...PIXEL-STØRR") + 15)
+            ]
+        )
+
+        crs_id = meta_text[
+            meta_text.find("...KOORDSYS")
+            + 12 : meta_text.find("\n", meta_text.find("...KOORDSYS"))
+        ]
+
+        assert crs_id in ["22", "23"], "CRS not supported"
+        crs = 25832 if crs_id == "22" else 25833
+
+    tiled_projects_log[tile_key] = {
+        "project_name": project_name,
+        "tile_size": tile_size,
+        "res": res,
+        "overlap_rate": overlap_rate,
+        "crs": crs,
+        "tile_directory": str(output_dir_images),
+        "date_created": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "has_labels": labels,
+    }
+
+    with open(data_path / "metadata_log/tiled_projects.json", "w") as file:
+        json.dump(tiled_projects_log, file, indent=4)
+
+    effective_tile_size = tile_size * (1 - overlap_rate)
+    grid_size_m = res * effective_tile_size
+
+    tile_coverage = project_coverage_area(
+        project_name, res, tile_size, overlap_rate, crs
+    )
+
+    tile_images(
+        project_name=project_name,
+        tile_size=tile_size,
+        grid_size_m=grid_size_m,
+        input_dir_images=input_dir_images,
+        output_dir_images=output_dir_images,
+        tile_coverage=tile_coverage,
+        res_original=res_original,
+    )
+
+    if labels:
+        output_dir_labels = (
+            data_path / f"ML_prediction/topredict/label/{project_name}/tiles_{tile_key}"
+        )
+        tile_labels(
+            project_name=project_name,
+            tile_size=tile_size,
+            res=res,
+            overlap_rate=overlap_rate,
+            output_dir_images=output_dir_images,
+            output_dir_labels=output_dir_labels,
+        )
 
 
 # %%
