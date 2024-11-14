@@ -175,7 +175,7 @@ if __name__ == "__main__":
 
     with open(data_path / "metadata_log/polygon_gdfs.json", "r") as file:
         polygon_gdfs_log = json.load(file)
-    highest_polygon_key = max([int(key) for key in polygon_gdfs_log.keys()])
+    highest_polygon_key = int(max([int(key) for key in polygon_gdfs_log.keys()]))
     polygon_gdf_key = highest_polygon_key + 1
 
     # how to process:
@@ -226,9 +226,16 @@ if __name__ == "__main__":
             "buffer_join_style": buffer_join_style,
             "buffer_single_sided": buffer_single_sided,
         }
+
         with open(data_path / "metadata_log/polygon_gdfs.json", "w") as file:
             json.dump(polygon_gdfs_log, file)
 
+        for key in polygon_gdfs_log.keys():
+            print(
+                f"{key} (type: {type(key)}): polygon_gdfs_log[key] (type: {type(polygon_gdfs_log[key])})"
+            )
     print("Processing complete.")
 # %%
 # Main script
+
+# %%

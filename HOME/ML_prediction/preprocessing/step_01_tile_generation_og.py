@@ -10,11 +10,9 @@ import numpy as np
 from tqdm import tqdm
 from pathlib import Path
 import argparse
-from shapely.geometry import box, Point
-from HOME.ML_training.preprocessing.get_label_data.get_labels import get_labels
 from HOME.utils.project_coverage_area import project_coverage_area
-import geopandas as gpd
-
+import json
+from datetime import datetime
 
 # Increase the maximum number of pixels OpenCV can handle
 os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2, 40))
@@ -70,10 +68,15 @@ def tile_generation(
     north and east. The tiles are only created if the corresponding grid cell is in the
     prediction_mask.
     """
+    # Add project metadata to the log
+    with open(data_path / "metadata_log/tiled_projects.json", "r") as file:
+        tiled_projects_log = json.load(file)
+    highest_tile_key = int(max([int(key) for key in tiled_projects_log.keys()]))
+    tile_key = highest_tile_key + 1
 
     # Create output directories if they don't exist
     output_dir_images = (
-        data_path / f"ML_prediction/topredict/image/res_{res}/{project_name}/"
+        data_path / f"ML_prediction/topredict/image/{project_name}/tiles_{tile_key}"
     )
     os.makedirs(output_dir_images, exist_ok=True)
 
@@ -102,6 +105,19 @@ def tile_generation(
 
         assert crs_id in ["22", "23"], "CRS not supported"
         crs = 25832 if crs_id == "22" else 25833
+
+    tiled_projects_log[tile_key] = {
+        "project_name": project_name,
+        "tile_size": tile_size,
+        "res": res,
+        "overlap_rate": overlap_rate,
+        "crs": crs,
+        "tile_directory": str(output_dir_images),
+        "date_created": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+    with open(data_path / "metadata_log/tiled_projects.json", "w") as file:
+        json.dump(tiled_projects_log, file, indent=4)
 
     effective_tile_size = tile_size * (1 - overlap_rate)
     grid_size_m = res * effective_tile_size
@@ -202,9 +218,16 @@ def tile_generation(
     for x_grid, y_grid in tqdm(tile_coverage.index):
         if tile_pixels[(x_grid, y_grid)] != []:
             tile = np.array(tile_pixels[(x_grid, y_grid)]).sum(axis=0)
+            tile_in_res = cv2.resize(
+                tile.astype(np.uint8),
+                None,
+                fx=tile_size / tile.shape[1],
+                fy=tile_size / tile.shape[0],
+                interpolation=cv2.INTER_AREA,
+            )
             tile_filename = f"{project_name}_{x_grid}_{y_grid}.tif"
             tile_path = os.path.join(output_dir_images, tile_filename)
-            cv2.imwrite(tile_path, tile)
+            cv2.imwrite(tile_path, tile_in_res)
 
     return
 

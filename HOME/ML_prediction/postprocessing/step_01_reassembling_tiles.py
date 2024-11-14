@@ -1,6 +1,6 @@
 """ Reassembly of the 512x512 tifs into larger geotifs.
 
-Ready to take any set of tiles that are named according to the tile grid 
+Ready to take any set of tiles that are named according to the tile grid
 and reassemble them into larger tiles with proper georeferencing.
 """
 
@@ -258,18 +258,19 @@ def assemble_large_tile(
     return large_tile, True
 
 
-def get_EPSG25833_coords(
-    row, col, tile_size: int, res: float
+def get_coords_m(
+    row, col, tile_size: int, res: float, overlap_rate: int = 0
 ) -> tuple[list[int], list[int]]:
     """
     Get the coordinates of the top left corner and bottom right corner of a tile in
     EPSG:25833, based on its  row and column in the grid of tiles.
     """
     # get the coordinates of the top left corner of the tile
-    x_tl = col * tile_size * res
-    y_tl = row * tile_size * res
-    x_br = (x_tl + 1) * tile_size * res
-    y_br = (y_tl - 1) * tile_size * res
+    grid_size_m = tile_size * (1 - overlap_rate) * res
+    x_tl = col * grid_size_m
+    y_tl = row * grid_size_m
+    x_br = (x_tl + 1) * grid_size_m
+    y_br = (y_tl - 1) * grid_size_m
     return [x_tl, y_tl], [x_br, y_br]
 
 
@@ -312,6 +313,12 @@ def reassemble_tiles(
     """
     start_time = time.time()
 
+    # read tiling metadata # TODO
+    with open(data_path / "metadata_log/tiled_projects.json", "r") as file:
+        tiled_projects_log = json.load(file)
+
+    crs = tiled_metadata["crs"]
+
     project_channels = project_details["bandwidth"]
     tif_channels = 3
     if project_channels == "BW":
@@ -343,7 +350,7 @@ def reassemble_tiles(
         if not contains_data:  # if no small tiles, skip it, don't save it etc.
             continue
         # add georeference to assembled tile
-        top_left, bottom_right = get_EPSG25833_coords(
+        top_left, bottom_right = get_coords_m(
             coords[0][1], coords[0][0], tile_size, res
         )
         # get the affine transformation to go from pixel coordinates to EPSG:25833
@@ -355,7 +362,7 @@ def reassemble_tiles(
             "height": assembled_tile.shape[0],
             "width": assembled_tile.shape[1],
             "transform": transform,
-            "crs": "EPSG:25833",
+            "crs": crs,
         }
         # save the assembled tile
         tile_name = f"{tile_name_base}_{lt_name}.tif"
