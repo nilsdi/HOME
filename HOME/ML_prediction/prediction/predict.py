@@ -11,7 +11,8 @@ from tqdm import tqdm
 import argparse
 import numpy as np
 from HOME.get_data_path import get_data_path
-from sklearn.metrics import recall_score
+import json
+from datetime import datetime
 
 
 # Get the root directory of the project
@@ -39,6 +40,7 @@ data_dir = data_path / "ML_prediction/"
 # %%
 def predict_and_eval(
     project_name,
+    tile_id,
     res=0.3,
     compression="i_lzw_25",
     BW=False,
@@ -58,20 +60,43 @@ def predict_and_eval(
     logging.info(f"Using device {device}")
 
     if BW:
-        dir_checkpoint = data_path / "ML_model/save_weights/run_2/"
+        model_weights = "run_2"
+        dir_checkpoint = data_path / f"ML_model/save_weights/{model_weights}/"
         Dataset = "NOCI_BW"
         read_name = [
             f for f in os.listdir(dir_checkpoint) if ("best" in f) & ("NOCI" in f)
         ][0][:-4]
     else:
-        dir_checkpoint = data_path / "ML_model/save_weights/run_6/"
+        model_weights = "run_6"
+        dir_checkpoint = data_path / f"ML_model/save_weights/{model_weights}/"
         Dataset = "NOCI"
         read_name = [
             f for f in os.listdir(dir_checkpoint) if ("best" in f) & ("NOCI" in f)
         ][0][:-4]
 
-    pred_name = f"pred_{project_name}_{res}_{compression}.txt"
-    # prediction_folder = "predictions/test/"
+    pred_name = f"pred_{project_name}_{tile_id}.txt"
+
+    # Add project metadata to the log
+    with open(data_path / "metadata_log/predictions_log.json", "r") as file:
+        predictions_log = json.load(file)
+    highest_tile_key = int(max([int(key) for key in predictions_log.keys()]))
+    prediction_key = highest_tile_key + 1
+
+    predictions_log[prediction_key] = {
+        "project_name": project_name,
+        "tile_id": tile_id,
+        "BW": BW,
+        "evaluate": evaluate,
+        "batchsize": batchsize,
+        "num_workers": num_workers,
+        "model weights": model_weights,
+        "read_name": read_name,
+        "pred_name": pred_name,
+        "date_created": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+    with open(data_path / "metadata_log/predictions_log.json", "w") as file:
+        json.dump(predictions_log, file, indent=4)
 
     net = HighResolutionDecoupledNet(base_channel=48, num_classes=1)
 
@@ -157,6 +182,7 @@ if __name__ == "__main__":
         description="Tile raw orthophotos for prediction with ML model"
     )
     parser.add_argument("-p", "--project_name", required=True, type=str)
+    parser.add_argument("--tile_id", required=True, type=str)
     parser.add_argument("-r", "--res", required=False, type=float, default=0.3)
     parser.add_argument(
         "-c", "--compression", required=False, type=str, default="i_lzw_25"
@@ -191,6 +217,7 @@ if __name__ == "__main__":
     print(args)
     predict_and_eval(
         project_name=args.project_name,
+        tile_key=args.tile_id,
         res=args.res,
         compression=args.compression,
         BW=args.BW,

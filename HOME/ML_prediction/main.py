@@ -86,7 +86,7 @@ def main(list_of_projects: list, labels: bool = False):
         print(f"Starting prediction for {project_name}")
 
         # Step 1: Generate tiles
-        step_01_tile_generation.tile_generation(
+        tile_key = step_01_tile_generation.tile_generation(
             project_name=project_name,
             res=res,
             compression=compression,
@@ -106,6 +106,7 @@ def main(list_of_projects: list, labels: bool = False):
         BW = channels == "BW"
         predict.predict_and_eval(
             project_name=project_name,
+            key=tile_key,
             res=res,
             compression=compression,
             BW=BW,

@@ -389,6 +389,7 @@ def tile_generation(
             output_dir_images=output_dir_images,
             output_dir_labels=output_dir_labels,
         )
+    return tile_key
 
 
 # %%
