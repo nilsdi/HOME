@@ -2,9 +2,8 @@
 import json
 import pandas as pd
 from pathlib import Path
-import logging
-import torch
 import pickle
+import shutil
 
 from HOME.ML_prediction.preprocessing import (
     step_01_tile_generation,
@@ -16,10 +15,10 @@ from HOME.visualization.ML_prediction.visual_inspection.plot_prediction_input im
     plot_prediction_input,
 )
 
-# from src.ML_prediction.postprocessing import (
-#     step_01_reassembling_tiles,
-#     step_02_regularization,
-# )
+from HOME.ML_prediction.postprocessing import (
+    step_01_reassembling_tiles,
+    step_02_regularization_clean,
+)
 
 from HOME.get_data_path import get_data_path
 
@@ -31,7 +30,69 @@ data_path = get_data_path(root_dir)
 # print(data_path)
 
 
-def main(list_of_projects: list, labels: bool = False):
+def run_project(
+    project_name, project_details, tile_size=512, res=0.3, labels=False, gdf_omrade=None
+):
+    """
+    Run the prediction pipeline for a single project
+
+    Arguments:
+    project_name: str, name of the project
+    project_details: dict, details of the project
+    tile_size: int, size of the tiles
+    res: float, resolution of the orthophotos
+    labels: bool, whether to use labels or not
+    gdf_omrade: geopandas dataframe, labels for the buildings
+    """
+
+    channels = project_details[project_name]["channels"]
+
+    # compression = f"i_{compression_name}_{compression_value}"
+
+    print(f"Starting prediction for {project_name}")
+
+    # Step 1: Generate tiles
+    tile_key = step_01_tile_generation.tile_generation(
+        project_name,
+        tile_size,
+        res,
+        overlap_rate=0,
+        labels=labels,
+        gdf_omrade=gdf_omrade,
+    )
+
+    # Step 2: Make text file
+    step_02_make_text_file.make_text_file(project_name=project_name, tile_key=tile_key)
+
+    # Step 3: Predict
+    BW = channels == "BW"
+    prediction_key = predict.predict_and_eval(
+        project_name,
+        tile_key,
+        BW=BW,
+    )
+
+    # Step 4: Reassemble tiles
+    n_tiles_edge = 10
+    n_overlap = 1
+    assembly_key, geotiff_extends = step_01_reassembling_tiles.reassemble_tiles(
+        project_name, prediction_key, n_tiles_edge, n_overlap
+    )
+
+    # Step 5: Regularize
+    polygon_id = step_02_regularization_clean.regularize(project_name, assembly_key)
+
+    project_details[project_name]["status"] = "assembled"
+    with open(
+        data_path / "ML_prediction/project_log/project_details.json", "w"
+    ) as file:
+        json.dump(project_details, file)
+
+    # Step 4: (Optional) Visualize a few tiles.
+    # plot_prediction_input(project_name, n_tiles=4, save=True, show=True)
+
+
+def main(list_of_projects: list, labels: bool = False, tile_size=512, res=0.3):
     """
     Main function to run the prediction pipeline
 
@@ -48,11 +109,10 @@ def main(list_of_projects: list, labels: bool = False):
 
     projects_to_run = []  # list of IDs of projects to run (integers) in the future,
     # names of projects right now
-    pred_res = 0  # the resolution for which we open the prediction mask
+
     for project_name in list_of_projects:
         if project_details[project_name]["status"] == "downloaded":
             projects_to_run.append(project_name)
-        pred_res = project_details[project_name]["resolution"]
 
     if labels:
         path_label = (
@@ -70,72 +130,36 @@ def main(list_of_projects: list, labels: bool = False):
         gdf_omrade = None
 
     for project_name in projects_to_run:
-        res, compression_name, compression_value, channels = (
-            project_details[project_name]["resolution"],
-            project_details[project_name]["compression_name"],
-            project_details[project_name]["compression_value"],
-            project_details[project_name]["channels"],
-        )
-        if res != pred_res:
-            raise ValueError(
-                "The resolution of the project does not match across projects."
-            )
-
-        compression = f"i_{compression_name}_{compression_value}"
-
-        print(f"Starting prediction for {project_name}")
-
-        # Step 1: Generate tiles
-        tile_key = step_01_tile_generation.tile_generation(
-            project_name=project_name,
+        run_project(
+            project_name,
+            project_details=project_details,
+            tile_size=tile_size,
             res=res,
-            compression=compression,
-            prediction_type="buildings",
-            tile_size=512,
-            overlap_rate=0,
             labels=labels,
             gdf_omrade=gdf_omrade,
         )
 
-        # Step 2: Make text file
-        step_02_make_text_file.make_text_file(
-            project_name=project_name, res=res, compression=compression
-        )
 
-        # Step 3: Predict
-        BW = channels == "BW"
-        predict.predict_and_eval(
-            project_name=project_name,
-            key=tile_key,
-            res=res,
-            compression=compression,
-            BW=BW,
-            evaluate=labels,
-            batchsize=8,
-        )
-        # Step 4: Reassemble tiles
-        # step_01_reassembling_tiles(project_name)
+def clean_all(project_name, tile_id):
+    tiling_path = (
+        data_path / f"ML_prediction/topredict/image/{project_name}/tiles_{tile_id}"
+    )
+    prediction_path = (
+        data_path / f"ML_prediction/predictions/image/{project_name}/tiles_{tile_id}"
+    )
+    assembly_path = data_path / f"ML_prediction/large_tiles/tiles_{tile_id}/"
+    regularization_path = data_path / f"ML_prediction/polygons/tiles_{tile_id}/"
 
-        # Step 5: Regularize
-        # step_02_regularization(project_name)
-
-        project_details[project_name]["status"] = "predicted"
-        with open(
-            data_path / "ML_prediction/project_log/project_details.json", "w"
-        ) as file:
-            json.dump(project_details, file)
-
-        # Step 4: (Optional) Visualize a few tiles.
-        # plot_prediction_input(project_name, n_tiles=4, save=True, show=True)
+    # remove the folders
+    shutil.rmtree(tiling_path)
+    shutil.rmtree(prediction_path)
+    shutil.rmtree(assembly_path)
+    shutil.rmtree(regularization_path)
 
 
 # %%
 if __name__ == "__main__":
-    list_of_projects = [
-        # "trondheim_1999",
-        # "trondheim_kommune_2022",
-        "trondheim_mof_2023"
-    ]
+    list_of_projects = ["trondheim_2023"]
     main(list_of_projects=list_of_projects, labels=True)
     # print("did something")
 

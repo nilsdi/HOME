@@ -20,9 +20,14 @@ import os
 from tqdm import tqdm
 import time
 
-from HOME.utils.project_paths import get_prediction_details, get_download_str
+from HOME.utils.project_paths import get_prediction_details, get_tiling_details
+from HOME.utils.get_project_metadata import get_project_details
+from HOME.get_data_path import get_data_path
 
 # %% functions
+
+root_dir = Path(__file__).resolve().parents[3]
+data_path = get_data_path(root_dir)
 
 
 def extract_tile_numbers(filename: str) -> list[int, int]:
@@ -285,24 +290,18 @@ def get_transform(large_tile_coords: list[list[int]], tile_size: int, res: float
 
 
 def reassemble_tiles(
+    project_name: str,
     prediction_id: int,
     n_tiles_edge: int,
     n_overlap: int,
-    tile_size: int,
-    res: float,
 ) -> dict[dict]:
     """
     Reassembles a list of tiles into a smaller number of larger tiles with overlap.
     Args:
-        tiles: list of strings with the names of all (!) the tiles we want to reassemble
+        project_name: name of the project
+        prediction_id: id of the prediction
         n_tiles_edge: number of tiles on each side of the large tile
         n_overlap: number of tiles to overlap
-        tile_size: size of the small tiles in pixels
-        res: resolution of the tiles in m/px
-        project_name: name of the project (for naming the large tiles)
-        project_details: dictionary with the details of the project (for naming the large tiles)
-        download_details: dictionary with the details of the download (for naming the large tiles)
-        save_path: path to save the large tiles
 
     Returns:
         None
@@ -321,13 +320,17 @@ def reassemble_tiles(
     prediction_details = get_prediction_details(prediction_id, data_path)
     prediction_folder = prediction_details["prediction_folder"]
     tile_id = prediction_details["tile_id"]
-    project_name = prediction_details["project_name"]
     project_details = get_project_details(project_name)
     tiling_detail = get_tiling_details(tile_id, data_path)
-    resolution = np.round(tiling_detail["resolution"], 1)
+    res = np.round(tiling_detail["res"], 1)
+    tile_size = int(tiling_detail["tile_size"])
     crs = tiling_detail["crs"]
     project_channels = project_details["bandwidth"]
     tif_channels = 1 if project_channels == "BW" else 3
+
+    assert (
+        prediction_details["project_name"] == project_name
+    ), "Prediction id does not correspond to the project name"
 
     # get the tiles
     tiles = [str(tile) for tile in Path(data_path / prediction_folder).rglob("*.tif")]
@@ -350,7 +353,7 @@ def reassemble_tiles(
     save_path = (
         data_path
         / "ML_prediction/large_tiles"
-        / f"tile_{tile_id}"
+        / f"tiles_{tile_id}"
         / f"prediction_{prediction_id}"
         / f"assembly_{assembly_key}"
     )
@@ -359,7 +362,7 @@ def reassemble_tiles(
     geotiff_extends = {"directory": str(save_path)}
     geotiff_id = 0
     # assemble the large tiles
-    tile_name_base = project_name + "resolution" + str(resolution)
+    tile_name_base = project_name + "_resolution" + str(res)
     for (
         lt_name,
         coords,
@@ -425,17 +428,13 @@ def reassemble_tiles(
         data_path / "metadata_log/reassembled_prediction_tiles.json", "w"
     ) as file:
         json.dump(reassembled_tiles_log, file, indent=4)
-    return geotiff_extends
+    return assembly_key, geotiff_extends
 
 
 # %% test the entire thing
-from HOME.utils.project_paths import get_prediction_details, get_tiling_details
-from HOME.utils.get_project_metadata import get_project_details
 
 # get the tiles
 if __name__ == "__main__":
-    root_dir = Path(__file__).resolve().parents[3]
-    data_path = root_dir / "data"
     print(f"data_path: {data_path}")
     # read in the json for gdfs:
 
@@ -447,13 +446,12 @@ if __name__ == "__main__":
 
         n_tiles_edge = 10
         n_overlap = 1
-        tile_size = 512
 
         geotiff_extends = reassemble_tiles(
-            prediction_id,
-            n_tiles_edge,
-            n_overlap,
-            tile_size=tile_size,
+            project_name="test_project",
+            prediction_id=prediction_id,
+            n_tiles_edge=n_tiles_edge,
+            n_overlap=n_overlap,
         )
 
 # %%

@@ -303,10 +303,11 @@ def tile_labels(
 
 def tile_generation(
     project_name,
-    tile_size,
-    res,
+    tile_size=512,
+    res=0.3,
     overlap_rate=0,
     labels=False,
+    gdf_omrade=None,
 ):
 
     # Add project metadata to the log
@@ -388,6 +389,7 @@ def tile_generation(
             overlap_rate=overlap_rate,
             output_dir_images=output_dir_images,
             output_dir_labels=output_dir_labels,
+            gdf_omrade=gdf_omrade,
         )
     return tile_key
 

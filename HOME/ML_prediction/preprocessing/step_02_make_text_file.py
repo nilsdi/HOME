@@ -14,21 +14,19 @@ root_dir = Path(__file__).resolve().parents[3]
 data_path = get_data_path(root_dir)
 
 
-def make_text_file(project_name, res=0.3, compression="i_lzw_25"):
-    dir_images = (
-        data_path
-        / f"ML_prediction/topredict/image/res_{res}/{project_name}/{compression}/"
+def make_text_file(project_name, tile_key):
+    output_dir_images = (
+        data_path / f"ML_prediction/topredict/image/{project_name}/tiles_{tile_key}"
     )
 
     pred_file = open(
-        data_path
-        / f"ML_prediction/dataset/pred_{project_name}_{res}_{compression}.txt",
+        data_path / f"ML_prediction/dataset/pred_{project_name}_{tile_key}.txt",
         "w",
     )
 
     tiles = [
-        f"res_{res}/{project_name}/{compression}/{os.path.splitext(tile)[0]}"
-        for tile in os.listdir(dir_images)
+        f"{project_name}/tiles_{tile_key}/{os.path.splitext(tile)[0]}"
+        for tile in os.listdir(output_dir_images)
     ]
 
     # write the test tiles to test.txt

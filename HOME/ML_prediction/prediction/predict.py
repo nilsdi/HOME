@@ -41,8 +41,6 @@ data_dir = data_path / "ML_prediction/"
 def predict_and_eval(
     project_name,
     tile_id,
-    res=0.3,
-    compression="i_lzw_25",
     BW=False,
     image_folder="topredict/image/",
     label_folder="topredict/label/",
@@ -93,6 +91,7 @@ def predict_and_eval(
         "read_name": read_name,
         "pred_name": pred_name,
         "date_created": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "image_folder": image_folder / project_name / f"tiles_{tile_id}",
     }
 
     with open(data_path / "metadata_log/predictions_log.json", "w") as file:
@@ -175,6 +174,8 @@ def predict_and_eval(
         else:
             acc_R = eval_net(net, loader, device)
 
+    return prediction_key
+
 
 if __name__ == "__main__":
 
@@ -217,9 +218,7 @@ if __name__ == "__main__":
     print(args)
     predict_and_eval(
         project_name=args.project_name,
-        tile_key=args.tile_id,
-        res=args.res,
-        compression=args.compression,
+        tile_id=args.tile_id,
         BW=args.BW,
         image_folder=args.image_folder,
         label_folder=args.label_folder,
