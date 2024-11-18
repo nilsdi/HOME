@@ -59,6 +59,27 @@ def get_download_str(download_id: int, data_path: Path = None) -> str:
     return f"res_{resolution}/{project_name}/{mosaic_name}_{compression_name}_{compression_value}"
 
 
+def get_tiling_details(tile_id: int, data_path: Path = None) -> dict:
+    """
+    Get the tiling details for a specific tiling id.
+
+    Args:
+        tile_id (int): The tiling id
+        data_path (Path, optional): The path to the data folder. Defaults to None (root_dir / "data").
+
+    Returns:
+        dict: The tiling details as in the metadat_log/tiling_log.json file.
+    """
+    if data_path is None:
+        data_path = root_dir / "data"
+    # print(data_path)
+    tiling_log_path = data_path / "metadata_log/tiled_projects.json"
+    with open(tiling_log_path, "r") as file:
+        tiling_log = json.load(file)
+    tiling_details = tiling_log[str(tile_id)]
+    return tiling_details
+
+
 def get_prediction_details(pred_id: int, data_path: Path = None) -> dict:
     """
     Get the prediction details for a specific prediction id.

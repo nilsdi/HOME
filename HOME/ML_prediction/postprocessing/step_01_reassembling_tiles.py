@@ -285,15 +285,11 @@ def get_transform(large_tile_coords: list[list[int]], tile_size: int, res: float
 
 
 def reassemble_tiles(
-    tiles: list[str],
+    prediction_id: int,
     n_tiles_edge: int,
     n_overlap: int,
     tile_size: int,
     res: float,
-    project_name: str,
-    project_details: dict,
-    download_details: dict,
-    save_path: str,
 ) -> dict[dict]:
     """
     Reassembles a list of tiles into a smaller number of larger tiles with overlap.
@@ -313,32 +309,57 @@ def reassemble_tiles(
     """
     start_time = time.time()
 
-    # read tiling metadata # TODO
-    with open(data_path / "metadata_log/tiled_projects.json", "r") as file:
-        tiled_projects_log = json.load(file)
+    # load the assembly metadata log
+    with open(
+        data_path / "metadata_log/reassembled_prediction_tiles.json", "r"
+    ) as file:
+        reassembled_tiles_log = json.load(file)
+    highest_key = max([int(k) for k in reassembled_tiles_log.keys()])
+    assembly_key = highest_key + 1
 
-    crs = tiled_metadata["crs"]
-
+    # Read metadata from tiling and prediction
+    prediction_details = get_prediction_details(prediction_id, data_path)
+    prediction_folder = prediction_details["prediction_folder"]
+    tile_id = prediction_details["tile_id"]
+    project_name = prediction_details["project_name"]
+    project_details = get_project_details(project_name)
+    tiling_detail = get_tiling_details(tile_id, data_path)
+    resolution = np.round(tiling_detail["resolution"], 1)
+    crs = tiling_detail["crs"]
     project_channels = project_details["bandwidth"]
-    tif_channels = 3
-    if project_channels == "BW":
-        tif_channels = 1
+    tif_channels = 1 if project_channels == "BW" else 3
+
+    # get the tiles
+    tiles = [str(tile) for tile in Path(data_path / prediction_folder).rglob("*.tif")]
+
     # extend of all tiles we want to reassemble
     extend_tile_coords = get_max_min_extend(tiles)
     lab1_time = time.time()
     print(f"Getting set up took {lab1_time - start_time:.2f} seconds")
+
     # get the large tiles
     large_tile_coords = get_large_tiles(extend_tile_coords, n_tiles_edge, n_overlap)
-    # match the small tiles to the large tiles
     lab2_time = time.time()
     print(f"Getting the large tile layout took {lab2_time - lab1_time:.2f} seconds")
+
+    # match the small tiles to the large tiles
     large_tile_tiles = match_small_tiles_to_large_tiles(tiles, large_tile_coords)
     lab3_time = time.time()
     print(f"matching small and large tiles took {lab3_time - lab2_time:.2f} seconds")
+
+    save_path = (
+        data_path
+        / "ML_prediction/large_tiles"
+        / f"tile_{tile_id}"
+        / f"prediction_{prediction_id}"
+        / f"assembly_{assembly_key}"
+    )
+    os.makedirs(save_path, exist_ok=True)
+
     geotiff_extends = {"directory": str(save_path)}
     geotiff_id = 0
     # assemble the large tiles
-    tile_name_base = project_name + "resolution" + str(download_details["resolution"])
+    tile_name_base = project_name + "resolution" + str(resolution)
     for (
         lt_name,
         coords,
@@ -347,69 +368,68 @@ def reassemble_tiles(
         assembled_tile, contains_data = assemble_large_tile(
             coords, matched_tiles, channels=tif_channels
         )
-        if not contains_data:  # if no small tiles, skip it, don't save it etc.
-            continue
-        # add georeference to assembled tile
-        top_left, bottom_right = get_coords_m(
-            coords[0][1], coords[0][0], tile_size, res
-        )
-        # get the affine transformation to go from pixel coordinates to EPSG:25833
-        transform = from_origin(top_left[0], top_left[1], res, res)
-        metadata = {
-            "driver": "GTiff",
-            "dtype": "uint8",
-            "count": tif_channels,
-            "height": assembled_tile.shape[0],
-            "width": assembled_tile.shape[1],
-            "transform": transform,
-            "crs": crs,
-        }
-        # save the assembled tile
-        tile_name = f"{tile_name_base}_{lt_name}.tif"
-        geotiff_extends[geotiff_id] = {
-            "filename": tile_name,
-            "bounding_box": {
-                "min_x": top_left[0],
-                "min_y": bottom_right[1],
-                "max_x": bottom_right[0],
-                "max_y": top_left[1],
-            },
-            "width": bottom_right[0] - top_left[0],
-            "height": top_left[1] - bottom_right[1],
-        }
-        geotiff_id += 1
-        # write the assembled tile to disk
-        with rasterio.open(save_path / tile_name, "w", **metadata) as dst:
-            if tif_channels == 1:
-                # For single-band images (not yet tested!)
-                dst.write(assembled_tile, 1)
-            else:
-                # For multi-band images (e.g., RGB)
-                for i in range(1, tif_channels + 1):
-                    dst.write(assembled_tile[:, :, i - 1], i)
+        if contains_data:  # if no small tiles, skip it, don't save it etc.
+            # add georeference to assembled tile
+            top_left, bottom_right = get_coords_m(
+                coords[0][1], coords[0][0], tile_size, res
+            )
+            # get the affine transformation to go from pixel coordinates to EPSG:25833
+            transform = from_origin(top_left[0], top_left[1], res, res)
+            metadata = {
+                "driver": "GTiff",
+                "dtype": "uint8",
+                "count": tif_channels,
+                "height": assembled_tile.shape[0],
+                "width": assembled_tile.shape[1],
+                "transform": transform,
+                "crs": crs,
+            }
+            # save the assembled tile
+            tile_name = f"{tile_name_base}_{lt_name}.tif"
+            geotiff_extends[geotiff_id] = {
+                "filename": tile_name,
+                "bounding_box": {
+                    "min_x": top_left[0],
+                    "min_y": bottom_right[1],
+                    "max_x": bottom_right[0],
+                    "max_y": top_left[1],
+                },
+                "width": bottom_right[0] - top_left[0],
+                "height": top_left[1] - bottom_right[1],
+            }
+            geotiff_id += 1
+            # write the assembled tile to disk
+            with rasterio.open(save_path / tile_name, "w", **metadata) as dst:
+                if tif_channels == 1:
+                    # For single-band images (not yet tested!)
+                    dst.write(assembled_tile, 1)
+                else:
+                    # For multi-band images (e.g., RGB)
+                    for i in range(1, tif_channels + 1):
+                        dst.write(assembled_tile[:, :, i - 1], i)
     lab4_time = time.time()
     print(f"Assembling the large tiles took {lab4_time - lab3_time:.2f} seconds")
+
+    reassembled_tiles_log[str(assembly_key)] = {
+        "project_name": project_name,
+        "prediction_id": prediction_id,
+        "tile_id": tile_id,
+        "tile_directory": str(save_path),
+        "n_tiles_edge": n_tiles_edge,
+        "n_overlap": n_overlap,
+        "tile_size": tile_size,
+    }
+
+    # dump the logs
+    with open(
+        data_path / "metadata_log/reassembled_prediction_tiles.json", "w"
+    ) as file:
+        json.dump(reassembled_tiles_log, file, indent=4)
     return geotiff_extends
 
 
-def get_tiles(project_name: str, project_details: dict, data_path: Path) -> list[str]:
-    """
-    Get the tiles for a project.
-    """
-    tiles = [
-        str(tile)
-        for tile in Path(
-            data_path
-            / f"ML_prediction"  # /topredict/image/res_0.3/{project_name}/i_lzw_25"
-            / "predictions"
-            # / get_downloproject_details, project_name)
-        ).rglob("*.tif")
-    ]
-    return tiles
-
-
 # %% test the entire thing
-from HOME.utils.project_paths import get_prediction_details, get_download_details
+from HOME.utils.project_paths import get_prediction_details, get_tiling_details
 from HOME.utils.get_project_metadata import get_project_details
 
 # get the tiles
@@ -418,129 +438,22 @@ if __name__ == "__main__":
     data_path = root_dir / "data"
     print(f"data_path: {data_path}")
     # read in the json for gdfs:
-    with open(
-        data_path / "metadata_log/reassembled_prediction_tiles.json", "r"
-    ) as file:
-        reassembled_tiles_log = json.load(file)
-    highest_key = max([int(k) for k in reassembled_tiles_log.keys()])
-    assembly_key = highest_key
 
     predictions = [
         20001,
     ]
 
     for prediction_id in predictions:
-        assembly_key += 1
-        prediction_details = get_prediction_details(prediction_id, data_path)
-        prediction_folder = prediction_details["prediction_folder"]
-        download_id = prediction_details["download_id"]
-        project_name = prediction_details["project_name"]
-        project_details = get_project_details(project_name)
-        download_details = get_download_details(download_id, data_path)
-        resolution = np.round(download_details["resolution"], 1)
-
-        tiles = [
-            str(tile) for tile in Path(data_path / prediction_folder).rglob("*.tif")
-        ]
-        # print(f"the data_path is {data_path}")
-        # print(f"the folder we are looking into is {data_path / prediction_folder}")
-        print(f"Found {len(tiles)} tiles for project {project_name}")
-        if len(tiles) == 0:
-            print(
-                f"No tiles found for project {project_name} - we move on to the next!"
-            )
-            continue
 
         n_tiles_edge = 10
         n_overlap = 1
         tile_size = 512
-        save_loc = (
-            data_path
-            / "ML_prediction/large_tiles"
-            / get_download_str(download_id)
-            / f"prediction_{prediction_id}"
-            / f"tiling_{assembly_key}"
-        )
-        os.makedirs(save_loc, exist_ok=True)
 
         geotiff_extends = reassemble_tiles(
-            tiles,
+            prediction_id,
             n_tiles_edge,
             n_overlap,
             tile_size=tile_size,
-            res=resolution,
-            project_name=project_name,
-            project_details=project_details,
-            download_details=download_details,
-            save_path=save_loc,
-        )
-
-        reassembled_tiles_log[str(assembly_key)] = {
-            "project_name": project_name,
-            "prediction_id": prediction_id,
-            "download_id": download_id,
-            "tile_directory": str(save_loc),
-            "n_tiles_edge": n_tiles_edge,
-            "n_overlap": n_overlap,
-            "tile_size": tile_size,
-        }
-
-    # dump the logs
-    with open(
-        data_path / "metadata_log/reassembled_prediction_tiles.json", "w"
-    ) as file:
-        json.dump(reassembled_tiles_log, file, indent=4)
-
-    with open(
-        data_path
-        / "metadata_log/reassembled_prediction_tiles"
-        / f"assembly_{assembly_key}.json",
-        "w",
-    ) as file:
-        json.dump(geotiff_extends, file, indent=4)
-
-
-if __name__ == "__main__1":
-    # Get the root directory of the project
-    root_dir = Path(__file__).resolve().parents[3]
-    # print(root_dir)
-    # get the data path (might change)
-    data_path = get_data_path(root_dir)
-    data_path = root_dir / "data"
-
-    projects = [
-        # "trondheim_kommune_2020",
-        # "trondheim_kommune_2021",
-        "trondheim_kommune_2022",
-        # "trondheim_2019",
-    ]
-    for project in projects:
-        # project_details = get_project_details(root_dir, project)
-        # TODO: adjust to new method
-        tiles = get_tiles(project, project_details, data_path)
-        print(f"Found {len(tiles)} tiles for project {project}")
-
-        n_tiles_edge = 10
-        n_overlap = 1
-        save_loc = (
-            data_path
-            / "ML_prediction/large_tiles"
-            # / "test_topredict_tiles"
-            / get_project_str_res_name(project_details, project)
-        )
-        # save_loc = data_path / "temp/test_assembly/"
-        os.makedirs(save_loc, exist_ok=True)
-        res = 0.3
-        tile_size = 512
-        reassemble_tiles(
-            tiles,
-            n_tiles_edge,
-            n_overlap,
-            tile_size,
-            res,
-            project,
-            project_details,
-            save_loc,
         )
 
 # %%
