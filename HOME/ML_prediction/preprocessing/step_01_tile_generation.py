@@ -192,6 +192,7 @@ def tile_labels(
     output_dir_images=None,
     output_dir_labels=None,
     gdf_omrade=None,
+    crs=25833,
 ):
 
     year = int(project_name.split("_")[-1])
@@ -237,13 +238,13 @@ def tile_labels(
         )
 
     # filter by year
-    gdf_omrade_subset = gdf_omrade[gdf_omrade["Building Year"] <= year]
+    gdf_omrade_subset = gdf_omrade[gdf_omrade["Building Year"] <= year].to_crs(crs)
 
     bbox = (
         np.array([min_grid_x, min_grid_y - 1, max_grid_x + 1, max_grid_y]) * grid_size_m
     )
 
-    label, _ = get_labels(gdf_omrade_subset, bbox, res, in_degree=False)
+    label, _ = get_labels(gdf_omrade_subset, bbox, res, in_degree=False, bbox_crs=crs)
     label = (
         cv2.copyMakeBorder(
             label,
@@ -390,6 +391,7 @@ def tile_generation(
             output_dir_images=output_dir_images,
             output_dir_labels=output_dir_labels,
             gdf_omrade=gdf_omrade,
+            crs=crs,
         )
     return tile_key
 

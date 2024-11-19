@@ -20,6 +20,7 @@ def project_coverage_area(
     tile_size=512,
     overlap_rate=0,
     crs=25833,
+    dilation=0,
     prediction_type: str = "buildings",
 ) -> gpd.GeoDataFrame:
     """
@@ -34,16 +35,12 @@ def project_coverage_area(
         covered_are: gpd.GeoDataFrame, the geographic are that we have predictions for
     """
     # Open the prediction mask
-    folderpath = data_dir / f"ML_prediction/prediction_mask/{prediction_type}"
-    filepaths = [
-        f
-        for f in os.listdir(folderpath)
-        if (str(res) in f)
-        and (str(tile_size) in f)
-        and (str(overlap_rate)) in f
-        and (str(crs)) in f
-        and f.endswith(".npz")
-    ]
+    folderpath = (
+        data_dir
+        / f"ML_prediction/prediction_mask/{prediction_type}/crs_{crs}/dilation_{dilation}"
+        / f"overlap_{overlap_rate}/res_{res}/tile_{tile_size}"
+    )
+    filepaths = [file for file in os.listdir(folderpath) if file.endswith(".npz")]
     assert len(filepaths) == 1, "Several masks correspond to the specified parameters"
     filepath = filepaths[0]
     prediction_mask = scipy.sparse.load_npz(folderpath / filepath)

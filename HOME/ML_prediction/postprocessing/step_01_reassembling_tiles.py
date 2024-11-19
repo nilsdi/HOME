@@ -259,7 +259,8 @@ def assemble_large_tile(
         large_tile[
             px_y_tl - tile_size_px : px_y_tl,
             px_x_tl : px_x_tl + tile_size_px,
-        ] = small_tile
+        ] += small_tile
+    large_tile = np.clip(large_tile, 0, 255)
     return large_tile, True
 
 

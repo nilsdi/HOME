@@ -67,9 +67,7 @@ def run_project(
     # Step 3: Predict
     BW = channels == "BW"
     prediction_key = predict.predict_and_eval(
-        project_name,
-        tile_key,
-        BW=BW,
+        project_name, tile_key, BW=BW, evaluate=labels
     )
 
     # Step 4: Reassemble tiles
@@ -111,7 +109,7 @@ def main(list_of_projects: list, labels: bool = False, tile_size=512, res=0.3):
     # names of projects right now
 
     for project_name in list_of_projects:
-        if project_details[project_name]["status"] == "downloaded":
+        if project_details[project_name]["status"] == "pending":
             projects_to_run.append(project_name)
 
     if labels:
@@ -140,7 +138,7 @@ def main(list_of_projects: list, labels: bool = False, tile_size=512, res=0.3):
         )
 
 
-def clean_all(project_name, tile_id):
+def clean_all(project_name, tile_id, labels=False):
     tiling_path = (
         data_path / f"ML_prediction/topredict/image/{project_name}/tiles_{tile_id}"
     )
@@ -155,6 +153,12 @@ def clean_all(project_name, tile_id):
     shutil.rmtree(prediction_path)
     shutil.rmtree(assembly_path)
     shutil.rmtree(regularization_path)
+
+    if labels:
+        label_path = (
+            data_path / f"ML_prediction/topredict/label/{project_name}/tiles_{tile_id}"
+        )
+        shutil.rmtree(label_path)
 
 
 # %%

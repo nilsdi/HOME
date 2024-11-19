@@ -63,6 +63,7 @@ def process_image(
     buffer_distance: int,
     buffer_join_style: int,
     buffer_single_sided: bool,
+    destination_crs=25833,
 ) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
     # Open the processed image with rasterio to access both data and metadata
     with rasterio.open(str(processed_img_path)) as src:
@@ -103,7 +104,7 @@ def process_image(
         coverage = tile_geom.intersection(project_geometry)
         coverage.crs = src.crs
         # tile_coverage_area(tile_geom, project_coverage)
-    return gdf, coverage
+    return gdf.to_crs(destination_crs), coverage.to_crs(destination_crs)
 
 
 def process_project_tiles(

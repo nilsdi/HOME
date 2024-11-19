@@ -7,7 +7,11 @@ from HOME.utils.bbox_to_meters import convert_bbox_to_meters  # noqa
 
 
 def get_labels(
-    fkb_omrade_gdf, bbox: list, pixel_size: float, in_degree: bool = True
+    fkb_omrade_gdf,
+    bbox: list,
+    pixel_size: float,
+    in_degree: bool = True,
+    bbox_crs: int = 25833,
 ) -> tuple[np.ndarray]:
     """
     Function to get the labels of the buildings in the area of interest
@@ -24,7 +28,6 @@ def get_labels(
     no building)
     transform: np.ndarray, the transformation matrix for the GeoTIFF
     """
-    target_crs = "EPSG:25833"
     # Define the bounding box and the resolution
     if in_degree:
         [left, bottom, right, top] = convert_bbox_to_meters(bbox)
@@ -40,7 +43,7 @@ def get_labels(
     # Create an empty array of the same size as the GeoTIFF
     data = np.zeros((height, width), dtype=rasterio.uint8)
 
-    fkb_omrade_gdf = fkb_omrade_gdf.to_crs(target_crs)
+    fkb_omrade_gdf = fkb_omrade_gdf.to_crs(bbox_crs)
     # filter the gdf for the selection:
     fkb_omrade_gdf_filtered = fkb_omrade_gdf.cx[left:right, bottom:top]
 

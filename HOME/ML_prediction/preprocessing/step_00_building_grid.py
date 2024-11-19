@@ -10,6 +10,7 @@ import argparse
 from HOME.get_data_path import get_data_path
 import scipy
 import pickle
+import os
 
 # Get the root directory of the project
 root_dir = Path(__file__).resolve().parents[3]
@@ -18,7 +19,7 @@ root_dir = Path(__file__).resolve().parents[3]
 data_path = get_data_path(root_dir)
 
 
-def road_grid(tile_size=512, res=0.3, overlap_rate=0, crs=25833):
+def road_grid(tile_size=512, res=0.3, overlap_rate=0, crs=25833, dilation=0):
     # Read the veg.geojson file
     building_path = (
         data_path / "raw/FKB_bygning" / "Basisdata_0000_Norge_5973_FKB-Bygning_FGDB.pkl"
@@ -60,7 +61,7 @@ def road_grid(tile_size=512, res=0.3, overlap_rate=0, crs=25833):
     )
 
     # Dilate the mask
-    for i in range(args.dilate):
+    for i in range(dilation):
         mask = ndimage.binary_dilation(mask)
 
     # Create a DataFrame with the grid coordinates
@@ -70,8 +71,13 @@ def road_grid(tile_size=512, res=0.3, overlap_rate=0, crs=25833):
         data=mask,
     )
 
-    output_dir = data_path / f"ML_prediction/prediction_mask/buildings"
-    building_presence.to_csv(output_dir / "prediction_mask_{res}_{grid_size}.csv")
+    output_dir = (
+        data_path
+        / f"ML_prediction/prediction_mask/buildings/crs_{crs}/dilation_{dilation}"
+        / f"overlap_{overlap_rate}/res_{res}/tile_{tile_size}"
+    )
+    os.makedirs(output_dir, exist_ok=True)
+    # building_presence.to_csv(output_dir / f"prediction_mask_{res}_{grid_size}.csv")
 
     data_flat = building_presence.values.flatten()
 
@@ -94,8 +100,7 @@ def road_grid(tile_size=512, res=0.3, overlap_rate=0, crs=25833):
     mask_sparse_csr = mask_sparse.tocsr()
 
     scipy.sparse.save_npz(
-        output_dir
-        / f"masksparse_{crs}_{overlap_rate}_{res}_{tile_size}_{min_x}_{min_y}.npz",
+        output_dir / f"masksparse_{min_x}_{min_y}.npz",
         mask_sparse_csr,
     )
 
@@ -114,6 +119,7 @@ if __name__ == "__main__":
         res=args.res,
         overlap_rate=args.overlap_rate,
         crs=args.crs,
+        dilation=args.dilate,
     )
 
 # %%

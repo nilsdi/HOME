@@ -94,9 +94,6 @@ def predict_and_eval(
         "image_folder": image_folder / project_name / f"tiles_{tile_id}",
     }
 
-    with open(data_path / "metadata_log/predictions_log.json", "w") as file:
-        json.dump(predictions_log, file, indent=4)
-
     net = HighResolutionDecoupledNet(base_channel=48, num_classes=1)
 
     if read_name != "":
@@ -173,6 +170,13 @@ def predict_and_eval(
             # print("Recall from sklearn: ", rec / len(loader))
         else:
             acc_R = eval_net(net, loader, device)
+    else:
+        acc_R = None
+
+    # Recall for class 1
+    predictions_log[prediction_key]["recall"] = acc_R[1]
+    with open(data_path / "metadata_log/predictions_log.json", "w") as file:
+        json.dump(predictions_log, file, indent=4)
 
     return prediction_key
 
