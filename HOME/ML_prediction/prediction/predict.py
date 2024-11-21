@@ -91,7 +91,7 @@ def predict_and_eval(
         "read_name": read_name,
         "pred_name": pred_name,
         "date_created": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "image_folder": image_folder / project_name / f"tiles_{tile_id}",
+        "prediction_folder": str(prediction_folder / project_name / f"tiles_{tile_id}"),
     }
 
     net = HighResolutionDecoupledNet(base_channel=48, num_classes=1)
@@ -144,7 +144,7 @@ def predict_and_eval(
             label_pred = pred1.squeeze().cpu().int().numpy().astype("uint8") * 255
 
             for i in range(len(pred1)):
-                img_name = "/".join(batch["name"][i].split("/")[-4:])
+                img_name = "/".join(batch["name"][i].split("/")[-3:])
                 img_path = os.path.join(save_path, img_name)
                 os.makedirs(os.path.dirname(img_path), exist_ok=True)
                 wr = cv2.imwrite(img_path, label_pred[i])

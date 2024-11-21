@@ -1,26 +1,14 @@
 # %%
-from osgeo import gdal
 from osgeo.gdalnumeric import *
 from osgeo.gdalconst import *
-from shapely.geometry import shape
 import geopandas as gpd
 import os
-from shapely.ops import unary_union
 from pathlib import Path
-import pandas as pd
-import pickle
 import glob
-import re
 from tqdm import tqdm
 import json
-import folium
-import numpy as np
-import math
-from rasterio.warp import transform_bounds
 import rasterio
 import rasterio.features
-import matplotlib.pyplot as plt
-import matplotlib.pyplot as plt
 from shapely.geometry import Polygon, MultiPolygon, shape, box
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
@@ -36,6 +24,7 @@ root_dir = Path(__file__).parents[3]
 data_path = root_dir / "data"
 
 
+# %%
 # Exclude polygons that have at least one vertex on the edge (within two pixels) of the image
 def is_within_bounds(geom, width, height):
     if isinstance(geom, Polygon):
@@ -58,7 +47,8 @@ def is_within_bounds(geom, width, height):
 
 def process_image(
     processed_img_path: Path,
-    project_geometry: gpd.GeoDataFrame,
+    project_coverage: gpd.GeoDataFrame,
+    geotiff_extend: dict,
     simplification_tolerance: int,
     buffer_distance: int,
     buffer_join_style: int,
@@ -100,9 +90,13 @@ def process_image(
             if is_within_bounds(geom, src.width, src.height)
         ]
         gdf = gpd.GeoDataFrame({"geometry": filtered_polygons}, crs=src.crs)
-        tile_geom = box(*src.bounds)
-        coverage = tile_geom.intersection(project_geometry)
-        coverage.crs = src.crs
+        coverage = project_coverage.loc[
+            (
+                slice(geotiff_extend["grid_x_min"], geotiff_extend["grid_x_max"] - 1),
+                slice(geotiff_extend["grid_y_min"] + 1, geotiff_extend["grid_y_max"]),
+            ),
+            :,
+        ]
         # tile_coverage_area(tile_geom, project_coverage)
     return gdf.to_crs(destination_crs), coverage.to_crs(destination_crs)
 
@@ -115,7 +109,8 @@ def process_project_tiles(
     buffer_distance: int,
     buffer_join_style: int,
     buffer_single_sided: bool,
-    crs: int,
+    geotiff_extends: dict,
+    original_crs: int = 25833,
 ) -> None:
     """
     Process all images in the tile directory and save a
@@ -127,14 +122,15 @@ def process_project_tiles(
 
     # Ensure the output directory exists
     os.makedirs(output_dir, exist_ok=True)
-    project_coverage = project_coverage_area(project_name, crs=crs)
-    project_geometry = gpd.GeoSeries(project_coverage.unary_union, crs=crs)
+    project_coverage = project_coverage_area(project_name, crs=original_crs)
 
     # Process all images in the project directory
     for processed_img_path in tqdm(glob.glob(str(Path(tile_dir) / "*.tif"))):
+        geotiff_extend = geotiff_extends[processed_img_path.split("/")[-1]]
         polygons, covered_area = process_image(
             processed_img_path,
-            project_geometry,
+            project_coverage,
+            geotiff_extend,
             simplification_tolerance,
             buffer_distance,
             buffer_join_style,
@@ -167,8 +163,9 @@ def process_project_tiles(
 def regularize(
     project_name: str,
     assembly_id: int,
-    simplification_tolerance: int = 5,
-    buffer_distance: int = 1,
+    geotiff_extends: dict,
+    simplification_tolerance: int = 2,
+    buffer_distance: int = 0.5,
     buffer_join_style: int = 3,
     buffer_single_sided: bool = True,
 ) -> None:
@@ -213,7 +210,8 @@ def regularize(
         buffer_distance,
         buffer_join_style,
         buffer_single_sided,
-        crs=crs,
+        geotiff_extends=geotiff_extends,
+        original_crs=crs,
     )
 
     polygon_gdfs_log[polygon_gdf_key] = {

@@ -4,6 +4,8 @@ import pandas as pd
 from pathlib import Path
 import pickle
 import shutil
+import asyncio
+from collections import deque
 
 from HOME.ML_prediction.preprocessing import (
     step_01_tile_generation,
@@ -17,7 +19,7 @@ from HOME.visualization.ML_prediction.visual_inspection.plot_prediction_input im
 
 from HOME.ML_prediction.postprocessing import (
     step_01_reassembling_tiles,
-    step_02_regularization_clean,
+    step_02_regularization,
 )
 
 from HOME.get_data_path import get_data_path
@@ -31,7 +33,13 @@ data_path = get_data_path(root_dir)
 
 
 def run_project(
-    project_name, project_details, tile_size=512, res=0.3, labels=False, gdf_omrade=None
+    project_name,
+    project_details,
+    tile_size=512,
+    res=0.3,
+    labels=False,
+    gdf_omrade=None,
+    remove_download=False,
 ):
     """
     Run the prediction pipeline for a single project
@@ -61,6 +69,9 @@ def run_project(
         gdf_omrade=gdf_omrade,
     )
 
+    if remove_download:
+        shutil.rmtree(data_path / f"raw/orthophoto/originals/{project_name}")
+
     # Step 2: Make text file
     step_02_make_text_file.make_text_file(project_name=project_name, tile_key=tile_key)
 
@@ -78,19 +89,24 @@ def run_project(
     )
 
     # Step 5: Regularize
-    polygon_id = step_02_regularization_clean.regularize(project_name, assembly_key)
+    polygon_id = step_02_regularization.regularize(
+        project_name, assembly_key, geotiff_extends
+    )
 
-    project_details[project_name]["status"] = "assembled"
-    with open(
-        data_path / "ML_prediction/project_log/project_details.json", "w"
-    ) as file:
-        json.dump(project_details, file)
+    project_details[project_name]["status"] = "processed"
 
     # Step 4: (Optional) Visualize a few tiles.
     # plot_prediction_input(project_name, n_tiles=4, save=True, show=True)
+    return project_details
 
 
-def main(list_of_projects: list, labels: bool = False, tile_size=512, res=0.3):
+def process(
+    list_of_projects: list,
+    labels: bool = False,
+    tile_size=512,
+    res=0.3,
+    remove_download=False,
+):
     """
     Main function to run the prediction pipeline
 
@@ -135,6 +151,7 @@ def main(list_of_projects: list, labels: bool = False, tile_size=512, res=0.3):
             res=res,
             labels=labels,
             gdf_omrade=gdf_omrade,
+            remove_download=remove_download,
         )
 
 
@@ -143,7 +160,7 @@ def clean_all(project_name, tile_id, labels=False):
         data_path / f"ML_prediction/topredict/image/{project_name}/tiles_{tile_id}"
     )
     prediction_path = (
-        data_path / f"ML_prediction/predictions/image/{project_name}/tiles_{tile_id}"
+        data_path / f"ML_prediction/predictions/{project_name}/tiles_{tile_id}"
     )
     assembly_path = data_path / f"ML_prediction/large_tiles/tiles_{tile_id}/"
     regularization_path = data_path / f"ML_prediction/polygons/tiles_{tile_id}/"
@@ -164,7 +181,7 @@ def clean_all(project_name, tile_id, labels=False):
 # %%
 if __name__ == "__main__":
     list_of_projects = ["trondheim_2023"]
-    main(list_of_projects=list_of_projects, labels=True)
+    process(list_of_projects=list_of_projects, labels=True)
     # print("did something")
 
 # %%

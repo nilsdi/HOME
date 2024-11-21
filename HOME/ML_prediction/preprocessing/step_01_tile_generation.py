@@ -49,9 +49,9 @@ def coords_from_sos(sos_file, grid_size_m):
 
         image_coords_grid = (
             int(np.floor(image_x_min / grid_size_m)),
-            int(np.ceil(image_y_min / grid_size_m)),
+            int(np.floor(image_y_min / grid_size_m)),
             int(np.ceil(image_x_max / grid_size_m)),
-            int(np.floor(image_y_max / grid_size_m)),
+            int(np.ceil(image_y_max / grid_size_m)),
         )
 
     return image_coords_grid, (image_x_min, image_y_min, image_x_max, image_y_max)
@@ -84,7 +84,7 @@ def tile_images(
         tiles_in_image = tile_coverage.loc[
             (
                 slice(image_coords_grid[0], image_coords_grid[2] - 1),
-                slice(image_coords_grid[1], image_coords_grid[3] - 1),
+                slice(image_coords_grid[1] + 1, image_coords_grid[3]),
             ),
             :,
         ]
@@ -131,11 +131,11 @@ def tile_images(
                     if padding != (0, 0, 0, 0):
                         tile = cv2.copyMakeBorder(
                             tile,
-                            padding[3],
-                            padding[1],
-                            padding[0],
-                            padding[2],
-                            cv2.BORDER_CONSTANT,
+                            top=padding[3],
+                            bottom=padding[1],
+                            left=padding[0],
+                            right=padding[2],
+                            borderType=cv2.BORDER_CONSTANT,
                             value=[0, 0, 0],
                         )
                         tile_pixels[(x_grid, y_grid)].append(tile)
@@ -165,7 +165,7 @@ def tile_images(
 
     # Some tiles might still contain black pixels (edges)
     for x_grid, y_grid in tqdm(tile_coverage.index):
-        if tile_pixels[(x_grid, y_grid)] != []:
+        if len(tile_pixels[(x_grid, y_grid)]) > 0:
             tile = np.array(tile_pixels[(x_grid, y_grid)]).sum(axis=0)
             tile_in_res = cv2.resize(
                 tile.astype(np.uint8),
@@ -178,7 +178,7 @@ def tile_images(
             tile_path = os.path.join(output_dir_images, tile_filename)
             cv2.imwrite(tile_path, tile_in_res)
 
-    return
+    return tile_pixels
 
 
 # %% To validate the prediction with the recall, we need to tile the labels as well.
@@ -289,8 +289,7 @@ def tile_labels(
             label_tile = label[y : y + tile_size, x : x + tile_size]
 
             # Save the label tile to the output directory
-            label_tile_filename = f"{project_name}_{parts[-3]}_{grid_x}_{grid_y}.tif"
-            label_tile_path = os.path.join(output_dir_labels, label_tile_filename)
+            label_tile_path = os.path.join(output_dir_labels, image_tile)
 
             cv2.imwrite(label_tile_path, label_tile)
 
@@ -324,9 +323,7 @@ def tile_generation(
     os.makedirs(output_dir_images, exist_ok=True)
 
     # Create archive directories if they don't exist
-    input_dir_images = os.path.join(
-        data_path, f"raw/orthophoto/originals/{project_name}/"
-    )
+    input_dir_images = data_path / f"raw/orthophoto/originals/{project_name}/"
 
     # Get list of all image files in the input directory
     metadata_files = [f for f in os.listdir(input_dir_images) if f.endswith(".sos")]

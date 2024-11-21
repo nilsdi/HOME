@@ -1,8 +1,8 @@
-""" 
+"""
 from prediction to shapes of footprints in gdfs.
 """
 
-from HOME.ML_prediction.postprocessing.step_02_regularization_clean import (
+from HOME.ML_prediction.postprocessing.step_02_regularization import (
     process_project_tiles,
 )
 

@@ -18,8 +18,6 @@ import os
 
 # analysis of code
 from tqdm import tqdm
-import time
-
 from HOME.utils.project_paths import get_prediction_details, get_tiling_details
 from HOME.utils.get_project_metadata import get_project_details
 from HOME.get_data_path import get_data_path
@@ -122,7 +120,7 @@ def get_large_tiles(
                 y_coord_u = y_coord_u + n_tiles_edge - n_overlap
                 y_coord_d = y_coord_u - n_tiles_edge
             # save the coordinates of the large tile (named "x_y") with top left, bottom right
-            large_tile_coords[f"{x_column}_{y_row}"] = [
+            large_tile_coords[f"{x_coord_l}_{y_coord_u}"] = [
                 [x_coord_l, y_coord_u],
                 [x_coord_r, y_coord_d],
             ]
@@ -307,7 +305,6 @@ def reassemble_tiles(
     Returns:
         None
     """
-    start_time = time.time()
 
     # load the assembly metadata log
     with open(
@@ -334,22 +331,16 @@ def reassemble_tiles(
     ), "Prediction id does not correspond to the project name"
 
     # get the tiles
-    tiles = [str(tile) for tile in Path(data_path / prediction_folder).rglob("*.tif")]
+    tiles = [str(tile) for tile in Path(prediction_folder).rglob("*.tif")]
 
     # extend of all tiles we want to reassemble
     extend_tile_coords = get_max_min_extend(tiles)
-    lab1_time = time.time()
-    print(f"Getting set up took {lab1_time - start_time:.2f} seconds")
 
     # get the large tiles
     large_tile_coords = get_large_tiles(extend_tile_coords, n_tiles_edge, n_overlap)
-    lab2_time = time.time()
-    print(f"Getting the large tile layout took {lab2_time - lab1_time:.2f} seconds")
 
     # match the small tiles to the large tiles
     large_tile_tiles = match_small_tiles_to_large_tiles(tiles, large_tile_coords)
-    lab3_time = time.time()
-    print(f"matching small and large tiles took {lab3_time - lab2_time:.2f} seconds")
 
     save_path = (
         data_path
@@ -390,16 +381,11 @@ def reassemble_tiles(
             }
             # save the assembled tile
             tile_name = f"{tile_name_base}_{lt_name}.tif"
-            geotiff_extends[geotiff_id] = {
-                "filename": tile_name,
-                "bounding_box": {
-                    "min_x": top_left[0],
-                    "min_y": bottom_right[1],
-                    "max_x": bottom_right[0],
-                    "max_y": top_left[1],
-                },
-                "width": bottom_right[0] - top_left[0],
-                "height": top_left[1] - bottom_right[1],
+            geotiff_extends[tile_name] = {
+                "grid_x_min": coords[0][0],
+                "grid_x_max": coords[1][0],
+                "grid_y_min": coords[1][1],
+                "grid_y_max": coords[0][1],
             }
             geotiff_id += 1
             # write the assembled tile to disk
@@ -411,8 +397,6 @@ def reassemble_tiles(
                     # For multi-band images (e.g., RGB)
                     for i in range(1, tif_channels + 1):
                         dst.write(assembled_tile[:, :, i - 1], i)
-    lab4_time = time.time()
-    print(f"Assembling the large tiles took {lab4_time - lab3_time:.2f} seconds")
 
     reassembled_tiles_log[str(assembly_key)] = {
         "project_name": project_name,
