@@ -165,7 +165,7 @@ def stacked_skewed_footprints(
             for top_fp, bottom_fp in zip(footprints, bottom_verts):
                 for v1, v2 in zip(top_fp, bottom_fp):
                     ax.plot(
-                        [v1[0], v2[0]], [v1[1], v2[1]], color="gray", ls="--", lw=0.4
+                        [v1[0], v2[0]], [v1[1], v2[1]], color="gray", ls="--", lw=0.01
                     )
 
     return ax
@@ -197,7 +197,7 @@ if __name__ == "__main__":
     fig, ax = plt.subplots()
     stacked_skewed_footprints(
         [[h1, h2], [h1, h2], [h1, h2], [h1, h2], [h1, h2]],
-        [2000 + e for e in [0, 2, 5, 6.8, 8]],
+        [2000 + e for e in [-4, 2, 5, 6.8, 8]],
         ax=ax,
         skew=0.4,
         flatten=0.5,
