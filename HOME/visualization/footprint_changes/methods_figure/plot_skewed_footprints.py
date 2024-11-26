@@ -197,7 +197,7 @@ if __name__ == "__main__":
     fig, ax = plt.subplots()
     stacked_skewed_footprints(
         [[h1, h2], [h1, h2], [h1, h2], [h1, h2], [h1, h2]],
-        [0, 2, 5, 6.8, 8],
+        [2000 + e for e in [0, 2, 5, 6.8, 8]],
         ax=ax,
         skew=0.4,
         flatten=0.5,

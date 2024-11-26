@@ -47,8 +47,8 @@ def get_prediction_details(pred_id: int, data_path: Path = None) -> dict:
     if data_path is None:
         data_path = root_dir / "data"
     # print(data_path)
-    prediction_log = data_path / "metadata_log/predictions_log.json"
-    with open(prediction_log, "r") as file:
+    prediction_log_path = data_path / "metadata_log/predictions_log.json"
+    with open(prediction_log_path, "r") as file:
         prediction_log = json.load(file)
     prediction_details = prediction_log[str(pred_id)]
     return prediction_details
@@ -67,8 +67,8 @@ def get_assembling_details(assemble_id: int, data_path: Path = None) -> dict:
     """
     if data_path is None:
         data_path = root_dir / "data"
-    assembling_log = data_path / "metadata_log/reassembled_prediction_tiles.json"
-    with open(assembling_log, "r") as file:
+    assembling_log_path = data_path / "metadata_log/reassembled_prediction_tiles.json"
+    with open(assembling_log_path, "r") as file:
         assembling_log = json.load(file)
     assembling_details = assembling_log[str(assemble_id)]
     return assembling_details
@@ -87,8 +87,8 @@ def get_polygon_details(poly_id: int, data_path: Path = None) -> dict:
     """
     if data_path is None:
         data_path = root_dir / "data"
-    polygons_log = data_path / "metadata_log/polygon_gdfs.json"
-    with open(polygons_log, "r") as file:
+    polygons_log_path = data_path / "metadata_log/polygon_gdfs.json"
+    with open(polygons_log_path, "r") as file:
         polygons_log = json.load(file)
     polygon_details = polygons_log[str(poly_id)]
     return polygon_details
