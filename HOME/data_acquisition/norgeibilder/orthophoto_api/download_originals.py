@@ -55,7 +55,7 @@ def download_original_NIB(
 
     for details in tqdm(download_urls):
         filename = details["name"]
-        save_path = save_dir / filename
+        save_path = save_dir / filename.lower()
         url = details["url"]
         response = requests.get(url)
         with open(save_path, "wb") as file:

@@ -18,14 +18,18 @@ import os
 
 # analysis of code
 from tqdm import tqdm
-from HOME.utils.project_paths import get_prediction_details, get_tiling_details
-from HOME.utils.get_project_metadata import get_project_details
+from HOME.utils.project_paths import (
+    get_prediction_details,
+    get_tiling_details,
+)
 from HOME.get_data_path import get_data_path
 
-# %% functions
+# %%
 
 root_dir = Path(__file__).resolve().parents[3]
 data_path = get_data_path(root_dir)
+
+# %% functions
 
 
 def extract_tile_numbers(filename: str) -> list[int, int]:
@@ -213,7 +217,6 @@ def assemble_large_tile(
     coords: list[list[int]],
     small_tiles: list[str],
     tile_size_px: int = 512,
-    channels: int = 3,
 ) -> tuple[np.array, bool]:
     """
     Assembles a large tile from the small tiles (without coordinates)
@@ -222,7 +225,6 @@ def assemble_large_tile(
     - coords: list of the top left and bottom right coordinates of the large tile
     - small_tiles: list of the names of the small tiles that belong to the large tile
     - tile_size_px: size of the small tiles in pixels
-    - channels: number of channels in the small tiles
 
     Returns:
     - large_tile: np.array with the large tile
@@ -241,7 +243,7 @@ def assemble_large_tile(
     extend_y_t = coords[0][1] - coords[1][1]
     extend_x_t_px = extend_x_t * tile_size_px
     extend_y_t_px = extend_y_t * tile_size_px
-    large_tile = np.full((extend_x_t_px, extend_y_t_px, channels), 0, dtype=np.uint8)
+    large_tile = np.full((extend_x_t_px, extend_y_t_px), 0, dtype=np.uint8)
 
     # fill in the large tile with the small tiles
     for tile in small_tiles:
@@ -252,7 +254,7 @@ def assemble_large_tile(
         px_y_tl = (top_left[1] - row + 1) * tile_size_px
         # px_y_tl = (row - bottom_right[1]) * tile_size_px
         # read the small tile
-        small_tile = cv2.imread(tile)
+        small_tile = cv2.imread(tile, cv2.IMREAD_GRAYSCALE)
         # add the small tile to the large tile
         large_tile[
             px_y_tl - tile_size_px : px_y_tl,
@@ -318,13 +320,10 @@ def reassemble_tiles(
     prediction_details = get_prediction_details(prediction_id, data_path)
     prediction_folder = prediction_details["prediction_folder"]
     tile_id = prediction_details["tile_id"]
-    project_details = get_project_details(project_name)
     tiling_detail = get_tiling_details(tile_id, data_path)
     res = np.round(tiling_detail["res"], 1)
     tile_size = int(tiling_detail["tile_size"])
     crs = tiling_detail["crs"]
-    project_channels = project_details["bandwidth"]
-    tif_channels = 1 if project_channels == "BW" else 3
 
     assert (
         prediction_details["project_name"] == project_name
@@ -345,6 +344,7 @@ def reassemble_tiles(
     save_path = (
         data_path
         / "ML_prediction/large_tiles"
+        / project_name
         / f"tiles_{tile_id}"
         / f"prediction_{prediction_id}"
         / f"assembly_{assembly_key}"
@@ -361,7 +361,8 @@ def reassemble_tiles(
     ) in tqdm(large_tile_coords.items(), desc="Assembling large tiles"):
         matched_tiles = large_tile_tiles[lt_name]
         assembled_tile, contains_data = assemble_large_tile(
-            coords, matched_tiles, channels=tif_channels
+            coords,
+            matched_tiles,
         )
         if contains_data:  # if no small tiles, skip it, don't save it etc.
             # add georeference to assembled tile
@@ -373,11 +374,11 @@ def reassemble_tiles(
             metadata = {
                 "driver": "GTiff",
                 "dtype": "uint8",
-                "count": tif_channels,
                 "height": assembled_tile.shape[0],
                 "width": assembled_tile.shape[1],
                 "transform": transform,
                 "crs": crs,
+                "count": 1,
             }
             # save the assembled tile
             tile_name = f"{tile_name_base}_{lt_name}.tif"
@@ -390,13 +391,7 @@ def reassemble_tiles(
             geotiff_id += 1
             # write the assembled tile to disk
             with rasterio.open(save_path / tile_name, "w", **metadata) as dst:
-                if tif_channels == 1:
-                    # For single-band images (not yet tested!)
-                    dst.write(assembled_tile, 1)
-                else:
-                    # For multi-band images (e.g., RGB)
-                    for i in range(1, tif_channels + 1):
-                        dst.write(assembled_tile[:, :, i - 1], i)
+                dst.write(assembled_tile, 1)
 
     reassembled_tiles_log[str(assembly_key)] = {
         "project_name": project_name,

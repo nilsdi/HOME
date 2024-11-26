@@ -17,11 +17,12 @@ from datetime import datetime
 from HOME.utils.project_coverage_area import (
     project_coverage_area,
 )
-from HOME.utils.project_paths import get_tiling_details
+from HOME.utils.project_paths import get_tiling_details, get_assembling_details
+from HOME.get_data_path import get_data_path
 
 # %%
 root_dir = Path(__file__).parents[3]
-data_path = root_dir / "data"
+data_path = get_data_path(root_dir)
 
 
 # %%
@@ -170,15 +171,10 @@ def regularize(
     buffer_single_sided: bool = True,
 ) -> None:
 
-    with open(
-        data_path / "metadata_log/reassembled_prediction_tiles.json", "r"
-    ) as file:
-        assembly_log = json.load(file)
-        assembly_metadata = assembly_log[str(assembly_id)]
+    assembly_metadata = get_assembling_details(assembly_id, data_path)
 
     with open(data_path / "metadata_log/polygon_gdfs.json", "r") as file:
         polygon_gdfs_log = json.load(file)
-
     highest_polygon_key = int(max([int(key) for key in polygon_gdfs_log.keys()]))
     polygon_gdf_key = highest_polygon_key + 1
 
@@ -194,6 +190,7 @@ def regularize(
     output_dir = (
         data_path
         / f"ML_prediction/polygons"
+        / project_name
         / f"tiles_{tile_id}"
         / f"prediction_{prediction_id}"
         / f"assembly_{assembly_id}"

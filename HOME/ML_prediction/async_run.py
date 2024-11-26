@@ -30,6 +30,8 @@ from HOME.ML_prediction.postprocessing import (
 
 from HOME.get_data_path import get_data_path
 
+from HOME.utils.project_paths import load_project_details, save_project_details
+
 # Get the root directory of the project
 root_dir = Path(__file__).resolve().parents[2]
 # print(root_dir)
@@ -39,14 +41,16 @@ data_path = get_data_path(root_dir)
 
 
 @contextlib.contextmanager
-def suppress_output():
+def suppress_output(filepath=None):
     """Suppress all stdout and stderr output temporarily."""
-    with open(os.devnull, "w") as devnull:
+    if filepath is None:
+        filepath = os.devnull
+    with open(filepath, "a") as logfile:  # Append mode to keep logs
         old_stdout = sys.stdout
         old_stderr = sys.stderr
         try:
-            sys.stdout = devnull
-            sys.stderr = devnull
+            sys.stdout = logfile
+            sys.stderr = logfile
             yield
         finally:
             sys.stdout = old_stdout
@@ -55,7 +59,6 @@ def suppress_output():
 
 async def run_project(
     project_name,
-    project_details,
     tile_size=512,
     res=0.3,
     labels=False,
@@ -74,6 +77,7 @@ async def run_project(
     gdf_omrade: geopandas dataframe, labels for the buildings
     """
 
+    project_details = load_project_details(data_path)
     channels = project_details[project_name]["channels"]
 
     # compression = f"i_{compression_name}_{compression_value}"
@@ -86,6 +90,7 @@ async def run_project(
         overlap_rate=0,
         labels=labels,
         gdf_omrade=gdf_omrade,
+        project_details=project_details,
     )
 
     if remove_download:
@@ -112,25 +117,48 @@ async def run_project(
         project_name, assembly_key, geotiff_extends
     )
 
-    return project_details
+    return
 
 
-async def download(project_name, project_details):
-    project_id = project_details["project_name"]["id"]
-    download_urls = request_download(project_id)
-    download_original_NIB(download_urls, project_name)
+async def download(project_name):
+    project_details = load_project_details(data_path=data_path)
+    downloaded = False
+    if project_details[project_name]["status"] == "pending":
+        project_id = project_details[project_name]["id"]
+        download_urls = request_download(project_id)
+        download_original_NIB(download_urls, project_name)
+        downloaded = True
+    return downloaded
 
 
 async def workflow_manager(project_list, labels=False):
-    project_details = add_project_details(project_list)
+    if labels:
+        path_label = (
+            data_path / "raw/FKB_bygning/Basisdata_0000_Norge_5973_FKB-Bygning_FGDB.pkl"
+        )
+        with open(path_label, "rb") as f:
+            gdf_omrade = pickle.load(f)
+        buildings_year = pd.read_csv(
+            data_path / "raw/FKB_bygning/buildings.csv", index_col=0
+        )
+        gdf_omrade = gdf_omrade.merge(
+            buildings_year, left_on="bygningsnummer", right_index=True, how="left"
+        )
+    else:
+        gdf_omrade = None
 
-    projects_to_run = []  # list of IDs of projects to run in the future,
+    with suppress_output():
+        project_details = add_project_details(project_list)
 
-    for project_name in project_details:
-        if project_details[project_name]["status"] == "pending":
-            projects_to_run.append(project_name)
+    projects_to_run = [
+        name
+        for name in project_details
+        if project_details[name]["status"] != "processed"
+    ]
 
-    download_queue = deque()  # Stores downloaded projects
+    log_folder = data_path / "metadata_log/execution_log"
+
+    download_queue = asyncio.Queue()  # Stores downloaded projects
     project_queue = asyncio.Queue()
 
     # Populate project queue with projects to be processed
@@ -139,87 +167,78 @@ async def workflow_manager(project_list, labels=False):
 
     async def download_worker():
         while not project_queue.empty():
-            project = await project_queue.get()
-            while len(download_queue) >= 2:  # Ensure max 2 downloads
-                await asyncio.sleep(1)  # Wait until space is available
-            print(f"Downloading {project_name}")
-            await download(project)
-            project_details[project_name]["status"] = "downloaded"
-            download_queue.append(project)
+            # Enforce download limit
+            while download_queue.qsize() >= 2:
+                await asyncio.sleep(0)  # Yield to allow processing
+
+            project_name = await project_queue.get()
+            print(f"{project_name}: Downloading")
+            with suppress_output(log_folder / f"{project_name}_download.log"):
+                downloaded = await download(project_name)
+            if downloaded:
+                project_details = load_project_details(data_path=data_path)
+                project_details[project_name]["status"] = "downloaded"
+                save_project_details(project_details, data_path=data_path)
+            print(f"{project_name}: Downloaded")
+            await download_queue.put(project_name)
 
     async def process_worker():
-        if labels:
-            path_label = (
-                data_path
-                / "raw/FKB_bygning/Basisdata_0000_Norge_5973_FKB-Bygning_FGDB.pkl"
-            )
-            with open(path_label, "rb") as f:
-                gdf_omrade = pickle.load(f)
-            buildings_year = pd.read_csv(
-                data_path / "raw/FKB_bygning/buildings.csv", index_col=0
-            )
-            gdf_omrade = gdf_omrade.merge(
-                buildings_year, left_on="bygningsnummer", right_index=True, how="left"
-            )
-        else:
-            gdf_omrade = None
-
         while True:
-            if download_queue:
-                project = download_queue.popleft()
-                print(f"Processing {project_name}")
-                with suppress_output():
+            if project_queue.empty() and download_queue.empty():
+                break  # Exit when there are no more tasks
+
+            try:
+                project_name = await download_queue.get()
+                print(f"{project_name}: Processing")
+                with suppress_output(log_folder / f"{project_name}_process.log"):
                     await run_project(
-                        project,
+                        project_name,
                         labels=labels,
                         gdf_omrade=gdf_omrade,
                         remove_download=True,
                     )
+                print(f"{project_name}: Processed")
+                project_details = load_project_details(data_path=data_path)
                 project_details[project_name]["status"] = "processed"
-            elif project_queue.empty():
-                break  # Exit if no more projects to process
-            else:
-                await asyncio.sleep(1)  # Poll for new downloads
+                save_project_details(project_details, data_path=data_path)
+            except Exception as e:
+                print(f"Error processing: {e}")
+                continue
 
-    # Run workers
+    print("Starting workflow")
+    # Run workers concurrently
     await asyncio.gather(download_worker(), process_worker())
-
-    with open(
-        data_path / "ML_prediction/project_log/project_details.json", "w"
-    ) as file:
-        json.dump(project_details, file, indent=4)
 
 
 # %%
 if __name__ == "__main__":
 
     trondheim_projects = [
-        "Trondheim kommune 2022",
-        "Trondheim kommune 2021",
-        "Trondheim kommune 2020",
-        "Trondheim 2019",
-        "Trondheim kommune rektifisert 2018",
-        "Trondheim 2017",
-        "Trondheim rundt 2016",
-        "Trondheim 2016",
-        "Trondheim 2015",
-        "Trondheim 2014",
-        "Trondheim 2013",
-        "Trondheim sentrum 2013",
-        "Trondheim 2012",
-        "Trondheim 2011",
-        "Trondheim 2010",
-        "Trondheim 2008",
-        "Trondheim 2006",
-        "Trondheim 2005",
-        "Trondheim tettbebyggelse 2003",
-        "Trondheim 1999",
-        "Byneset-Trondheim-Stjørdal 1997",
-        "Trondheim-Byneset 1996",
-        "Trondheim 1994",
-        "Trondheim øst 1993",
-        "Trondheim 1992",
-        "Trondheim 1991",
+        "trondheim_kommune_2022",
+        "trondheim_kommune_2021",
+        "trondheim_kommune_2020",
+        "trondheim_2019",
+        "trondheim_2017",
+        "trondheim_rundt_2016",
+        "trondheim_2016",
+        "trondheim_2015",
+        "trondheim_2014",
+        "trondheim_2013",
+        "trondheim_sentrum_2013",
+        "trondheim_2012",
+        "trondheim_2011",
+        "trondheim_2010",
+        "trondheim_2008",
+        "trondheim_2006",
+        "trondheim_2005",
+        "trondheim_tettbebyggelse_2003",
+        "trondheim_1999",
+        "byneset-trondheim-stjørdal_1997",
+        "trondheim-byneset_1996",
+        "trondheim_1994",
+        "trondheim_øst_1993",
+        "trondheim_1992",
+        "trondheim_1991",
     ]
     asyncio.run(workflow_manager(trondheim_projects, labels=True))
 

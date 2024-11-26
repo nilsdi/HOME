@@ -15,6 +15,7 @@ import json
 from datetime import datetime
 import pickle
 import pandas as pd
+import re
 
 # Increase the maximum number of pixels OpenCV can handle
 os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2, 40))
@@ -32,20 +33,39 @@ data_path = get_data_path(root_dir)
 # %%
 
 
-def coords_from_sos(sos_file, grid_size_m):
-    with open(sos_file, "r") as f:
-        meta_text = f.read()
-        pos_min_no = meta_text.find("...MIN-NØ")
-        space_pos = meta_text.find(" ", pos_min_no + 10)
-        end_pos = meta_text.find("\n", space_pos)
-        image_y_min = float(meta_text[pos_min_no + 10 : space_pos])
-        image_x_min = float(meta_text[space_pos + 1 : end_pos])
+def detect_encoding_from_directive(file_path):
+    with open(file_path, "rb") as f:
+        for line in f:
+            # Check for the ..TEGNSETT directive
+            if b"..TEGNSETT" in line:
+                # Extract the encoding specified after ..TEGNSETT
+                parts = line.strip().split()
+                if len(parts) > 1:
+                    encoding = parts[1].decode(
+                        "ascii"
+                    )  # Decode as ASCII to get encoding name
+                    if encoding == "DOSN8":
+                        return "ISO8859-1"
+                    return encoding
+    # Default to UTF-8 if no encoding directive is found
+    return "utf-8"
 
-        pos_max_no = meta_text.find("...MAX-NØ")
-        space_pos = meta_text.find(" ", pos_max_no + 10)
-        end_pos = meta_text.find("\n", space_pos)
-        image_y_max = float(meta_text[pos_max_no + 10 : space_pos])
-        image_x_max = float(meta_text[space_pos + 1 : end_pos])
+
+def coords_from_sos(sos_file, grid_size_m):
+    min_no_pattern = r"\.\.\.MIN-N[\x9dØ]\s+(\d+)\s+(\d+)"
+    max_no_pattern = r"\.\.\.MAX-N[\x9dØ]\s+(\d+)\s+(\d+)"
+
+    encoding = detect_encoding_from_directive(sos_file)
+    with open(sos_file, "r", encoding=encoding) as f:
+        meta_text = f.read()
+        min_no_match = re.search(min_no_pattern, meta_text)
+        max_no_match = re.search(max_no_pattern, meta_text)
+
+        assert (
+            min_no_match and max_no_match
+        ), "Could not find min and max coordinates in SOS file"
+        image_y_min, image_x_min = tuple(map(int, min_no_match.groups()))
+        image_y_max, image_x_max = tuple(map(int, max_no_match.groups()))
 
         image_coords_grid = (
             int(np.floor(image_x_min / grid_size_m)),
@@ -308,6 +328,7 @@ def tile_generation(
     overlap_rate=0,
     labels=False,
     gdf_omrade=None,
+    project_details=None,
 ):
 
     # Add project metadata to the log
@@ -326,24 +347,15 @@ def tile_generation(
     input_dir_images = data_path / f"raw/orthophoto/originals/{project_name}/"
 
     # Get list of all image files in the input directory
-    metadata_files = [f for f in os.listdir(input_dir_images) if f.endswith(".sos")]
+    image_files = [f for f in os.listdir(input_dir_images) if f.endswith(".tif")]
 
-    with open(os.path.join(input_dir_images, metadata_files[0]), "r") as f:
-        meta_text = f.read()
-        res_original = float(
-            meta_text[
-                meta_text.find("...PIXEL-STØRR")
-                + 15 : meta_text.find(" ", meta_text.find("...PIXEL-STØRR") + 15)
-            ]
-        )
-
-        crs_id = meta_text[
-            meta_text.find("...KOORDSYS")
-            + 12 : meta_text.find("\n", meta_text.find("...KOORDSYS"))
-        ]
-
-        assert crs_id in ["22", "23"], "CRS not supported"
-        crs = 25832 if crs_id == "22" else 25833
+    if project_details is None:
+        with open(
+            data_path / "ML_prediction/project_log/project_details.json", "r"
+        ) as file:
+            project_details = json.load(file)
+    crs = project_details[project_name]["original_crs"]
+    res_original = project_details[project_name]["original_res"]
 
     tiled_projects_log[tile_key] = {
         "project_name": project_name,
@@ -355,9 +367,6 @@ def tile_generation(
         "date_created": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "has_labels": labels,
     }
-
-    with open(data_path / "metadata_log/tiled_projects.json", "w") as file:
-        json.dump(tiled_projects_log, file, indent=4)
 
     effective_tile_size = tile_size * (1 - overlap_rate)
     grid_size_m = res * effective_tile_size
@@ -390,6 +399,10 @@ def tile_generation(
             gdf_omrade=gdf_omrade,
             crs=crs,
         )
+
+    with open(data_path / "metadata_log/tiled_projects.json", "w") as file:
+        json.dump(tiled_projects_log, file, indent=4)
+
     return tile_key
 
 

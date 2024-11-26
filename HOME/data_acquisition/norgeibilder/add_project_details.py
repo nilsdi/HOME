@@ -69,18 +69,27 @@ def add_project_details(project_list):
         s.lower().replace(" ", "_") for s in metadata_all_projects["ProjectList"]
     ]
     for project_name in project_list:
-        # we have to al
-        meta_data_index = MD_project_list.index(project_name)
-        properties = metadata_all_projects["ProjectMetadata"][meta_data_index][
-            "properties"
-        ]
-        colour_data = properties["bildekategori"]
-        colour_data = picture_types[colour_data]
-        project_details[project_name]["channels"] = colour_data
-        project_details[project_name]["date"] = properties["dato"]
-        project_details[project_name]["id"] = properties["nib_project_id"]
-        project_details[project_name]["original_res"] = properties["pixelstorrelse"]
-        project_details[project_name]["status"] = "pending"
+        if not project_name in project_details.keys():
+            project_details[project_name] = {}
+            # we have to al
+            meta_data_index = MD_project_list.index(project_name)
+            properties = metadata_all_projects["ProjectMetadata"][meta_data_index][
+                "properties"
+            ]
+            project_details[project_name]["channels"] = picture_types[
+                properties["bildekategori"]
+            ]
+            project_details[project_name]["date"] = properties["fotodato_date"]
+            project_details[project_name]["id"] = properties["nib_project_id"]
+            project_details[project_name]["original_res"] = float(
+                properties["pixelstorrelse"]
+            )
+            bildesys = properties["opprinneligbildesys"]
+            assert bildesys in ["22", "23"], f"bildesys {bildesys} not supported"
+            project_details[project_name]["original_crs"] = (
+                25833 if bildesys == "23" else 25832
+            )
+            project_details[project_name]["status"] = "pending"
 
     # save the file
     with open(
