@@ -1,3 +1,4 @@
+# %%
 from PIL import Image
 import os
 from pathlib import Path
@@ -13,14 +14,17 @@ def convert_to_bw(image_path, output_dir):
 
 
 def convert_folder_to_bw(input_dir, output_dir):
+    os.makedirs(output_dir, exist_ok=True)
     for filename in tqdm(os.listdir(input_dir)):
         if filename.endswith(".tif"):
             image_path = input_dir / filename
             convert_to_bw(image_path, output_dir)
 
 
-# Specify the folder path here
+# %% Specify the folder path here
 root_dir = Path(__file__).parents[2]
 input_dir = root_dir / "data/ML_training/train/image"
 output_dir = root_dir / "data/ML_training/train_BW/image"
 convert_folder_to_bw(input_dir, output_dir)
+
+# %%

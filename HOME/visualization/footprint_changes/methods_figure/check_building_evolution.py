@@ -379,3 +379,22 @@ stacked_skewed_footprints(
     figsize=(20, 20),
 )
 # %%
+x_tile = 3696
+y_tile = 45797
+
+project_dates, project_coords, polygon_ids = find_projects_coords(
+    project_list, x_tile, y_tile
+)
+tile_paths = get_tile_paths(project_list, x_tile, y_tile)
+
+stacked_skewed_footprints(
+    project_coords,
+    manual_dates,
+    tile_paths,
+    skew=0.4,
+    flatten=0.5,
+    overlap=-0.3,
+    cmap="tab10",
+    figsize=(20, 20),
+)
+# %%

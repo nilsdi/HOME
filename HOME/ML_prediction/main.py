@@ -176,29 +176,32 @@ def process(
     log_folder = data_path / "metadata_log/execution_log"
 
     for project_name in projects_to_run:
-        try:
-            with suppress_output(log_folder / f"{project_name}_download.log"):
-                downloaded = download(project_name)
-            if downloaded:
-                project_details[project_name]["status"] = "downloaded"
-                save_project_details(project_details, data_path)
+        if len(os.listdir(data_path / f"raw/orthophoto/originals/")) < 5:
             try:
-                with suppress_output(log_folder / f"{project_name}_process.log"):
-                    project_details = run_project(
-                        project_name,
-                        project_details=project_details,
-                        tile_size=tile_size,
-                        res=res,
-                        labels=labels,
-                        gdf_omrade=gdf_omrade,
-                        remove_download=remove_download,
-                    )
-                project_details[project_name]["status"] = "processed"
-                save_project_details(project_details, data_path)
+                print(f"Downloading {project_name}")
+                with suppress_output(log_folder / f"{project_name}_download.log"):
+                    downloaded = download(project_name, project_details)
+                if downloaded:
+                    project_details[project_name]["status"] = "downloaded"
+                    save_project_details(project_details, data_path)
+                try:
+                    print(f"Processing {project_name}")
+                    with suppress_output(log_folder / f"{project_name}_process.log"):
+                        run_project(
+                            project_name,
+                            project_details=project_details,
+                            tile_size=tile_size,
+                            res=res,
+                            labels=labels,
+                            gdf_omrade=gdf_omrade,
+                            remove_download=remove_download,
+                        )
+                    project_details[project_name]["status"] = "processed"
+                    save_project_details(project_details, data_path)
+                except Exception as e:
+                    print(f"Error processing {project_name}: {e}")
             except Exception as e:
-                print(f"Error processing {project_name}: {e}")
-        except Exception as e:
-            print(f"Error downloading {project_name}: {e}")
+                print(f"Error downloading {project_name}: {e}")
 
 
 def reprocess(

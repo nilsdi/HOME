@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 from torch.utils.data import DataLoader
 import argparse
+import pandas as pd
 
 grandparent_dir = Path(__file__).parents[4]
 sys.path.append(str(grandparent_dir))
@@ -52,11 +53,16 @@ def eval_HRBR(
         num_workers=num_workers,
         drop_last=False,
     )
-    best_score = eval_net(
-        net, test_loader, device, savename=Dataset + "_" + read_name
-    )  #
-    print("Best iou:", best_score)
-    return best_score
+    scores = eval_net(net, test_loader, device, savename=Dataset + "_" + read_name)  #
+
+    eval_scores = pd.read_csv(
+        root_dir / "data/ML_model/metrics/scores.csv", index_col=[0, 1, 2, 3, 4]
+    )
+    eval_scores.loc[
+        (args.numrun, args.BW, args.txt_name, read_name, image_folder), :
+    ] = scores[1]
+    eval_scores.to_csv(root_dir / "data/ML_model/metrics/scores.csv")
+    return
 
 
 if __name__ == "__main__":
@@ -94,10 +100,10 @@ if __name__ == "__main__":
 
     if args.tune_images:
         image_folder = f"tune{bw_str_}/image"
-        label_folder = f"tune{bw_str_}/label"
+        label_folder = f"tune/label"
     else:
         image_folder = f"train{bw_str_}/image"
-        label_folder = f"train{bw_str_}/label"
+        label_folder = f"train/label"
     if args.read_name is None:
         read_name = [
             f for f in os.listdir(dir_checkpoint) if ("best" in f and "NOCI" in f)

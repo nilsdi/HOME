@@ -37,6 +37,11 @@ def parse_args(parser, args):
     parser.add_argument("--save-name", default=f"HDNet_NOCI_{res}_{bw_str}")
     parser.add_argument("--DataSet", default="NOCI" + bw_str_)
     parser.add_argument("--image-folder", default=f"train{bw_str_}/image")
+    parser.add_argument("--label-folder", default="train/label")
+    parser.add_argument("--boundary-folder", default="boundary")
+    parser.add_argument("--train_txt", default="train.txt")
+    parser.add_argument("--val_txt", default="val.txt")
+
     args = parser.parse_args()
 
     return args
@@ -47,7 +52,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="pytorch HDNet training")
     parser.add_argument("-n", "--numrun", required=True, type=int)
     parser.add_argument("-r", "--res", required=False, type=float, default=0.3)
-    parser.add_argument("-bw", "--BW", required=False, type=bool, default=False)
+    parser.add_argument(
+        "-bw", "--BW", action=argparse.BooleanOptionalAction, type=bool, default=False
+    )
     parser.add_argument("-rn", "--read_name", required=False, type=str, default="")
     parser.add_argument(
         "-e",
@@ -58,16 +65,23 @@ if __name__ == "__main__":
         help="number of total epochs to train",
     )
     parser.add_argument(
-        "-rn",
+        "-nr",
         "--read_num",
         required=False,
         type=int,
         help="directory number to read weights from",
     )
-    parser.add_argument("--lr", default=0.001, type=float, help="initial learning rate")
+    parser.add_argument(
+        "-pet",
+        "--percentage_empty",
+        required=False,
+        type=float,
+        help="percentage empty tiles in the tiling",
+    )
+    parser.add_argument(
+        "-lr", "--lr", default=0.001, type=float, help="initial learning rate"
+    )
     args = parser.parse_args()
-
-    args = parse_args(parser, args)
 
     dir_checkpoint = str(root_dir) + f"/data/ML_model/save_weights/run_{args.numrun}/"
     if args.read_num > 0:
@@ -76,13 +90,29 @@ if __name__ == "__main__":
         read_dir = dir_checkpoint
     if not os.path.exists(dir_checkpoint):
         os.mkdir(dir_checkpoint)
+    if args.read_name == "":
+        if args.read_num > 0:
+            read_name = [
+                f for f in os.listdir(read_dir) if ("best" in f and "NOCI" in f)
+            ][0][:-4]
+        else:
+            read_name = ""
+    else:
+        read_name = ""
+
+    args = parse_args(parser, args)
 
     description = (
         f"Tile resolution: {args.res} \nBlack and White: {args.BW} \nFrom Existing:"
-        f" {args.read_name} \nDate: {datetime.now()}\n\n"
-        f"max_epochs: {args.epochs}\n, learning rate: {args.lr}"
+        f" {args.read_name} in {read_dir}\nDate: {datetime.now()}\n\n"
+        f"max_epochs: {args.epochs}\n, learning rate: {args.lr}\n"
+    )
+    description += (
+        f"percentage empty tiles: {args.percentage_empty}"
+        if args.percentage_empty
+        else ""
     )
     with open(dir_checkpoint + "training_description.txt", "w") as file:
         file.write(description)
 
-    main(args, dir_checkpoint)
+    main(args, dir_checkpoint, read_dir, read_name)
