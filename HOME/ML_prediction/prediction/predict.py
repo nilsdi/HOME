@@ -58,7 +58,7 @@ def predict_and_eval(
     logging.info(f"Using device {device}")
 
     if BW:
-        model_weights = "run_2"
+        model_weights = "run_5"
         dir_checkpoint = data_path / f"ML_model/save_weights/{model_weights}/"
         Dataset = "NOCI_BW"
         read_name = [

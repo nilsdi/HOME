@@ -182,6 +182,7 @@ def process(
                 with suppress_output(log_folder / f"{project_name}_download.log"):
                     downloaded = download(project_name, project_details)
                 if downloaded:
+                    project_details = load_project_details(data_path)
                     project_details[project_name]["status"] = "downloaded"
                     save_project_details(project_details, data_path)
                 try:
@@ -196,6 +197,7 @@ def process(
                             gdf_omrade=gdf_omrade,
                             remove_download=remove_download,
                         )
+                    project_details = load_project_details(data_path)
                     project_details[project_name]["status"] = "processed"
                     save_project_details(project_details, data_path)
                 except Exception as e:
@@ -224,22 +226,31 @@ def reprocess(
     list_of_projects = list(project_details.keys())
     log_folder = data_path / "metadata_log/execution_log"
 
+    stages = check_list_stage(list_of_projects)
+
     if labels:
-        path_label = (
-            data_path / "raw/FKB_bygning/Basisdata_0000_Norge_5973_FKB-Bygning_FGDB.pkl"
-        )
-        with open(path_label, "rb") as f:
-            gdf_omrade = pickle.load(f)
-        buildings_year = pd.read_csv(
-            data_path / "raw/FKB_bygning/buildings.csv", index_col=0
-        )
-        gdf_omrade = gdf_omrade.merge(
-            buildings_year, left_on="bygningsnummer", right_index=True, how="left"
-        )
+        totile = False
+        for project_name in list_of_projects:
+            if stages[project_name]["stage"] in ["downloaded"]:
+                totile = True
+                break
+        if totile:
+            path_label = (
+                data_path
+                / "raw/FKB_bygning/Basisdata_0000_Norge_5973_FKB-Bygning_FGDB.pkl"
+            )
+            with open(path_label, "rb") as f:
+                gdf_omrade = pickle.load(f)
+            buildings_year = pd.read_csv(
+                data_path / "raw/FKB_bygning/buildings.csv", index_col=0
+            )
+            gdf_omrade = gdf_omrade.merge(
+                buildings_year, left_on="bygningsnummer", right_index=True, how="left"
+            )
+        else:
+            gdf_omrade = None
     else:
         gdf_omrade = None
-
-    stages = check_list_stage(list_of_projects)
 
     for project_name in list_of_projects:
         status = stages[project_name]["stage"]
@@ -247,7 +258,7 @@ def reprocess(
         channels = project_details[project_name]["channels"]
         BW = channels == "BW"
 
-        predict = False
+        topredict = False
         if status == "downloaded":
             print(f"{project_name}: Tiling")
             with suppress_output(log_folder / f"{project_name}_process.log"):
@@ -259,14 +270,14 @@ def reprocess(
                     labels=labels,
                     gdf_omrade=gdf_omrade,
                 )
-            predict = True
+            topredict = True
 
             if remove_download:
                 shutil.rmtree(data_path / f"raw/orthophoto/originals/{project_name}")
 
         assemble = False
-        if status == "tiled" or predict:
-            if not predict:
+        if status == "tiled" or topredict:
+            if not topredict:
                 tile_key = stages[project_name]["ids"][-1]
             print(f"{project_name}: Predicting")
             with suppress_output(log_folder / f"{project_name}_process.log"):
@@ -274,7 +285,7 @@ def reprocess(
                     project_name=project_name, tile_key=tile_key
                 )
                 prediction_key = predict.predict_and_eval(
-                    project_name, tile_key, BW=True, evaluate=labels
+                    project_name, tile_key, BW=BW, evaluate=labels
                 )
             assemble = True
 

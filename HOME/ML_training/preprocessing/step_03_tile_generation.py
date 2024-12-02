@@ -34,6 +34,7 @@ def partition_and_crop_images(
     image_size=None,
     imbalance_threshold=(0.005, 0.9),
     res=0.3,
+    proba_empty_tiles=0.25,
 ):
     # Create output directories if they don't exist
     os.makedirs(output_dir_images, exist_ok=True)
@@ -127,7 +128,7 @@ def partition_and_crop_images(
                     if ratio < imbalance_threshold[0] or (
                         ratio > imbalance_threshold[1]
                     ):
-                        if random.random() > 0.15:
+                        if random.random() > proba_empty_tiles:
                             skipped += 1
                             pbar.update(1)
                             continue

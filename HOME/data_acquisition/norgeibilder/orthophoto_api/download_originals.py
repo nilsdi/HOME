@@ -54,12 +54,14 @@ def download_original_NIB(
     os.makedirs(save_dir, exist_ok=True)
 
     for details in tqdm(download_urls):
-        filename = details["name"]
-        save_path = save_dir / filename.lower()
-        url = details["url"]
-        response = requests.get(url)
-        with open(save_path, "wb") as file:
-            file.write(response.content)
+        filename = details["name"].lower()
+        # Check that not already downloaded
+        if not (save_dir / filename).exists():
+            save_path = save_dir / filename
+            url = details["url"]
+            response = requests.get(url)
+            with open(save_path, "wb") as file:
+                file.write(response.content)
 
 
 # %% test runs

@@ -22,6 +22,9 @@ os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2, 40))
 import cv2  # noqa
 from HOME.get_data_path import get_data_path
 from HOME.ML_training.preprocessing.get_label_data.get_labels import get_labels
+from HOME.utils.project_paths import (
+    load_project_details,
+)
 
 # Get the root directory of the project
 root_dir = Path(__file__).resolve().parents[3]
@@ -346,14 +349,9 @@ def tile_generation(
     # Create archive directories if they don't exist
     input_dir_images = data_path / f"raw/orthophoto/originals/{project_name}/"
 
-    # Get list of all image files in the input directory
-    image_files = [f for f in os.listdir(input_dir_images) if f.endswith(".tif")]
-
     if project_details is None:
-        with open(
-            data_path / "ML_prediction/project_log/project_details.json", "r"
-        ) as file:
-            project_details = json.load(file)
+        project_details = load_project_details(data_path)
+
     crs = project_details[project_name]["original_crs"]
     res_original = project_details[project_name]["original_res"]
 
@@ -426,3 +424,5 @@ if __name__ == "__main__":
         tile_size=args.tile_size,
         overlap_rate=args.overlap_rate,
     )
+
+# %%

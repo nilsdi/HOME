@@ -65,18 +65,24 @@ def municipality_pickle_to_building_cohorts(pickle_path: Path) -> Tuple[list]:
     return building_numbers, building_years
 
 
-# %% demonstration: create csv file containing building numbers and building years
-if __name__ == "__main__":
-    Trondheim_pickle = (
+def create_municipality_csv(municipality, municipality_pickle):
+    """
+    Create a csv file containing building numbers and building years for a municipality.
+
+    Args:
+        municipality (str): the name of the municipality
+        municipality_pickles (list): list of paths to the pickles containing the building objects
+    """
+    pickle_path = (
         root_dir
         / "data"
         / "raw"
         / "matrikkel"
         / "municipality_pickles"
-        / "5001_Trondheim_116103_buildings_fetched_24.2.15.16.33.pkl"
+        / municipality_pickle
     )
     building_numbers, building_years = municipality_pickle_to_building_cohorts(
-        Trondheim_pickle
+        pickle_path
     )
     # write into a csv:
     building_years_path = (
@@ -84,7 +90,7 @@ if __name__ == "__main__":
         / "data"
         / "ML_prediction"
         / "validation"
-        / "trondheim_building_years.csv"
+        / f"{municipality}_building_years.csv"
     )
     with open(building_years_path, mode="w") as file:
         writer = csv.writer(file)
@@ -92,4 +98,11 @@ if __name__ == "__main__":
         for i in range(len(building_numbers)):
             if building_years[i] != -1:
                 writer.writerow([building_numbers[i], building_years[i]])
+
+
+# %% demonstration: create csv file containing building numbers and building years
+if __name__ == "__main__":
+    municipality = "Oslo"
+    municipality_pickle = "0301_Oslo_202361_buildings_fetched_24.2.6.12.12.pkl"
+    create_municipality_csv(municipality, municipality_pickle)
 # %%

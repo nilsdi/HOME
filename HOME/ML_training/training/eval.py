@@ -24,7 +24,6 @@ data_dir = str(root_dir) + "/data/ML_training/"
 
 batchsize = 16
 num_workers = 8
-Dataset = "NOCI"
 # assert Dataset in ['WHU', 'Inria', 'Mass', 'NOCI']
 net = HighResolutionDecoupledNet(base_channel=48, num_classes=1)
 print("Number of parameters: ", sum(p.numel() for p in net.parameters()))
@@ -37,12 +36,13 @@ def eval_HRBR(
     image_folder="train/image",
     label_folder="train/label",
     txt_name="test.txt",
+    data_name="NOCI",
 ):
     testdataset = BuildingDataset(
         dataset_dir=data_dir,
         training=False,
         txt_name=txt_name,
-        data_name=Dataset,
+        data_name=data_name,
         image_folder=image_folder,
         label_folder=label_folder,
     )
@@ -59,9 +59,9 @@ def eval_HRBR(
         root_dir / "data/ML_model/metrics/scores.csv", index_col=[0, 1, 2, 3, 4]
     )
     eval_scores.loc[
-        (args.numrun, args.BW, args.txt_name, read_name, image_folder), :
+        (args.BW, args.txt_name, args.numrun, read_name, image_folder), :
     ] = scores[1]
-    eval_scores.to_csv(root_dir / "data/ML_model/metrics/scores.csv")
+    eval_scores.sort_index().to_csv(root_dir / "data/ML_model/metrics/scores.csv")
     return
 
 
@@ -112,6 +112,8 @@ if __name__ == "__main__":
         read_name = args.read_name
     txt_name = args.txt_name
 
+    Dataset = "NOCI" + bw_str_
+
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logging.info(f"Using device {device}")
@@ -135,4 +137,7 @@ if __name__ == "__main__":
         image_folder=image_folder,
         txt_name=txt_name,
         label_folder=label_folder,
+        data_name=Dataset,
     )
+
+# %%
