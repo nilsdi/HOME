@@ -87,18 +87,41 @@ def get_project_details(project_name: str) -> dict:
         1: "analogue",
         2: "digital",
     }
-    project_details = {
-        "original_resolution": float(project_properties["pixelstorrelse"]),
-        "capture_date": project_properties["fotodato_date"],
-        "original image format": project_properties["opprinneligbildeformat"],
-        "bandwidth": image_category_codes[int(project_properties["bildekategori"])],
-        "capture method": capture_method_codes[
+    project_details = {}
+    try:
+        project_details["original_resolution"] = float(
+            project_properties["pixelstorrelse"]
+        )
+    except:
+        project_details["original_resolution"] = None
+    try:
+        project_details["cature_date"] = project_properties["fotodato_date"]
+    except:
+        project_details["capture_date"] = None
+    try:
+        project_details["original image format"] = project_properties[
+            "opprinneligbildeformat"
+        ]
+    except:
+        project_details["original image format"] = None
+    try:
+        project_details["bandwidth"] = image_category_codes[
+            int(project_properties["bildekategori"])
+        ]
+    except:
+        project_details["bandwidth"] = None
+    try:
+        project_details["capture method"] = capture_method_codes[
             int(project_properties["opptaksmetode"])
-        ],
-        "orthophoto type": ortophoto_type_codes[
+        ]
+    except:
+        project_details["capture method"] = None
+    try:
+        project_details["orthophoto type"] = ortophoto_type_codes[
             int(project_properties["ortofototype"])
-        ],
-    }
+        ]
+    except:
+        project_details["orthophoto type"] = None
     return project_details
 
 
@@ -146,5 +169,6 @@ if __name__ == "__main__":
     print(test_metadata["properties"])
     test_geometry = get_project_geometry("Kyken 2023")
     print(get_project_details("Kyken 2023"))
+    print(get_project_details("trondheim_1999"))
 
 # %%

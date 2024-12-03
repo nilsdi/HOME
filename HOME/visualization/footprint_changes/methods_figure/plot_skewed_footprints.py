@@ -56,10 +56,10 @@ def get_extend_boxes(footprints_t: list[list[list[float]]]):
     y1s = []
     for i, footprints in enumerate(footprints_t):
         # get box coordinates:
-        x0 = min([min([v[0] for v in fp]) for fp in footprints])
-        x1 = max([max([v[0] for v in fp]) for fp in footprints])
-        y0 = min([min([v[1] for v in fp]) for fp in footprints])
-        y1 = max([max([v[1] for v in fp]) for fp in footprints])
+        x0 = min([min([v[0] for v in fp]) for fp in footprints if len(fp) > 0])
+        x1 = max([max([v[0] for v in fp]) for fp in footprints if len(fp) > 0])
+        y0 = min([min([v[1] for v in fp]) for fp in footprints if len(fp) > 0])
+        y1 = max([max([v[1] for v in fp]) for fp in footprints if len(fp) > 0])
         x0s.append(x0)
         x1s.append(x1)
         y0s.append(y0)
