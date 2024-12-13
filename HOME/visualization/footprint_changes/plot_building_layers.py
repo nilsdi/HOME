@@ -18,7 +18,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import warnings
 
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, GeometryCollection, MultiPolygon, Point
+from shapely.ops import unary_union
 
 from HOME.utils.project_paths import (
     get_polygon_ids,
@@ -126,8 +127,9 @@ project_list = [
     "trondheim_2016",
     "trondheim_kommune_2022",
 ]
-polygon_ids = find_polygonisations(project_list)
-print(polygon_ids)
+if False:
+    polygon_ids = find_polygonisations(project_list)
+    print(polygon_ids)
 # %%
 
 
@@ -178,49 +180,50 @@ def find_large_tiles(
     return overlapping_large_tiles
 
 
-polygon_directory = get_polygon_details("40003")["gdf_directory"]
-all_entries = os.listdir(polygon_directory)
-large_tiles = [
-    entry
-    for entry in all_entries
-    if os.path.isfile(os.path.join(polygon_directory, entry))
-]
-print(large_tiles[-2:])
-
-x_tile = 3754  # 3696
-y_tile = 45755  # 45796
-
-grid_size = tile_size * res * (1 - overlap)
-
-bshape = Polygon(
-    [
-        [x_tile * grid_size, (y_tile) * grid_size],
-        [x_tile * grid_size, (y_tile - 1) * grid_size],
-        [(x_tile + 1) * grid_size, (y_tile - 1) * grid_size],
-        [(x_tile + 1) * grid_size, (y_tile) * grid_size],
-        [x_tile * grid_size, (y_tile) * grid_size],
+if False:
+    polygon_directory = get_polygon_details("40003")["gdf_directory"]
+    all_entries = os.listdir(polygon_directory)
+    large_tiles = [
+        entry
+        for entry in all_entries
+        if os.path.isfile(os.path.join(polygon_directory, entry))
     ]
-)
-# plt.plot(*bshape.exterior.xy)
-selected_large_tiles = find_large_tiles(large_tiles, bshape)
-print(selected_large_tiles)
+    print(large_tiles[-2:])
 
-# with a little spin we can even find the small tiles:
-small_tile_directory = get_tiling_details("10003")["tile_directory"]
-all_entries = os.listdir(small_tile_directory)
-small_tiles = [
-    entry
-    for entry in all_entries
-    if os.path.isfile(os.path.join(small_tile_directory, entry))
-]
-print(small_tiles[-2:])
-selected_small_tiles = find_large_tiles(small_tiles, bshape, reassembly_edge=1)
-print(selected_small_tiles)
+    x_tile = 3754  # 3696
+    y_tile = 45755  # 45796
+
+    grid_size = tile_size * res * (1 - overlap)
+
+    bshape = Polygon(
+        [
+            [x_tile * grid_size, (y_tile) * grid_size],
+            [x_tile * grid_size, (y_tile - 1) * grid_size],
+            [(x_tile + 1) * grid_size, (y_tile - 1) * grid_size],
+            [(x_tile + 1) * grid_size, (y_tile) * grid_size],
+            [x_tile * grid_size, (y_tile) * grid_size],
+        ]
+    )
+    # plt.plot(*bshape.exterior.xy)
+    selected_large_tiles = find_large_tiles(large_tiles, bshape)
+    print(selected_large_tiles)
+
+    # with a little spin we can even find the small tiles:
+    small_tile_directory = get_tiling_details("10003")["tile_directory"]
+    all_entries = os.listdir(small_tile_directory)
+    small_tiles = [
+        entry
+        for entry in all_entries
+        if os.path.isfile(os.path.join(small_tile_directory, entry))
+    ]
+    print(small_tiles[-2:])
+    selected_small_tiles = find_large_tiles(small_tiles, bshape, reassembly_edge=1)
+    print(selected_small_tiles)
 
 
 # %%
 def combine_geometries(
-    geometry_fgbs: list[str], polygon_directory: str, bshape: Polygon
+    geometry_fgbs: list[str], polygon_directory: str, bshape: Polygon = None
 ):
     """
     Combine the geometries of the given geometry_gdbs that are within the bshape
@@ -228,10 +231,11 @@ def combine_geometries(
     combined_geometries = []
     for geometry_fgb in geometry_fgbs:
         gdf = gpd.read_file(f"{polygon_directory}/{geometry_fgb}").to_crs(25832)
-        gdf = gdf.cx[
-            bshape.bounds[0] : bshape.bounds[2], bshape.bounds[1] : bshape.bounds[3]
-        ]
-        gdf = gdf.loc[gdf.area.sort_values(ascending=False)[1:].index]
+        if bshape:
+            gdf = gdf[gdf.within(bshape)]
+        # gdf = gdf.loc[gdf.area.sort_values(ascending=False)[1:].index]
+        # remove the biggest one if it is as big as a tile
+        gdf = gdf.loc[gdf.area != grid_size**2]  # TODO: internalize grid_size
         # if there are shapes left in the gdf, we append it to the combined geometries
         if not gdf.empty:
             combined_geometries.append(gdf)
@@ -272,25 +276,26 @@ def reassemble_and_cut_small_tiles(
     return None
 
 
-dir_40003 = "/scratch/mueller_andco/orthophoto/HOME/data/ML_prediction/polygons/trondheim_kommune_2022/tiles_10003/prediction_20003/assembly_30003/polygons_40003"
-print(combine_geometries(selected_large_tiles, dir_40003, bshape))
+if False:
+    dir_40003 = "/scratch/mueller_andco/orthophoto/HOME/data/ML_prediction/polygons/trondheim_kommune_2022/tiles_10003/prediction_20003/assembly_30003/polygons_40003"
+    print(combine_geometries(selected_large_tiles, dir_40003, bshape))
 
-dir_10003 = "/scratch/mueller_andco/orthophoto/HOME/data/ML_prediction/topredict/image/trondheim_kommune_2022/tiles_10003"
-img = reassemble_and_cut_small_tiles(selected_small_tiles, dir_10003, bshape)
-plt.imshow(img)
+    dir_10003 = "/scratch/mueller_andco/orthophoto/HOME/data/ML_prediction/topredict/image/trondheim_kommune_2022/tiles_10003"
+    img = reassemble_and_cut_small_tiles(selected_small_tiles, dir_10003, bshape)
+    plt.imshow(img)
 
 
 # %%
 def stacked_combined_plot(
     footprints_t: list[list[list[float]]],
     t: list[float],
-    tifs: list[str] = None,
-    ax: plt.Axes = None,
+    coverages_t: dict[str, Polygon],
+    b_shape: Polygon,
+    tifs: dict[str, str] = None,
     skew: float = 0.5,
     flatten: float = 0.9,
     overlap: float = -0.1,
     cmap: str = "tab20",
-    plot_connecting_lines: bool = False,
     figsize: tuple = None,
 ):
     """
@@ -299,11 +304,15 @@ def stacked_combined_plot(
     footprints_t: list of list  of footprints, each list of footprints represent a time, each
                     footprint is a list of vertices, each vertex is a list of x and y coordinates
     t: list of time values, the time values should be in increasing order
+    b_shape: shapely Polygon, the bounding shape for the footprints
+    tifs: dict of tif images (one per layer) to plot on the right hand side of the footprints
     ax: matplotlib axis object, the axis to plot the footprints on
     skew: float, the skew factor to apply to the x coordinates
     flatten: float, the flatten factor to apply to the y coordinates
     overlap: by how much the closest (!) footprints should overlap,
                  negative values mean distance instead of overlap
+    cmap: str, the colormap to use for the footprints
+    figsize: tuple, the size of the figure
     """
 
     # prepare colors for each layer
@@ -311,80 +320,67 @@ def stacked_combined_plot(
     colors = colormap(np.arange(len(footprints_t) % colormap.N))
 
     if not figsize:
-        figsize = (10, 10)
+        figsize = (20, 20)
     fig, ax = plt.subplots(figsize=figsize)
-    # offset the y coordinates of each footprint by the corresponding t value
-    min_t_dist = min([t1 - t0 for t0, t1 in zip(t[:-1], t[1:])])
-    max_ys = []
-    min_ys = []
-    for i, footprints in enumerate(footprints_t):
-        try:
-            max_ys.append(max([max([v[1] for v in fp]) for fp in footprints]))
-            min_ys.append(min([min([v[1] for v in fp]) for fp in footprints]))
-        except ValueError:  # if there is an empty footprint layer,
-            pass
-    y_dist = max(max_y - min_y for max_y, min_y in zip(max_ys, min_ys))
-    y_mid = (max(max_ys) + min(min_ys)) / 2
-    """y_dist = min(
-        [
-            max([max([v[1] for v in fp]) for fp in footprints])
-            - min([min([v[1] for v in fp]) for fp in footprints])
-            for footprints in footprints_t
-        ]
-    )"""
-    t_dist = [tx - t[0] for tx in t]
-    # we want to offset enough to make the footprints not overlap and even have some distance
-    # so we assign the y offset per y distance in a way that the overlap is as asked for
-    y_offset_factor = y_dist / (min_t_dist) * (1 - overlap) * flatten
 
-    # we make a rectangle for each list of footprints that will show the layer:
-    boxes = get_extend_boxes(footprints_t)
+    t_dist = [tx - t[0] for tx in t]
+    min_t_dist = min([t1 - t0 for t0, t1 in zip(t[:-1], t[1:])])
+
+    x_min, y_min, x_max, y_max = b_shape.bounds
+    y_dist = y_max - y_min
+
+    # the y offset factor is calculated from the distance between the closest time steps,
+    # the max distance between layers, and the overlap factor.
+    y_offset_factor = y_dist * (1 - overlap) / min_t_dist * flatten
+
+    # coverage for each project, plus one that is max extent
+    extend_boxes = [
+        [[x, y] for x, y in list(bshape.exterior.coords)] for _ in range(len(t) + 1)
+    ]
+
     # we first skew and flatten all coordinates
     skewed_flattened_footprints = [
         [skew_flatten_verts(fp, skew=skew, flatten=flatten) for fp in footprints]
         for footprints in footprints_t
     ]
-    skew_flattened_boxes = [
-        skew_flatten_verts(box, skew=skew, flatten=flatten) for box in boxes
+    extend_boxes_skewed = [
+        skew_flatten_verts(box, skew=skew, flatten=flatten) for box in extend_boxes
     ]
-    # we make a copy of the footprint verts of all but the first time step to later make the
-    # connecting lines down
-
-    connecting_lines_bottom_verts = copy.deepcopy(
-        [[fp for fp in footprints] for footprints in skewed_flattened_footprints[1:]]
-    )
-
     # then we offset the y coordinates of boxes and footprints
     for footprints, t_offset in zip(skewed_flattened_footprints, t_dist):
         for fp in footprints:
             for v in fp:
                 v[1] += t_offset * y_offset_factor
-    for bottom_fps, t_m1_offset in zip(connecting_lines_bottom_verts, t_dist[:-1]):
-        for fp in bottom_fps:
-            for v in fp:
-                v[1] += t_m1_offset * y_offset_factor
-    for box, t_offset in zip(skew_flattened_boxes, t_dist):
+    for box, t_offset in zip(extend_boxes_skewed, t_dist):
         for v in box:
             v[1] += t_offset * y_offset_factor
 
     # then we plot the boxes and  the footprints of each time step
-    for i, (footprints, box) in enumerate(
-        zip(skewed_flattened_footprints, skew_flattened_boxes)
+    for i, (year, footprints, extend_box) in enumerate(
+        zip(t, skewed_flattened_footprints, extend_boxes_skewed)
     ):
-        plot_footprint(
-            box,
-            ax=ax,
-            color="gray",
-            ls="--",
-            lw=1,
-            fill=True,
-            fill_color="gray",
-            fill_alpha=0.1,
-        )
+        if str(year) in coverages_t.keys():
+            for coverage_box in coverages_t[str(year)]:
+                coverage_box = [[x, y] for x, y in list(coverage_box.exterior.coords)]
+                coverage_box_skewed = skew_flatten_verts(
+                    coverage_box, skew=skew, flatten=flatten
+                )
+                for v in coverage_box_skewed:
+                    v[1] += t_dist[i] * y_offset_factor
+                plot_footprint(
+                    coverage_box_skewed,
+                    ax=ax,
+                    color="gray",
+                    ls="--",
+                    lw=1,
+                    fill=True,
+                    fill_color="gray",
+                    fill_alpha=0.1,
+                )
         # print the date for each layer
         ax.text(
-            min([box[0][0] for box in skew_flattened_boxes]),
-            np.mean([v[1] for v in skew_flattened_boxes[i]]),
+            min([v[0] for v in extend_box]),
+            np.mean([v[1] for v in extend_box]),
             f"{t[i]}",
             ha="center",
             va="center",
@@ -393,33 +389,34 @@ def stacked_combined_plot(
         )
         # if given, print the tifs for each layer on the right hand side
         if tifs:
-            # put the tif on the right hand side of the box
-            box_max_x = max([v[0] for v in box])
-            box_min_y = min([v[1] for v in box])
-            box_max_y = max([v[1] for v in box])
-            box_y_extent = box_max_y - box_min_y - 10
+            y_offset = (0.05 + overlap / 2) * y_dist * flatten
+            # put the tif on the right hand side of the max extent box :
+            box_max_x = max([v[0] for v in extend_box])
+            box_min_y = min([v[1] for v in extend_box])
+            box_max_y = max([v[1] for v in extend_box])
+            # box_y_extent = box_max_y - box_min_y - _offset
 
-            tile_min_x = box_max_x + 20
-            tile_max_x = tile_min_x + box_y_extent
-            tile_min_y = box_min_y + 5
-            tile_max_y = box_max_y - 5
-            img = tifs[i]
+            tile_min_y = box_min_y + y_offset
+            tile_max_y = box_max_y - y_offset
+            tile_min_x = box_max_x + 0.2 * y_dist * flatten
+            tile_max_x = tile_min_x + tile_max_y - tile_min_y
+
+            img = tifs[str(t[i])]
             if img is not None:
-                ax.imshow(
-                    img,
-                    extent=[tile_min_x, tile_max_x, tile_min_y, tile_max_y],
-                )
+                # if rgb:
+                if len(img.shape) == 3:
+                    ax.imshow(
+                        img,
+                        extent=[tile_min_x, tile_max_x, tile_min_y, tile_max_y],
+                    )
+                elif len(img.shape) == 2:
+                    ax.imshow(
+                        img,
+                        extent=[tile_min_x, tile_max_x, tile_min_y, tile_max_y],
+                        cmap="gray",
+                    )
         for fp in footprints:
             plot_footprint(fp, ax=ax, color=colors[i])
-        # then we plot the connecting lines
-        if i > 0 and plot_connecting_lines:
-            bottom_verts = connecting_lines_bottom_verts[i - 1]
-            for top_fp, bottom_fp in zip(footprints, bottom_verts):
-                for v1, v2 in zip(top_fp, bottom_fp):
-                    ax.plot(
-                        [v1[0], v2[0]], [v1[1], v2[1]], color="gray", ls="--", lw=0.3
-                    )
-
     plt.axis("off")
     ax.set_aspect("equal")
     return fig, ax
@@ -429,13 +426,16 @@ def stacked_combined_plot(
 def plot_building_layers(
     project_list: list[str],
     b_shape: Polygon,
+    layer_overlap: float = 0.1,
+    figsize: tuple = (10, 10),
     res: float = 0.3,
     tile_size: int = 512,
-    overlap: int = 0,
+    tile_overlap: int = 0,
     reassembly_edge: int = 10,
     reassembly_overlap: int = 1,
     simplication_tolerance: float = 2,
     buffer_distance: float = 0.5,
+    cmap: str = "tab10",
 ):
     """
     Plot the building layers for a given area
@@ -445,17 +445,20 @@ def plot_building_layers(
         project_list,
         res=res,
         tile_size=tile_size,
-        overlap=overlap,
+        overlap=tile_overlap,
         reassembly_edge=reassembly_edge,
         reassembly_overlap=reassembly_overlap,
         simplication_tolerance=simplication_tolerance,
         buffer_distance=buffer_distance,
     )
+    projects_details = get_project_details(project_list)
+    # capture dates
+    t = [pd["capture_date"].year for pd in projects_details]
     geometries_t = []
-    tifs = []
-    for project in project_list:
-        print(project)
-        project_details = get_project_details(project)
+    coverages_t = {}
+    tifs = {}
+    for year, project, project_details in zip(t, project_list, projects_details):
+        # print(project)
         # print(project_details)
         polygon_id = polygon_ids[project]
         polygon_details = get_polygon_details(polygon_id)
@@ -467,10 +470,28 @@ def plot_building_layers(
             if os.path.isfile(os.path.join(polygon_directory, entry))
         ]
         selected_large_tiles = find_large_tiles(large_tiles, b_shape)
+        print(selected_large_tiles)
         geometries = combine_geometries(
             selected_large_tiles, polygon_directory, b_shape
         )
         geometries_t.append(geometries)
+        if len(selected_large_tiles) > 0:
+            # coverage
+            coverage_fgbs = [
+                "_".join(["coverage/coverage"] + t.split("_")[1:])
+                for t in selected_large_tiles
+            ]
+            # merge the polygons of the coverage
+            coverages_gdb = combine_geometries(coverage_fgbs, polygon_directory)
+            coverage = unary_union(coverages_gdb.geometry)
+            intersect_coverage = coverage.intersection(b_shape)
+            print(intersect_coverage)
+            if isinstance(intersect_coverage, GeometryCollection):
+                intersect_coverage = [e for e in intersect_coverage.geoms if e.area > 0]
+            else:
+                intersect_coverage = [intersect_coverage]
+            print(f" the coverage object is of type {type(intersect_coverage)}")
+            coverages_t[str(year)] = intersect_coverage
         # small tiles
         tiling_details = get_tiling_details(polygon_details["tile_id"])
         small_tile_directory = tiling_details["tile_directory"]
@@ -485,7 +506,7 @@ def plot_building_layers(
         img = reassemble_and_cut_small_tiles(
             selected_small_tiles, small_tile_directory, b_shape, BW=BW
         )
-        tifs.append(img)
+        tifs[str(year)] = img
 
     footprints_t = [
         (
@@ -502,18 +523,39 @@ def plot_building_layers(
     if all([len(footprints) == 0 for footprints in footprints_t]):
         print("No footprints found for the given area.")
         return
-    # for now, time is just at the end of the project:
-    t = [int(p[-4:]) for p in project_list]
+
     print(t)
     fig, ax = stacked_combined_plot(
         footprints_t,
         t,
+        coverages_t,
+        bshape,
+        overlap=layer_overlap,
         tifs=tifs,
-        cmap="tab20",
-        figsize=(10, 10),
+        cmap=cmap,
+        figsize=figsize,
     )
     return
 
+
+def bshape_from_tile_coords(x_tile, y_tile):
+    grid_size = tile_size * res * (1 - overlap)
+    bshape = Polygon(
+        [
+            [x_tile * grid_size, (y_tile) * grid_size],
+            [x_tile * grid_size, (y_tile - 1) * grid_size],
+            [(x_tile + 1) * grid_size, (y_tile - 1) * grid_size],
+            [(x_tile + 1) * grid_size, (y_tile) * grid_size],
+            [x_tile * grid_size, (y_tile) * grid_size],
+        ]
+    )
+    return bshape
+
+
+print_examples = True
+if print_examples:
+    warnings.warn("plot_building_layers.py is running in example mode.")
+# %% first example
 
 project_list = [
     "trondheim_1991",
@@ -523,24 +565,41 @@ project_list = [
     "trondheim_2016",
     "trondheim_kommune_2022",
 ]
-
-x_tile = 3754  # 3696
-y_tile = 45755  # 45796
-x_tile = 3696
-y_tile = 45797
-
-grid_size = tile_size * res * (1 - overlap)
-
-bshape = Polygon(
-    [
-        [x_tile * grid_size, (y_tile) * grid_size],
-        [x_tile * grid_size, (y_tile - 1) * grid_size],
-        [(x_tile + 1) * grid_size, (y_tile - 1) * grid_size],
-        [(x_tile + 1) * grid_size, (y_tile) * grid_size],
-        [x_tile * grid_size, (y_tile) * grid_size],
-    ]
-)
-
-plot_building_layers(project_list, bshape)
+bshape = bshape_from_tile_coords(3696, 45796)
+plot_building_layers(project_list, bshape, layer_overlap=0.1, figsize=(10, 50))
+# %% second example
+bshape = bshape_from_tile_coords(3754, 45755)
+plot_building_layers(project_list, bshape, layer_overlap=0.1)
+# %% third example
+bshape = bshape_from_tile_coords(3695, 45788)
+plot_building_layers(project_list, bshape, layer_overlap=0.1)
+# %%
+bshape = bshape_from_tile_coords(3696, 45796)
+plot_building_layers(project_list, bshape, layer_overlap=0.1)
+# %%
+bshape = bshape_from_tile_coords(3695, 45798)
+plot_building_layers(project_list, bshape, layer_overlap=0.1, figsize=(20, 20))
 
 # %%
+project_list1 = [
+    "trondheim_1969",
+    "trondheim_1977",
+    "trondheim_1983",
+    "trondheim_1988",
+    # "trondheim_1991",
+    "trondheim_1994",
+    "trondheim_1999",
+    "trondheim_2006",
+    "trondheim_2011",
+    # "trondheim_2016",
+    "trondheim_2017",
+    "trondheim_kommune_2022",
+]
+bshape = bshape_from_tile_coords(3715, 45798)
+plot_building_layers(
+    project_list1, bshape, layer_overlap=0.1, figsize=(10, 40), cmap="tab20"
+)
+# %%
+
+bshape = bshape_from_tile_coords(3725, 45798)
+plot_building_layers(project_list, bshape, layer_overlap=0.1, figsize=(20, 20))

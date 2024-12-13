@@ -7,29 +7,36 @@ import json
 import os
 
 
-def get_project_metadata(project_name: str) -> dict:
+def get_project_metadata(project_names: str or list[str]) -> dict:
     """
-    Get metadata for a project.
+    Get metadata for a project or a list of projects.
 
     Args:
-    - project_name: str, name of the project
+    - project_name: str or list of strings, name of the project
 
     Returns:
-    - metadata_project: dict, metadata for the project (type, properties, geometry)
+    - metadata_project: dict or list of dicts, metadata for the project (type, properties, geometry)
 
     Raises:
     - NotFoundError: if the project is not found in the list of metadata
     """
     metadata = _get_newest_metadata()
-    project_name_adjusted = project_name.lower().replace(" ", "_")
-    project_list_adjusted_names = [
-        x.lower().replace(" ", "_") for x in metadata["ProjectList"]
-    ]
-    if project_name_adjusted not in project_list_adjusted_names:
-        raise Exception(f"Project {project_name} not found in metadata")
-    project_index = project_list_adjusted_names.index(project_name_adjusted)
-    metadata_project = metadata["ProjectMetadata"][project_index]
-    return metadata_project
+    if isinstance(project_names, str):
+        project_names = [project_names]
+    metadata_projects = []
+    for project_name in project_names:
+        project_name_adjusted = project_name.lower().replace(" ", "_")
+        project_list_adjusted_names = [
+            x.lower().replace(" ", "_") for x in metadata["ProjectList"]
+        ]
+        if project_name_adjusted not in project_list_adjusted_names:
+            raise Exception(f"Project {project_name} not found in metadata")
+        project_index = project_list_adjusted_names.index(project_name_adjusted)
+        metadata_project = metadata["ProjectMetadata"][project_index]
+        metadata_projects.append(metadata_project)
+    if len(metadata_projects) == 1:
+        return metadata_projects[0]
+    return metadata_projects
 
 
 def get_project_geometry(project_name: str) -> gpd.GeoSeries:
@@ -50,7 +57,7 @@ def get_project_geometry(project_name: str) -> gpd.GeoSeries:
     return project_geometry.to_crs(project_crs)
 
 
-def get_project_details(project_name: str) -> dict:
+def get_project_details(project_names: str or list[str]) -> dict:
     """
     Get details for a project from metadata.
 
@@ -60,69 +67,91 @@ def get_project_details(project_name: str) -> dict:
     Returns:
     - project_details: dict, details of the project that are relevant
     """
-    project_metadata = get_project_metadata(project_name)
-    project_properties = project_metadata["properties"]
-    # codes copied from the ortophoto specification document
-    image_category_codes = {
-        1: "IR",
-        2: "BW",
-        3: "RGB",
-        4: "RGBIR",
-    }
-    ortophoto_type_codes = {
-        1: "Orto 10",
-        2: "Orto 20",
-        3: "Orto 50",
-        4: "Orto N50",
-        5: "Orto Skog",
-        6: "Satellittbilde",
-        7: "Infrarødt",
-        8: "Rektifiserte flybilder",
-        9: "Ortofoto",
-        10: "Sant ortofoto",
-        11: "3D ortofoto",
-        12: "Midlertidig ortofoto",
-    }
-    capture_method_codes = {
-        1: "analogue",
-        2: "digital",
-    }
-    project_details = {}
-    try:
-        project_details["original_resolution"] = float(
-            project_properties["pixelstorrelse"]
-        )
-    except:
-        project_details["original_resolution"] = None
-    try:
-        project_details["cature_date"] = project_properties["fotodato_date"]
-    except:
-        project_details["capture_date"] = None
-    try:
-        project_details["original image format"] = project_properties[
-            "opprinneligbildeformat"
-        ]
-    except:
-        project_details["original image format"] = None
-    try:
-        project_details["bandwidth"] = image_category_codes[
-            int(project_properties["bildekategori"])
-        ]
-    except:
-        project_details["bandwidth"] = None
-    try:
-        project_details["capture method"] = capture_method_codes[
-            int(project_properties["opptaksmetode"])
-        ]
-    except:
-        project_details["capture method"] = None
-    try:
-        project_details["orthophoto type"] = ortophoto_type_codes[
-            int(project_properties["ortofototype"])
-        ]
-    except:
-        project_details["orthophoto type"] = None
-    return project_details
+    if isinstance(project_names, str):
+        project_names = [project_names]
+    project_metadatas = get_project_metadata(project_names)
+    projects_details = []
+    for project_metadata in project_metadatas:
+        project_properties = project_metadata["properties"]
+        # codes copied from the ortophoto specification document
+        image_category_codes = {
+            1: "IR",
+            2: "BW",
+            3: "RGB",
+            4: "RGBIR",
+        }
+        ortophoto_type_codes = {
+            1: "Orto 10",
+            2: "Orto 20",
+            3: "Orto 50",
+            4: "Orto N50",
+            5: "Orto Skog",
+            6: "Satellittbilde",
+            7: "Infrarødt",
+            8: "Rektifiserte flybilder",
+            9: "Ortofoto",
+            10: "Sant ortofoto",
+            11: "3D ortofoto",
+            12: "Midlertidig ortofoto",
+        }
+        capture_method_codes = {
+            1: "analogue",
+            2: "digital",
+        }
+
+        def get_project_date(capture_date: str):
+            try:
+                # Try to convert the input as a Unix timestamp in milliseconds
+                timestamp_ms = int(capture_date)
+                timestamp_s = timestamp_ms / 1000
+                return datetime.fromtimestamp(timestamp_s)
+            except ValueError:
+                # If conversion to int fails, assume the input is a date string
+                try:
+                    return datetime.strptime(capture_date, "%Y-%m-%d")
+                except ValueError:
+                    # If conversion to date fails, return None
+                    return capture_date
+
+        project_details = {}
+        try:
+            project_details["original_resolution"] = float(
+                project_properties["pixelstorrelse"]
+            )
+        except:
+            project_details["original_resolution"] = None
+        try:
+            project_details["capture_date"] = get_project_date(
+                project_properties["fotodato_date"]
+            )
+        except:
+            project_details["capture_date"] = None
+        try:
+            project_details["original image format"] = project_properties[
+                "opprinneligbildeformat"
+            ]
+        except:
+            project_details["original image format"] = None
+        try:
+            project_details["bandwidth"] = image_category_codes[
+                int(project_properties["bildekategori"])
+            ]
+        except:
+            project_details["bandwidth"] = None
+        try:
+            project_details["capture method"] = capture_method_codes[
+                int(project_properties["opptaksmetode"])
+            ]
+        except:
+            project_details["capture method"] = None
+        try:
+            project_details["orthophoto type"] = ortophoto_type_codes[
+                int(project_properties["ortofototype"])
+            ]
+        except:
+            project_details["orthophoto type"] = None
+        projects_details.append(project_details)
+    return projects_details
 
 
 def _get_newest_metadata() -> dict:
