@@ -85,7 +85,7 @@ def run_project(
     print(f"Starting prediction for {project_name}")
 
     # Step 1: Generate tiles
-    tile_key = step_01_tile_generation.tile_generation(
+    tile_key, labels = step_01_tile_generation.tile_generation(
         project_name,
         tile_size,
         res,
@@ -313,6 +313,9 @@ def reprocess(
                     project_name, assembly_key, geotiff_extends
                 )
             print(f"{project_name} processed")
+            project_details = load_project_details(data_path)
+            project_details[project_name]["status"] = "processed"
+            save_project_details(project_details, data_path)
 
         elif status == "processed":
             print(f"{project_name} already processed")

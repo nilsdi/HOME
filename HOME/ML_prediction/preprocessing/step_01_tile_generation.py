@@ -175,13 +175,24 @@ def tile_images(
                         tile_is_complete = True
 
                     if tile_is_complete:
+                        # Determine interpolation method based on whether we're upscaling or downscaling
+                        if tile_size > tile.shape[0]:
+                            interpolation = (
+                                cv2.INTER_LANCZOS4
+                            )  # Use cubic interpolation for upscaling
+                        else:
+                            interpolation = (
+                                cv2.INTER_AREA
+                            )  # Use area interpolation for downscaling
+                        # Resize the tile
                         tile_in_res = cv2.resize(
                             tile.astype(np.uint8),
                             None,
                             fx=tile_size / tile.shape[1],
                             fy=tile_size / tile.shape[0],
-                            interpolation=cv2.INTER_AREA,
+                            interpolation=interpolation,
                         )
+                        # Construct output file path and save the resized tile
                         tile_filename = f"{project_name}_{x_grid}_{y_grid}.tif"
                         tile_path = os.path.join(output_dir_images, tile_filename)
                         cv2.imwrite(tile_path, tile_in_res)
@@ -268,57 +279,60 @@ def tile_labels(
     )
 
     label, _ = get_labels(gdf_omrade_subset, bbox, res, in_degree=False, bbox_crs=crs)
-    label = (
-        cv2.copyMakeBorder(
-            label,
-            0,
-            int(
-                (
-                    np.ceil(label.shape[0] / effective_tile_size)
-                    - label.shape[0] / effective_tile_size
-                )
-                * effective_tile_size
-            ),
-            0,
-            int(
-                (
-                    np.ceil(label.shape[1] / effective_tile_size)
-                    - label.shape[1] / effective_tile_size
-                )
-                * effective_tile_size
-            ),
-            cv2.BORDER_CONSTANT,
-            value=[0, 0],
+    if label is not None:
+        labels = True
+        label = (
+            cv2.copyMakeBorder(
+                label,
+                0,
+                int(
+                    (
+                        np.ceil(label.shape[0] / effective_tile_size)
+                        - label.shape[0] / effective_tile_size
+                    )
+                    * effective_tile_size
+                ),
+                0,
+                int(
+                    (
+                        np.ceil(label.shape[1] / effective_tile_size)
+                        - label.shape[1] / effective_tile_size
+                    )
+                    * effective_tile_size
+                ),
+                cv2.BORDER_CONSTANT,
+                value=[0, 0],
+            )
+            * 255
         )
-        * 255
-    )
 
-    # Calculate the image size if not given
-    total_iterations = len(image_tiles)
+        # Calculate the image size if not given
+        total_iterations = len(image_tiles)
 
-    with tqdm(total=total_iterations, desc="Processing") as pbar:
-        for image_tile in image_tiles:
+        with tqdm(total=total_iterations, desc="Processing") as pbar:
+            for image_tile in image_tiles:
 
-            # Split the filename on underscore
-            parts = image_tile.split(".")[0].split("_")
+                # Split the filename on underscore
+                parts = image_tile.split(".")[0].split("_")
 
-            # Extract grid_x and grid_y
-            grid_x = int(parts[-2])
-            grid_y = int(parts[-1])
+                # Extract grid_x and grid_y
+                grid_x = int(parts[-2])
+                grid_y = int(parts[-1])
 
-            x = (grid_x - min_grid_x) * effective_tile_size
-            y = (max_grid_y - grid_y) * effective_tile_size
+                x = (grid_x - min_grid_x) * effective_tile_size
+                y = (max_grid_y - grid_y) * effective_tile_size
 
-            label_tile = label[y : y + tile_size, x : x + tile_size]
+                label_tile = label[y : y + tile_size, x : x + tile_size]
 
-            # Save the label tile to the output directory
-            label_tile_path = os.path.join(output_dir_labels, image_tile)
+                # Save the label tile to the output directory
+                label_tile_path = os.path.join(output_dir_labels, image_tile)
 
-            cv2.imwrite(label_tile_path, label_tile)
+                cv2.imwrite(label_tile_path, label_tile)
 
-            pbar.update(1)
-
-    return
+                pbar.update(1)
+    else:
+        labels = False
+    return labels
 
 
 # %%
@@ -355,17 +369,6 @@ def tile_generation(
     crs = project_details[project_name]["original_crs"]
     res_original = project_details[project_name]["original_res"]
 
-    tiled_projects_log[tile_key] = {
-        "project_name": project_name,
-        "tile_size": tile_size,
-        "res": res,
-        "overlap_rate": overlap_rate,
-        "crs": crs,
-        "tile_directory": str(output_dir_images),
-        "date_created": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "has_labels": labels,
-    }
-
     effective_tile_size = tile_size * (1 - overlap_rate)
     grid_size_m = res * effective_tile_size
 
@@ -387,7 +390,7 @@ def tile_generation(
         output_dir_labels = (
             data_path / f"ML_prediction/topredict/label/{project_name}/tiles_{tile_key}"
         )
-        tile_labels(
+        labels = tile_labels(
             project_name=project_name,
             tile_size=tile_size,
             res=res,
@@ -398,10 +401,20 @@ def tile_generation(
             crs=crs,
         )
 
+    tiled_projects_log[tile_key] = {
+        "project_name": project_name,
+        "tile_size": tile_size,
+        "res": res,
+        "overlap_rate": overlap_rate,
+        "crs": crs,
+        "tile_directory": str(output_dir_images),
+        "date_created": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "has_labels": labels,
+    }
     with open(data_path / "metadata_log/tiled_projects.json", "w") as file:
         json.dump(tiled_projects_log, file, indent=4)
 
-    return tile_key
+    return tile_key, labels
 
 
 # %%

@@ -3,6 +3,7 @@ from rasterio.transform import from_bounds
 from rasterio.features import geometry_mask
 import numpy as np
 from pathlib import Path
+import warnings
 from HOME.utils.bbox_to_meters import convert_bbox_to_meters  # noqa
 
 
@@ -47,15 +48,20 @@ def get_labels(
     # filter the gdf for the selection:
     fkb_omrade_gdf_filtered = fkb_omrade_gdf.cx[left:right, bottom:top]
 
-    geometries = fkb_omrade_gdf_filtered.geometry.to_list()
-    mask = geometry_mask(
-        geometries, transform=transform, out_shape=(height, width), invert=True
-    )
+    if fkb_omrade_gdf_filtered.empty:
+        warnings.warn("No buildings in the area of interest")
+        return None, None
 
-    # Set the corresponding elements of the array to 1
-    data[mask] = 1
+    else:
+        geometries = fkb_omrade_gdf_filtered.geometry.to_list()
+        mask = geometry_mask(
+            geometries, transform=transform, out_shape=(height, width), invert=True
+        )
 
-    return data, transform
+        # Set the corresponding elements of the array to 1
+        data[mask] = 1
+
+        return data, transform
 
 
 def save_labels(
