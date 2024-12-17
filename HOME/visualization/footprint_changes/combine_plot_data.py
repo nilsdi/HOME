@@ -78,7 +78,9 @@ if __name__ == "__main__":
         "polygons_trondheim_kommune_2022_resolution0.3_3753_45756.fgb"
     ]
     dir_40003 = "/scratch/mueller_andco/orthophoto/HOME/data/ML_prediction/polygons/trondheim_kommune_2022/tiles_10003/prediction_20003/assembly_30003/polygons_40003"
-    print(combine_geometries(selected_large_tiles, dir_40003, bshape))
+    combined_geometries = combine_geometries(selected_large_tiles, dir_40003, bshape)
+    print(combined_geometries)
+    print(combined_geometries.ID)
 
     selected_small_tiles = ["trondheim_kommune_2022_3754_45755.tif"]
     dir_10003 = "/scratch/mueller_andco/orthophoto/HOME/data/ML_prediction/topredict/image/trondheim_kommune_2022/tiles_10003"

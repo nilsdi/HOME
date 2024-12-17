@@ -11,24 +11,26 @@ def plot_footprint(
     color="k",
     ls="-",
     lw=1,
+    line_alpha: float = 1.0,
     fill: bool = False,
     fill_color: str = "gray",
     fill_alpha: float = 0.5,
 ):
     # Ensure the polygon is closed by repeating the first vertex
     verts = footprint + [footprint[0]]
-    x, y = zip(*verts)  # Unpack vertices into x and y
+    x, y = zip(*verts)  # Unpack vertices into x and y,
     if not fill:
         fill_color = None
-    ax.plot(x, y, ls=ls, lw=lw, color=color)  # Plot the polygon
+    ax.plot(x, y, ls=ls, lw=lw, color=color, alpha=line_alpha)  # Plot the polygon
     if fill:
         ax.fill(x, y, color=fill_color, alpha=fill_alpha)  # Optionally fill the polygon
     return
 
 
 def stacked_combined_plot(
-    footprints_t: list[list[list[float]]],
-    t: list[float],
+    project_names: list[str],
+    footprints_t: dict[str, [dict[int, list[float]]]],
+    t: dict[str, float],
     coverages_t: dict[str, Polygon],
     bshape: Polygon,
     tifs: dict[str, str] = None,
@@ -37,12 +39,13 @@ def stacked_combined_plot(
     overlap: float = -0.1,
     cmap: str = "tab20",
     figsize: tuple = None,
+    special_footprint_ids: dict[str, list[int]] = None,  # TODO: print them special
 ):
     """
     Plot a series of footprints stacked on top of each other in a skewed coordinate system
     Args:
-    footprints_t: list of list  of footprints, each list of footprints represent a time, each
-                    footprint is a list of vertices, each vertex is a list of x and y coordinates
+    footprints_t: list of list  of footprints, each dictionary of footprints represent a time which
+                    keys the id of a polygon and a list of vertices, each vertex is a list of x and y coordinates
     t: list of time values, the time values should be in increasing order
     b_shape: shapely Polygon, the bounding shape for the footprints
     tifs: dict of tif images (one per layer) to plot on the right hand side of the footprints
@@ -50,7 +53,7 @@ def stacked_combined_plot(
     skew: float, the skew factor to apply to the x coordinates
     flatten: float, the flatten factor to apply to the y coordinates
     overlap: by how much the closest (!) footprints should overlap,
-                 negative values mean distance instead of overlap
+    negative values mean distance instead of overlap
     cmap: str, the colormap to use for the footprints
     figsize: tuple, the size of the figure
     """
@@ -63,8 +66,10 @@ def stacked_combined_plot(
         figsize = (20, 20)
     fig, ax = plt.subplots(figsize=figsize)
 
-    t_dist = [tx - t[0] for tx in t]
-    min_t_dist = min([t1 - t0 for t0, t1 in zip(t[:-1], t[1:])])
+    min_t = min(t.values())
+    t_dist = {p: tx - min_t for p, tx in t.items()}
+    ordered_t = sorted(t.values())
+    min_t_dist = min([t1 - t0 for t0, t1 in zip(ordered_t[:-1], ordered_t[1:])])
 
     x_min, y_min, x_max, y_max = bshape.bounds
     y_dist = y_max - y_min
@@ -84,34 +89,39 @@ def stacked_combined_plot(
     ]
 
     # we first skew and flatten all coordinates
-    skewed_flattened_footprints = [
-        [skew_flatten_verts(fp, skew=skew, flatten=flatten) for fp in footprints]
-        for footprints in footprints_t
-    ]
+    skewed_flattened_footprints = {
+        project: {
+            pid: skew_flatten_verts(fp, skew=skew, flatten=flatten)
+            for pid, fp in footprints.items()
+        }
+        for project, footprints in footprints_t.items()
+    }
     extend_boxes_skewed = [
         skew_flatten_verts(box, skew=skew, flatten=flatten) for box in extend_boxes
     ]
     # then we offset the y coordinates of boxes and footprints
-    for footprints, t_offset in zip(skewed_flattened_footprints, t_dist):
-        for fp in footprints:
+    for footprints, t_offset in zip(
+        skewed_flattened_footprints.values(), t_dist.values()
+    ):
+        for fp in footprints.values():
             for v in fp:
                 v[1] += t_offset * y_offset_factor
-    for box, t_offset in zip(extend_boxes_skewed, t_dist):
+    for box, t_offset in zip(extend_boxes_skewed, t_dist.values()):
         for v in box:
             v[1] += t_offset * y_offset_factor
 
     # then we plot the boxes and  the footprints of each time step
-    for i, (year, footprints, extend_box) in enumerate(
-        zip(t, skewed_flattened_footprints, extend_boxes_skewed)
+    for i, (year, project, extend_box) in enumerate(
+        zip(t, project_names, extend_boxes_skewed)
     ):
-        if str(year) in coverages_t.keys():
-            for coverage_box in coverages_t[str(year)]:
+        if project in coverages_t.keys():
+            for coverage_box in coverages_t[project]:
                 coverage_box = [[x, y] for x, y in list(coverage_box.exterior.coords)]
                 coverage_box_skewed = skew_flatten_verts(
                     coverage_box, skew=skew, flatten=flatten
                 )
                 for v in coverage_box_skewed:
-                    v[1] += t_dist[i] * y_offset_factor
+                    v[1] += t_dist[project] * y_offset_factor
                 plot_footprint(
                     coverage_box_skewed,
                     ax=ax,
@@ -126,7 +136,7 @@ def stacked_combined_plot(
         ax.text(
             min([v[0] for v in extend_box]),
             np.mean([v[1] for v in extend_box]),
-            f"{t[i]}",
+            f"{t[project]}",
             ha="center",
             va="center",
             color="black",
@@ -146,7 +156,7 @@ def stacked_combined_plot(
             tile_min_x = box_max_x + 0.2 * y_dist * flatten
             tile_max_x = tile_min_x + tile_max_y - tile_min_y
 
-            img = tifs[str(t[i])]
+            img = tifs[project]
             if img is not None:
                 # if rgb:
                 if len(img.shape) == 3:
@@ -160,8 +170,16 @@ def stacked_combined_plot(
                         extent=[tile_min_x, tile_max_x, tile_min_y, tile_max_y],
                         cmap="gray",
                     )
-        for fp in footprints:
-            plot_footprint(fp, ax=ax, color=colors[i])
+        footprints = skewed_flattened_footprints[project]
+        for sid, fp in footprints.items():
+            if special_footprint_ids:
+                if sid in special_footprint_ids[project]:
+                    plot_footprint(fp, ax=ax, color="black", lw=2)
+                else:
+                    plot_footprint(fp, ax=ax, color=colors[i])
+            else:
+                plot_footprint(fp, ax=ax, color=colors[i])
+
     plt.axis("off")
     ax.set_aspect("equal")
     return fig, ax

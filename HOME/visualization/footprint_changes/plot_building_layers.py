@@ -60,7 +60,7 @@ def plot_building_layers(
     )
     projects_details = get_project_details(project_list)
     # capture dates
-    t = [pd["capture_date"].year for pd in projects_details]
+    t = {p: pd["capture_date"].year for p, pd in zip(project_list, projects_details)}
     geometries_t = []
     coverages_t = {}
     tifs = {}
@@ -98,7 +98,7 @@ def plot_building_layers(
             else:
                 intersect_coverage = [intersect_coverage]
             print(f" the coverage object is of type {type(intersect_coverage)}")
-            coverages_t[str(year)] = intersect_coverage
+            coverages_t[project] = intersect_coverage
         # small tiles
         tiling_details = get_tiling_details(polygon_details["tile_id"])
         small_tile_directory = tiling_details["tile_directory"]
@@ -115,24 +115,28 @@ def plot_building_layers(
         )
         tifs[str(year)] = img
 
-    footprints_t = [
-        (
-            [
-                [[x, y] for x, y in list(polygon.exterior.coords)]
-                for polygon in geo.geometry
-            ]
+    footprints_t = {
+        project: (
+            {
+                pid: [[x, y] for x, y in list(polygon.exterior.coords)]
+                for pid, polygon in zip(geo["ID"], geo.geometry)
+            }
             if not geo.empty
-            else []
+            else {}
         )
-        for geo in geometries_t
-    ]
+        for project, geo in zip(project_list, geometries_t)
+    }
+    for project, footprints in footprints_t.items():
+        print(project)
+        print(footprints)
     # if all footprints are empty, we can't plot anything:
-    if all([len(footprints) == 0 for footprints in footprints_t]):
+    if all([len(footprints.values()) == 0 for footprints in footprints_t.values()]):
         print("No footprints found for the given area.")
         return
 
     print(t)
     fig, ax = stacked_combined_plot(
+        project_list,
         footprints_t,
         t,
         coverages_t,
