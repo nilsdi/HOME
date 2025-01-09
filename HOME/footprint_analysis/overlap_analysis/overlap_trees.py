@@ -75,23 +75,54 @@ def overlap_tree(
     for project_name, project_layer in layer_shapes.items():
         project_gdfs[project_name] = gpd.read_file(project_layer)
 
-    for project_name, project_layer in layered_shapes.items():
-        capture_date = project_layer["capture_date"]
+    sorted_layers = sorted(layer_times.keys(), key=lambda layer: layer_times[layer])
+    for project_name in sorted_layers:
+        capture_date = layer_times[project_name]
         project_gdf = project_gdfs[project_name]
         # check if the project has coverage for the area with that shape:
+        print(f"checking coverage for {project_name}")
+        print(f"curren tree: {tree}")
         project_covers: bool = True
         if project_covers:
-            tree[project_name] = {}
-            for any_shape in project_gdf.geometry:
+            if project_name not in tree.keys():
+                print(f"adding {project_name} to the tree")
+                tree[project_name] = {}
+            for any_id, any_shape in zip(project_gdf["ID"], project_gdf.geometry):
+                # print(f"checking overlaps for id {any_id} ({project_name})")
                 any_shape = Polygon(any_shape)
+                # if tthe shape covers a whole tile, we exclude it
+                if any_shape.area > 0.5 * 512**2 * 0.3**2:
+                    continue
                 for tree_project in tree.keys():
-                    tree_gdf = project_gdfs[tree_project]
-                    for s_id in gdf.keys():
-                        tree_shape = Polygon(tree_gdf[tree_gdf["ID"] == s_id].geometry)
-                        if bounding_box_overlap(tree_shape, any_shape):
-                            # calculate similarities and enter results in dictionary for the tree
 
-                            tree[project_name][any_shape] = {}
+                    tree_gdf = project_gdfs[tree_project]
+                    for tree_id in list(tree[tree_project].keys()):
+                        tree_shape = Polygon(
+                            tree_gdf[tree_gdf["ID"] == tree_id].iloc[0].geometry
+                        )
+                        if bounding_box_overlap(tree_shape, any_shape):
+                            # print(
+                            #     f"overlap between {tree_id} (layer: {tree_project}) and {any_id} ({project_name})"
+                            # )
+                            # calculate similarities and enter results in dictionary for the tree
+                            if any_id in tree[project_name].keys():
+                                # current_overlapping_shapes = [key for key in tree[project_name][any_id].keys() if key.startswith("tree_shape_")]
+                                tree[project_name][any_id][f"tree_shape_{tree_id}"] = {
+                                    "tree_bbox": tree_shape.bounds,
+                                    "any_bbox": any_shape.bounds,
+                                }
+                            else:
+                                tree[project_name][any_id] = {
+                                    f"tree_shape_{tree_id}": {
+                                        "tree_bbox": tree_shape.bounds,
+                                        "any_bbox": any_shape.bounds,
+                                    }
+                                }
+                        else:
+                            # print(
+                            #    f"no overlap between {tree_id} (layer: {tree_project}) and {any_id} ({project_name})"
+                            # )
+                            pass
 
     return tree
 
@@ -269,7 +300,7 @@ print(project_coverages)
 print(project_times)
 # %%
 tree1 = overlap_tree(
-    244,
+    215,  # 248,
     "trondheim_1991",
     project_list,
     project_times,
@@ -291,7 +322,9 @@ geometries, coverage_shapes, tifs = prepare_projects_for_plots(
 print(geometries["trondheim_1991"].keys())
 
 special_footprint_ids = {p: [] for p in project_list}
-special_footprint_ids["trondheim_1991"] = [244, 235]
+special_footprint_ids["trondheim_1991"] = [257, 248, 215]
+for project, shapes in tree1.items():
+    special_footprint_ids[project] = list(shapes.keys())
 stacked_combined_plot(
     project_list,
     geometries,
@@ -303,3 +336,13 @@ stacked_combined_plot(
     special_footprint_ids=special_footprint_ids,
 )
 # %%
+tree_bbox = (268531.9696826169, 7041858.950135308, 268550.1136604994, 7041869.745957576)
+any_bbox = (268546.08348581905, 7041866.917168642, 268548.7535034674, 7041869.277334792)
+
+# plot both
+import matplotlib.pyplot as plt
+from shapely.geometry import box
+
+fig, ax = plt.subplots()
+ax.plot(*box(*tree_bbox).exterior.xy, color="blue")
+ax.plot(*box(*any_bbox).exterior.xy, color="red")

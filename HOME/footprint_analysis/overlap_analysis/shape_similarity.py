@@ -30,12 +30,12 @@ def bounding_box_overlap(shape1, shape2, extension: float = 0):
     bbox2_y_min = bbox2[1] - extension
     bbox2_y_max = bbox2[3] + extension
 
-    return not (
-        bbox1_x_max < bbox2_x_min
-        or bbox1_x_min > bbox2_x_max
-        or bbox1_y_max < bbox2_y_min
-        or bbox1_y_min > bbox2_y_max
-    )
+    # for overlap, there must be overlap in both dimensions
+    # to check for overlap, we just exclude the cases where there is no overlap:
+    # either, box 1 does not even reach box 2 (max b1  < min b2) or box 1 is already past box 2 (min b1 > max b2)
+    x_overlap = not (bbox1_x_max < bbox2_x_min or bbox1_x_min > bbox2_x_max)
+    y_overlap = not (bbox1_y_max < bbox2_y_min or bbox1_y_min > bbox2_y_max)
+    return x_overlap and y_overlap
 
 
 def IoU(shape1, shape2):
