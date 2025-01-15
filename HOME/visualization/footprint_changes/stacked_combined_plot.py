@@ -175,6 +175,17 @@ def stacked_combined_plot(
             if special_footprint_ids:
                 if sid in special_footprint_ids[project]:
                     plot_footprint(fp, ax=ax, color="black", lw=2)
+                    # plot the id of the special footprint in the middle of the footprint
+                    x, y = zip(*fp)
+                    ax.text(
+                        np.mean(x),
+                        np.mean(y),
+                        f"{sid}",
+                        ha="center",
+                        va="center",
+                        color="crimson",
+                        fontsize=6,
+                    )
                 else:
                     plot_footprint(fp, ax=ax, color=colors[i])
             else:
