@@ -74,12 +74,13 @@ def calculate_similarity_measures(shape1, shape2):
     if remotely_overlapping or True:
         similarity["IoU"] = IoU(shape1, shape2)
         similarity["Hausdorff_distance"] = Hausdorff_distance(shape1, shape2)
-        similarity["Hausdorff_distance_shape1_intersect"] = Hausdorff_distance(
-            shape1, shape1.intersection(shape2)
-        )
-        similarity["Hausdorff_distance_shape2_intersect"] = Hausdorff_distance(
-            shape2, shape1.intersection(shape2)
-        )
+        if similarity["IoU"] > 0:
+            similarity["Hausdorff_distance_shape1_intersect"] = Hausdorff_distance(
+                shape1, shape1.intersection(shape2)
+            )
+            similarity["Hausdorff_distance_shape2_intersect"] = Hausdorff_distance(
+                shape2, shape1.intersection(shape2)
+            )
         # similarity["intersect_area_ratio_shape1"] = shape1.intersection(shape2).area / shape1.area
         # similarity["intersect_area_ratio_shape2"] = shape1.intersection(shape2).area / shape2.area
 

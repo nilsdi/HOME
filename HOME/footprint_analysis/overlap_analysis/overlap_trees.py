@@ -1,7 +1,10 @@
 # %%
 import geopandas as gpd
 import math
+import json
+import os
 
+from pathlib import Path
 from shapely.geometry import Polygon, GeometryCollection
 from shapely.ops import unary_union
 from HOME.footprint_analysis.overlap_analysis.shape_similarity import (
@@ -30,6 +33,8 @@ from HOME.footprint_analysis.overlap_analysis.shape_similarity import (
     calculate_similarity_measures,
 )
 
+root_dir = Path(__file__).resolve().parents[3]
+
 
 def access_shape(shape_id, shape_layer: str) -> Polygon:
     """
@@ -56,6 +61,7 @@ def overlap_tree(
     layer_cover: dict[str, str],
     layer_shapes: dict[dict[str, str]],
     extension: float = 5,
+    keep_shapes: bool = False,
 ):
     """
     Create a tree of overlapping shapes rooted in the given shape.
@@ -83,7 +89,7 @@ def overlap_tree(
     for project_name in sorted_layers:
         capture_date = layer_times[project_name]
         project_gdf = project_gdfs[project_name]
-        # TODO: check if the project has coverage for the area with that shape:
+        # TODO: check if the project has coverage for the entire area around all current shapes.
         project_covers: bool = True
         if project_covers:
             # print(f"checking coverage for {project_name}")
@@ -138,9 +144,10 @@ def overlap_tree(
                                     },
                                 }
     # after all layers have been checked, we delete the actual shapes from the tree
-    for project_name in tree.keys():
-        for shape_id in tree[project_name].keys():
-            del tree[project_name][shape_id]["shape"]
+    if not keep_shapes:
+        for project_name in tree.keys():
+            for shape_id in tree[project_name].keys():
+                del tree[project_name][shape_id]["shape"]
     return tree
 
 
@@ -418,6 +425,79 @@ def comparison_heatmap(
 
 
 # %%
+def save_overlap_tree(
+    shape_id: str,
+    shape_layer: str,
+    layers: list[str],
+    layer_times: dict[str],
+    layer_cover: dict[str, str],
+    layer_shapes: dict[dict[str, str]],
+    extension: float = 5,
+    keep_shapes: bool = False,
+    subfolder: str = "default",
+    data_path: Path = None,
+):
+    """
+    Save the overlap tree to a file.
+
+    Args:
+        tree (dict): The overlap tree
+        shape_id (str): The ID of the shape
+        shape_layer (str): The layer of the shape
+        layers (list[str]): The layers of the tree
+        subfolder (str): The subfolder to save the tree in
+    """
+    if data_path is None:
+        data_path = root_dir / "data"
+    save_path = data_path / "footprint_analysis/overlap_trees" / subfolder
+    os.makedirs(save_path, exist_ok=True)
+    # print(f"Saving tree to {save_path / f'{shape_id}_{shape_layer}.json'}")
+    tree = overlap_tree(
+        shape_id,
+        shape_layer,
+        layers,
+        layer_times,
+        layer_cover,
+        layer_shapes,
+        extension=extension,
+        keep_shapes=keep_shapes,
+    )
+
+    def convert_shapes_to_serializable(data):
+        """
+        Recursively convert Polygon objects to serializable formats in a data structure.
+
+        Args:
+            data: The data structure to convert.
+
+        Returns:
+            The converted data structure.
+        """
+        if isinstance(data, dict):
+            return {k: convert_shapes_to_serializable(v) for k, v in data.items()}
+        elif isinstance(data, list):
+            return [convert_shapes_to_serializable(item) for item in data]
+        elif isinstance(data, Polygon):
+            return list(data.exterior.coords)
+        else:
+            return data
+
+    # print(f"tree: {tree}")
+    tree_data = {
+        "shape_id": shape_id,
+        "shape_layer": shape_layer,
+        "layers": layers,
+        "layer_times": layer_times,
+        "extension": extension,
+        "keep_shapes": keep_shapes,
+        "tree": convert_shapes_to_serializable(tree),
+    }
+    with open(save_path / f"{shape_id}_{shape_layer}.json", "w") as f:
+        json.dump(tree_data, f)
+    return
+
+
+# %%
 project_list = [
     "trondheim_1991",
     "trondheim_1999",
@@ -474,14 +554,14 @@ print(geometries["trondheim_1991"].keys())
 
 # %% start plotting some cases to get a feeling for the data
 tree = overlap_tree(
-    244,  # 215,# 257,# 248,
+    244,  # 257,  # 244,  # 215,# 257,# 248,
     "trondheim_1991",
     project_list,
     project_times,
     project_coverages,
     project_layer_gdfs,
 )
-# print(tree)
+print(tree)
 special_footprint_ids = {p: [] for p in project_list}
 for project, shapes in tree.items():
     special_footprint_ids[project] = list(shapes.keys())
@@ -499,4 +579,68 @@ stacked_combined_plot(
 )
 comparison_heatmap(tree, project_list, "IoU")
 comparison_heatmap(tree, project_list, "Hausdorff_distance", cmap="hot")
+# %% save a tree
+save_overlap_tree(
+    244,  # 257,  # 244,  # 215,# 257,# 248,
+    "trondheim_1991",
+    project_list,
+    project_times,
+    project_coverages,
+    project_layer_gdfs,
+    extension=5,
+    keep_shapes=True,
+    subfolder="testing2",
+)
+
 # %%
+
+
+def filter_tree(tree):
+    """
+    Filter the tree so we get sets of shapes that belong to the same building or an interesting case.
+
+    Args:
+        tree (dict): The tree of overlap comparisons
+
+    Returns:
+        subtrees (list(dict)): The filtered subtrees
+    """
+    subtrees = []
+
+    def single_branch_tree(tree: dict) -> bool:
+        single_branch = True
+        for project, shapes in tree.items():
+            if len(shapes.keys()) > 1:
+                single_branch = False
+                break
+        return single_branch
+
+    # first option: single branch tree (one or zero shapes in each layer)
+    if single_branch_tree(tree):
+        return tree
+
+    # second option: single branch tree after only considering overlaps
+    def construct_subtree(tree: dict, starting_shape: int) -> Tuple[dict]:
+        """
+        Construct a subtree that only includes shapes with actual overlaps,
+        starting with any initial shape. This can be used to cut a large tree into
+        multiple subtrees that are more interesting to analyze.
+
+        Args:
+            tree (dict): The tree of overlap comparisons - assumes the
+                            tree is ordered by time already (order of projects)
+            starting_shape (int): The ID of the starting shape
+
+        Returns:
+            Tuple[dict]: The subtree and the remaining tree
+        """
+        subtree = {}
+        remaining_tree = {}
+        for project, shapes in tree.items():
+            if starting_shape in shapes.keys():
+                subtree[project] = {starting_shape: shapes[starting_shape]}
+            else:
+                remaining_tree[project] = shapes
+        return subtree, remaining_tree
+
+    return subtrees
