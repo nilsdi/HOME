@@ -76,7 +76,7 @@ def plot_comparison_line(
     return
 
 
-def tree_schematic(tree_data_path, save_path: str = None):
+def tree_schematic(tree_data_path, reorder: dict = None, save_path: str = None):
     with open(tree_data_path, "r") as f:
         tree_data = json.load(f)
 
@@ -138,6 +138,10 @@ def tree_schematic(tree_data_path, save_path: str = None):
 
         n_shapes = len(shapes_data.keys())
         spacing = max_shapes / (n_shapes + 1)
+        # if this layer is in the reorder dict, reorder the shapes
+        if reorder:
+            if project in reorder.keys():
+                shapes_data = {k: shapes_data[k] for k in reorder[project]}
         for j, (shape_id, shape_data) in enumerate(shapes_data.items()):
 
             # print a 0.5x0.5 square below the text
@@ -199,7 +203,10 @@ def tree_schematic(tree_data_path, save_path: str = None):
 
                 for comparison_id, comparison in comparison_p.items():
                     print(f"comparison_id: {comparison_id}, comparison: {comparison}")
-                    if comparison["remotely_overlapping"]:
+                    if (
+                        comparison["remotely_overlapping"]
+                        and comparison_project != project
+                    ):
                         IoU = comparison["IoU"]
                         line_width = IoU**2 * 10
                         p1 = connection_point
@@ -233,7 +240,8 @@ def tree_schematic(tree_data_path, save_path: str = None):
 # %%
 if __name__ == "__main__":
     data_path = root_dir / "data"
-    t1 = data_path / "footprint_analysis/overlap_trees/testing2/221_trondheim_1991.json"
-    tree_schematic(t1)
+    t1 = data_path / "footprint_analysis/overlap_trees/testing2/244_trondheim_1991.json"
+    reordering = {"trondheim_2016": ["167", "191", "208"]}
+    tree_schematic(t1, reorder=None)
 
 # %%
