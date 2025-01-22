@@ -60,29 +60,24 @@ def process_image(
     with rasterio.open(str(processed_img_path)) as src:
         # Read the first band
         myarray = src.read(1)
-
         # Extract polygons from the array
-        mypoly = [
-            shape(vec[0])
-            for vec in rasterio.features.shapes(myarray, transform=src.transform)
-        ]
+        mypoly = []
+        for vec in rasterio.features.shapes(
+            myarray, mask=myarray == 255, transform=src.transform
+        ):
+            polygon = shape(vec[0])
+            # remove polygons under 2.5m2
+            if polygon.area > 2.5:
+                mypoly.append(polygon)
 
         # Filter and simplify polygons
         simplified_polygons = [
             polygon.simplify(simplification_tolerance, preserve_topology=True)
             for polygon in mypoly
         ]
-        rounded_polygons = [
-            polygon.buffer(
-                buffer_distance,
-                join_style=buffer_join_style,
-                single_sided=buffer_single_sided,
-            )
-            for polygon in simplified_polygons
-        ]
 
         # Create a GeoDataFrame with the correct CRS
-        gdf = gpd.GeoDataFrame({"geometry": rounded_polygons}, crs=src.crs)
+        gdf = gpd.GeoDataFrame({"geometry": simplified_polygons}, crs=src.crs)
 
         # Filter the GeoDataFrame manually
         filtered_polygons = [
@@ -137,11 +132,13 @@ def process_project_tiles(
             buffer_join_style,
             buffer_single_sided,
         )
-        # add an ID column:
-        polygons["ID"] = range(len(polygons))
+
         # Save the GeoDataFrame to a gjson. one file per large tile
         tile_name = Path(processed_img_path).stem
 
+        # add an ID column:
+        xy_grid = "_".join(tile_name.split("_")[-2:])
+        polygons["ID"] = [f"{xy_grid}_{i}" for i in range(len(polygons))]
         polygon_file_name = output_dir / f"polygons_{tile_name}.fgb"
 
         # save the polygons to a gjson file
@@ -255,7 +252,7 @@ if __name__ == "__main__":
 
     # how to process:
 
-    simplification_tolerance: int = 5
+    simplification_tolerance: int = 0.5
     buffer_distance: int = 1
     buffer_join_style: int = 3
     buffer_single_sided: bool = True

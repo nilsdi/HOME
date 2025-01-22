@@ -26,6 +26,10 @@ from HOME.utils.project_paths import (
     save_project_details,
     load_project_details,
     get_assembling_details,
+    get_tile_ids,
+    get_prediction_ids,
+    get_assemble_ids,
+    get_polygon_ids,
 )
 from HOME.data_acquisition.norgeibilder.add_project_details import add_project_details
 from HOME.utils.check_project_stage import check_list_stage
@@ -207,10 +211,12 @@ def process(
 
 
 def reprocess(
+    list_of_projects: list = None,
     labels: bool = False,
     tile_size=512,
     res=0.3,
     remove_download=False,
+    force_stage=None,
 ):
     """
     Main function to re-run the prediction pipeline
@@ -223,10 +229,28 @@ def reprocess(
     remove_download: bool, whether to remove the downloaded files after tiling
     """
     project_details = load_project_details(data_path)
-    list_of_projects = list(project_details.keys())
+    if list_of_projects is None:
+        list_of_projects = list(project_details.keys())
     log_folder = data_path / "metadata_log/execution_log"
 
     stages = check_list_stage(list_of_projects)
+
+    stage_orders = ["downloaded", "tiled", "predicted", "assembled", "processed"]
+    if force_stage is not None:
+        force_stage_order = stage_orders.index(force_stage)
+        for project in list_of_projects:
+            if stage_orders.index(stages[project]["stage"]) > force_stage_order:
+                stages[project]["stage"] = force_stage
+                if force_stage == "downloaded":
+                    stages[project]["ids"] = []
+                elif force_stage == "tiled":
+                    stages[project]["ids"] = get_tile_ids(project)
+                elif force_stage == "predicted":
+                    stages[project]["ids"] = get_prediction_ids(project)
+                elif force_stage == "assembled":
+                    stages[project]["ids"] = get_assemble_ids(project)
+                else:
+                    print(f"Error: {force_stage} not recognized")
 
     if labels:
         totile = False
@@ -351,6 +375,7 @@ if __name__ == "__main__":
         "--projects",
         nargs="+",
         help="List of projects to run the prediction pipeline",
+        default=None,
     )
     parser.add_argument(
         "--labels",
@@ -382,6 +407,12 @@ if __name__ == "__main__":
         default=0.3,
         help="Resolution of the tiles",
     )
+    parser.add_argument(
+        "--force_stage",
+        type=str,
+        default=None,
+        help="Force the stage of the project (only with reprocess)",
+    )
     args = parser.parse_args()
 
     if args.reprocess:
@@ -390,6 +421,7 @@ if __name__ == "__main__":
             tile_size=args.tile_size,
             res=args.res,
             remove_download=args.remove_download,
+            force_stage=args.force_stage,
         )
     else:
         assert (
