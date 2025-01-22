@@ -520,7 +520,7 @@ bshape = bshape_from_tile_coords(3696, 45796)
 # print(project_times)
 
 tree1 = overlap_tree(
-    215,  # 248,
+    248,  # 215,  # 248,
     "trondheim_1991",
     project_list,
     project_times,
@@ -554,7 +554,7 @@ print(geometries["trondheim_1991"].keys())
 
 # %% start plotting some cases to get a feeling for the data
 tree = overlap_tree(
-    244,  # 257,  # 244,  # 215,# 257,# 248,
+    221,  # 244,  # 257,  # 244,  # 215,# 257,# 248,
     "trondheim_1991",
     project_list,
     project_times,
@@ -565,7 +565,28 @@ print(tree)
 special_footprint_ids = {p: [] for p in project_list}
 for project, shapes in tree.items():
     special_footprint_ids[project] = list(shapes.keys())
-# special_footprint_ids["trondheim_1991"] = [277, 282, 257, 237, 248, 215, 199, 221, 236, 244, 239, 235, 233, 222, 256, 272, 276, 280, 279, 250]
+special_footprint_ids["trondheim_1991"] = [
+    277,
+    282,
+    257,
+    237,
+    248,
+    215,
+    199,
+    221,
+    236,
+    244,
+    239,
+    235,
+    233,
+    222,
+    256,
+    272,
+    276,
+    280,
+    279,
+    250,
+]
 
 stacked_combined_plot(
     project_list,
@@ -581,7 +602,7 @@ comparison_heatmap(tree, project_list, "IoU")
 comparison_heatmap(tree, project_list, "Hausdorff_distance", cmap="hot")
 # %% save a tree
 save_overlap_tree(
-    244,  # 257,  # 244,  # 215,# 257,# 248,
+    221,  # 257,  # 257,  # 244,  # 215,# 257,# 248,
     "trondheim_1991",
     project_list,
     project_times,
