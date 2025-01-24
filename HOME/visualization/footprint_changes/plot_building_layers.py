@@ -178,6 +178,9 @@ if __name__ == "__main__":
     plot_building_layers(project_list, bshape, layer_overlap=0.1, figsize=(20, 20))
 
     # %%
+    bshape = bshape_from_tile_coords(3706, 45797)
+    plot_building_layers(project_list, bshape, layer_overlap=0.1, figsize=(20, 20))
+    # %%
     project_list1 = [
         "trondheim_1969",
         "trondheim_1977",
@@ -200,3 +203,5 @@ if __name__ == "__main__":
 
     bshape = bshape_from_tile_coords(3725, 45798)
     plot_building_layers(project_list, bshape, layer_overlap=0.1, figsize=(20, 20))
+
+# %%

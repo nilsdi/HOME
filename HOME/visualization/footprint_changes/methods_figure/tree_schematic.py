@@ -202,7 +202,7 @@ def tree_schematic(tree_data_path, reorder: dict = None, save_path: str = None):
             for comparison_project, comparison_p in shape_data["comparisons"].items():
 
                 for comparison_id, comparison in comparison_p.items():
-                    print(f"comparison_id: {comparison_id}, comparison: {comparison}")
+                    # print(f"comparison_id: {comparison_id}, comparison: {comparison}")
                     if (
                         comparison["remotely_overlapping"]
                         and comparison_project != project
