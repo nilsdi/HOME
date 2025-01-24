@@ -67,7 +67,7 @@ def inspect_kommune_boundaries_json():
 transformer = Transformer.from_crs("EPSG:3035", "EPSG:4326", always_xy=True)
 
 
-def transform_coordinates(coordinates):
+def transform_coordinates(coordinates, transformer):
     """
     Transform a list of coordinates from EPSG:3035 to EPSG:3857.
 
@@ -80,7 +80,7 @@ def transform_coordinates(coordinates):
     return [transformer.transform(x, y) for x, y in coordinates]
 
 
-def transform_geometry(geometry):
+def transform_geometry(geometry, transformer=None):
     """
     Transform the geometry of a MultiPolygon from EPSG:3035 to EPSG:3857.
 
@@ -90,12 +90,14 @@ def transform_geometry(geometry):
     Returns:
         The transformed geometry dictionary.
     """
+    if not transformer:
+        transformer = Transformer.from_crs("EPSG:3035", "EPSG:4326", always_xy=True)
     if geometry["type"] == "MultiPolygon":
         transformed_coordinates = []
         for polygon in geometry["coordinates"]:
             transformed_polygon = []
             for ring in polygon:
-                transformed_ring = transform_coordinates(ring)
+                transformed_ring = transform_coordinates(ring, transformer)
                 transformed_polygon.append(transformed_ring)
             transformed_coordinates.append(transformed_polygon)
         return {"type": "MultiPolygon", "coordinates": transformed_coordinates}
@@ -103,13 +105,14 @@ def transform_geometry(geometry):
         raise ValueError("Unsupported geometry type")
 
 
-def print_municipality_borders(municipality_name: str):
-    kommune_boundaries_path = (
-        data_path
-        / "raw/maps/municipalities"
-        / "Basisdata_0000_Norge_3035_Kommuner_GeoJSON.geojson"
-    )
-
+def get_municipal_boundaries(municipality_name: str):
+    """
+    Reads in the municipal boundaries (Norway wide) and
+    returns the boundaries of a municipality that matches the input name.
+    The crs of the boundaries is EPSG:3035 originally, but the function
+    transforms the boundaries to EPSG:4326 by default
+    """
+    # Returns the boundaries of a municipality in EPSG:4326
     with open(kommune_boundaries_path) as f:
         data = json.load(f)
 
@@ -123,6 +126,11 @@ def print_municipality_borders(municipality_name: str):
 
     # project_borders to 4326
     municipality_geometry_4326 = transform_geometry(municipality_geometry)
+    return municipality_geometry_4326
+
+
+def print_municipality_borders(municipality_name: str):
+    municipality_geometry_4326 = get_municipal_boundaries(municipality_name)
 
     municipality_center = [
         sum(x) / len(x) for x in zip(*municipality_geometry_4326["coordinates"][0][0])

@@ -39,7 +39,7 @@ def get_project_metadata(project_names: str or list[str]) -> dict:
     return metadata_projects
 
 
-def get_project_geometry(project_name: str) -> gpd.GeoSeries:
+def get_project_geometry(project_names: str or list[str]) -> gpd.GeoSeries:
     """
     Get geometry for a project from metadata.
 
@@ -49,12 +49,24 @@ def get_project_geometry(project_name: str) -> gpd.GeoSeries:
     Returns:
     - project_geometry: geopandas.GeoSeries, geometry of the project
     """
-    project_metadata = get_project_metadata(project_name)
-    project_crs_id = project_metadata["properties"]["opprinneligbildesys"]
-    assert project_crs_id in ["22", "23"]
-    project_crs = 25832 if project_crs_id == "22" else 25833
-    project_geometry = gpd.GeoSeries(shape(project_metadata["geometry"]), crs=25833)
-    return project_geometry.to_crs(project_crs)
+    if isinstance(project_names, str):
+        project_names = [project_names]
+
+    project_geometries = []
+    project_metadatas = get_project_metadata(project_names)
+    for project_name, project_metadata in zip(project_names, project_metadatas):
+        project_crs_id = project_metadata["properties"]["opprinneligbildesys"]
+        # assert project_crs_id in ["22", "23"]
+        if project_crs_id not in ["22", "23"]:
+            raise ValueError(
+                f"Project {project_name} has an unknown crs id: {project_crs_id}"
+            )
+        project_crs = 25832 if project_crs_id == "22" else 25833
+        project_geometry = gpd.GeoSeries(shape(project_metadata["geometry"]), crs=25833)
+        project_geometries.append(project_geometry.to_crs(project_crs))
+    if isinstance(project_names, str):
+        return project_geometries[0]
+    return project_geometries
 
 
 def get_project_details(project_names: str or list[str]) -> dict:
