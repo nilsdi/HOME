@@ -9,18 +9,21 @@ from pathlib import Path
 from shapely.geometry import Polygon, GeometryCollection
 from shapely.ops import unary_union
 
-from HOME.visualization.footprint_changes.get_plot_data import (
+from HOME.visualization.footprint_changes.utilities.get_bound_tiles import (
     find_polygonisations,
     find_large_tiles,
+    find_small_tiles,
 )
-from HOME.visualization.footprint_changes.combine_plot_data import (
-    combine_geometries,
-    reassemble_and_cut_small_tiles,
+from HOME.visualization.footprint_changes.utilities.get_bound_polygons import (
+    get_bound_polygons,
+    get_bound_tifs,
+)
+from HOME.visualization.footprint_changes.utilities.get_bounding_shape import (
+    get_bounding_shape,
 )
 from HOME.visualization.footprint_changes.stacked_combined_plot import (
     stacked_combined_plot,
 )
-from HOME.visualization.footprint_changes.utils import bshape_from_tile_coords
 from HOME.utils.get_project_metadata import get_project_details
 from HOME.utils.project_paths import (
     get_polygon_ids,
@@ -48,7 +51,7 @@ def plot_building_layers(
     Plot the building layers for a given area
     """
     # find the fitting polygonisations
-    polygon_ids = find_polygonisations(
+    polygonisation_ids = find_polygonisations(
         project_list,
         res=res,
         tile_size=tile_size,
@@ -67,29 +70,33 @@ def plot_building_layers(
     for year, project, project_details in zip(t, project_list, projects_details):
         # print(project)
         # print(project_details)
-        polygon_id = polygon_ids[project]
-        polygon_details = get_polygon_details(polygon_id)
-        polygon_directory = polygon_details["gdf_directory"]
-        all_entries = os.listdir(polygon_directory)
-        large_tiles = [
-            entry
-            for entry in all_entries
-            if os.path.isfile(os.path.join(polygon_directory, entry))
-        ]
-        selected_large_tiles = find_large_tiles(large_tiles, b_shape)
-        print(f"dir: {polygon_directory}, tiles: {selected_large_tiles}")
-        geometries = combine_geometries(
-            selected_large_tiles, polygon_directory, b_shape
+        polygonisation_id = polygonisation_ids[project]
+        selected_large_tiles = find_large_tiles(
+            polygonisation_id,
+            b_shape,
+            res=res,
+            tile_size=tile_size,
+            overlap_rate=tile_overlap,
+            reassembly_edge=reassembly_edge,
+            reassembly_overlap=reassembly_overlap,
         )
-        geometries_t.append(geometries)
+
+        # print(f"dir: {polygon_directory}, tiles: {selected_large_tiles}")
+        selected_polygons = get_bound_polygons(selected_large_tiles, b_shape)
+        geometries_t.append(selected_polygons)
         if len(selected_large_tiles) > 0:
             # coverage
+            print(f"selected_large_tiles: {selected_large_tiles}")
+            path_start = "/".join(selected_large_tiles[0].split("/")[:-1])
             coverage_fgbs = [
-                "_".join(["coverage/coverage"] + t.split("_")[1:])
+                path_start
+                + "/coverage/coverage_"
+                + "_".join(t.split("/")[-1].split("_")[1:])
                 for t in selected_large_tiles
             ]
+            print(f"coverage_fgbs: {coverage_fgbs}")
             # merge the polygons of the coverage
-            coverages_gdb = combine_geometries(coverage_fgbs, polygon_directory)
+            coverages_gdb = get_bound_polygons(coverage_fgbs, bshape)
             coverage = unary_union(coverages_gdb.geometry)
             intersect_coverage = coverage.intersection(b_shape)
             # print(intersect_coverage)
@@ -99,20 +106,18 @@ def plot_building_layers(
                 intersect_coverage = [intersect_coverage]
             print(f" the coverage object is of type {type(intersect_coverage)}")
             coverages_t[project] = intersect_coverage
+            # coverages_t[project] = b_shape.exterior
+
         # small tiles
-        tiling_details = get_tiling_details(polygon_details["tile_id"])
-        small_tile_directory = tiling_details["tile_directory"]
-        all_entries = os.listdir(small_tile_directory)
-        small_tiles = [
-            entry
-            for entry in all_entries
-            if os.path.isfile(os.path.join(small_tile_directory, entry))
-        ]
-        BW = project_details["bandwidth"] == "BW"
-        selected_small_tiles = find_large_tiles(small_tiles, b_shape, reassembly_edge=1)
-        img = reassemble_and_cut_small_tiles(
-            selected_small_tiles, small_tile_directory, b_shape, BW=BW
+        selected_small_tiles = find_small_tiles(
+            polygonisation_ids[project],
+            bshape,
+            res=res,
+            tile_size=tile_size,
+            overlap=tile_overlap,
         )
+        BW = project_details["bandwidth"] == "BW"
+        img = get_bound_tifs(selected_small_tiles, b_shape, BW=BW)
         tifs[str(year)] = img
 
     footprints_t = {
@@ -127,8 +132,9 @@ def plot_building_layers(
         for project, geo in zip(project_list, geometries_t)
     }
     for project, footprints in footprints_t.items():
-        print(project)
-        print(footprints)
+        # print(project)
+        # print(footprints)
+        pass
     # if all footprints are empty, we can't plot anything:
     if all([len(footprints.values()) == 0 for footprints in footprints_t.values()]):
         print("No footprints found for the given area.")
@@ -161,7 +167,7 @@ if __name__ == "__main__":
         "trondheim_2016",
         "trondheim_kommune_2022",
     ]
-    bshape = bshape_from_tile_coords(3696, 45796)
+    bshape = get_bounding_shape(3696, 45796)
     plot_building_layers(project_list, bshape, layer_overlap=0.1, figsize=(10, 50))
     # %% second example
     bshape = bshape_from_tile_coords(3754, 45755)

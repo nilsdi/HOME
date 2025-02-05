@@ -54,8 +54,8 @@ def access_shape(shape_id, shape_layer: str) -> Polygon:
 
 
 def overlap_tree(
-    shape_id: str,
-    shape_layer: str,
+    root_id: str,
+    root_layer: str,
     layers: list[str],
     layer_times: dict[str],
     layer_cover: dict[str, str],
@@ -76,14 +76,16 @@ def overlap_tree(
     for project_name, project_layer in layer_shapes.items():
         project_gdfs[project_name] = gpd.read_file(project_layer)
 
-    shape_gdf = project_gdfs[shape_layer]
-    shape_geometry = shape_gdf.loc[shape_gdf["ID"] == shape_id].geometry.iloc[0]
+    root_gdf = project_gdfs[root_layer]
+    root_geometry = root_gdf.loc[root_gdf["ID"] == root_id].geometry.iloc[0]
     # print(
-    #    f"the type of shape_geometry is {type(shape_geometry)}, and it looks like {shape_geometry}"
+    #    f"the type of root_geometry is {type(root_geometry)}, and it looks like {root_geometry}"
     # )
-    root_shape = Polygon(shape_geometry)
+    root_shape = Polygon(root_geometry)
 
-    tree = {shape_layer: {shape_id: {"shape": root_shape, "comparisons": {}}}}
+    tree = {
+        root_layer: {root_id: {"shape": root_shape, "type": "root", "comparisons": {}}}
+    }
     # go through the layers by time and check for overlaps
     sorted_layers = sorted(layer_times.keys(), key=lambda layer: layer_times[layer])
     for project_name in sorted_layers:
@@ -107,42 +109,50 @@ def overlap_tree(
                 # check overlap of each shape with all items already in the tree
                 for tree_project in tree.keys():
                     tree_gdf = project_gdfs[tree_project]
-                    for tree_id in list(
-                        tree[tree_project].keys()
-                    ):  # list needed because of some weird dict of ints stuff
-                        tree_shape = tree[tree_project][tree_id]["shape"]
-                        # tree_shape = Polygon(
-                        #    tree_gdf[tree_gdf["ID"] == tree_id].iloc[0].geometry
-                        # )
-                        if bounding_box_overlap(tree_shape, any_shape):
-                            # print(
-                            #     f"overlap between {tree_id} (layer: {tree_project}) and {any_id} ({project_name})"
+                    # compare with root first
+                    if bounding_box_overlap(any_shape, root_shape):
+                        for tree_id in list(
+                            tree[tree_project].keys()
+                        ):  # list needed because of some weird dict of ints stuff
+                            tree_shape = tree[tree_project][tree_id]["shape"]
+                            # tree_shape = Polygon(
+                            #    tree_gdf[tree_gdf["ID"] == tree_id].iloc[0].geometry
                             # )
-                            # calculate similarities and enter results in dictionary for the tree
-                            if any_id in tree[project_name].keys():
-                                if (
-                                    tree_project
-                                    not in tree[project_name][any_id][
-                                        "comparisons"
-                                    ].keys()
-                                ):
+                            if bounding_box_overlap(tree_shape, any_shape):
+                                # print(
+                                #     f"overlap between {tree_id} (layer: {tree_project}) and {any_id} ({project_name})"
+                                # )
+                                # calculate similarities and enter results in dictionary for the tree
+                                if any_id in tree[project_name].keys():
+                                    if (
+                                        tree_project
+                                        not in tree[project_name][any_id][
+                                            "comparisons"
+                                        ].keys()
+                                    ):
+                                        tree[project_name][any_id]["comparisons"][
+                                            tree_project
+                                        ] = {}
                                     tree[project_name][any_id]["comparisons"][
                                         tree_project
-                                    ] = {}
-                                tree[project_name][any_id]["comparisons"][tree_project][
-                                    tree_id
-                                ] = calculate_similarity_measures(any_shape, tree_shape)
-                            else:
-                                tree[project_name][any_id] = {
-                                    "shape": any_shape,
-                                    "comparisons": {
-                                        tree_project: {
-                                            tree_id: calculate_similarity_measures(
-                                                any_shape, tree_shape
-                                            )
+                                    ][tree_id] = calculate_similarity_measures(
+                                        any_shape, tree_shape
+                                    )
+                                    tree[tree_project][tree_id][
+                                        "type"
+                                    ] = "internal vertex"
+                                else:
+                                    tree[project_name][any_id] = {
+                                        "shape": any_shape,
+                                        "type": "leaf",
+                                        "comparisons": {
+                                            tree_project: {
+                                                tree_id: calculate_similarity_measures(
+                                                    any_shape, tree_shape
+                                                )
+                                            },
                                         },
-                                    },
-                                }
+                                    }
     # after all layers have been checked, we delete the actual shapes from the tree
     if not keep_shapes:
         for project_name in tree.keys():
@@ -262,14 +272,41 @@ def prepare_projects_for_plots(
     coverage_shapes = {}
     tifs = {}
     for project in project_list:
+        print(f"name of the first gdf: {project_layer_gdfs[project]}")
         project_gdf = project_layer_gdfs[project]
         polygon_directory = "/".join(project_gdf.split("/")[:-1])
         gdf_name = project_gdf.split("/")[-1]
         geoms = combine_geometries([gdf_name], polygon_directory, b_shape)
-        geometries[project] = {
-            pid: [[x, y] for x, y in list(polygon.exterior.coords)]
-            for pid, polygon in zip(geoms["ID"], geoms.geometry)
-        }
+        # print(geoms.head())
+        # print the first row
+        for i, row in geoms.iterrows():
+            # check if thre is an inner:
+            geometry = row.geometry
+            if len(geometry.interiors) > 0:
+                print(geometry)
+                print(geometry.interiors)
+        print(f"\n")
+        first_row = geoms.iloc[0]
+        # print(first_row)
+        first_row_geometry = first_row.geometry
+        # print(first_row_geometry)
+        # print(type(first_row_geometry))
+        # print(geoms.iloc[0])
+        # if the dataframe is empty:
+        if geoms.empty:
+            geometries[project] = {}
+
+            continue
+        geometries[project] = {}
+        for pid, geometry in zip(geoms["ID"], geoms.geometry):
+            outer = geometry.exterior.coords
+            inner = [geometry.interior.coords for interior in geometry.interiors]
+            outer = [[x, y] for x, y in outer]
+            inner = [[[x, y] for x, y in interior] for interior in inner]
+            geometries[project][pid] = {"exterior": outer, "interior": inner}
+        #     pid: [[x, y] for x, y in list(polygon.exterior.coords)]
+        #     for pid, polygon in zip(geoms["ID"], geoms.geometry)
+        # }
 
         coverage_fgb = project_coverages[project]
         coverage_name = "/".join(coverage_fgb.split("/")[-2:])
@@ -328,7 +365,7 @@ def comparison_heatmap(
 
     n_projects = len(project_list)
     n_shapes = [len(tree[project].keys()) for project in project_list]
-    n_project_pixels = math.prod(set(n_shapes))
+    n_project_pixels = math.prod(set([n if n > 0 else 1 for n in n_shapes]))
     if default_value:
         comparison_matrix = (
             np.ones((n_projects * n_project_pixels, n_projects * n_project_pixels))
@@ -339,16 +376,21 @@ def comparison_heatmap(
             (n_projects * n_project_pixels, n_projects * n_project_pixels)
         ) * -(10**6)
 
+    print(np.shape(comparison_matrix))
+
     # fill the matrix with values
     pixel_indices = {project: {} for project in project_list}
     pixel = 0
     for project, shapes in tree.items():
         n_project_shapes = len(list(shapes.keys()))
+        if n_project_shapes == 0:
+            continue
         n_shape_pixels = int(n_project_pixels / n_project_shapes)
         for shape, data in shapes.items():
             pixel_indices[project][shape] = [pixel, pixel + n_shape_pixels]
             pixel += n_shape_pixels
 
+    print(f"pixel_indices: {pixel_indices}")
     for project, shapes in tree.items():
         for shape, data in shapes.items():
             for comparison_project, comparisons in data["comparisons"].items():
@@ -366,9 +408,11 @@ def comparison_heatmap(
     fig, ax = plt.subplots()
     cax = ax.matshow(comparison_matrix, cmap=cmap)
     fig.colorbar(cax)
-
+    # plt.show()
     # add labels to the matrix
     for project, shapes in pixel_indices.items():
+        if len(shapes.keys()) == 0:
+            continue
         project_min_pixel = 10**6
         project_max_pixel = 0
         for shape, pixel_range in shapes.items():
@@ -426,8 +470,8 @@ def comparison_heatmap(
 
 # %%
 def save_overlap_tree(
-    shape_id: str,
-    shape_layer: str,
+    root_id: str,
+    root_layer: str,
     layers: list[str],
     layer_times: dict[str],
     layer_cover: dict[str, str],
@@ -442,8 +486,8 @@ def save_overlap_tree(
 
     Args:
         tree (dict): The overlap tree
-        shape_id (str): The ID of the shape
-        shape_layer (str): The layer of the shape
+        root_id (str): The ID of the shape
+        root_layer (str): The layer of the shape
         layers (list[str]): The layers of the tree
         subfolder (str): The subfolder to save the tree in
     """
@@ -451,10 +495,10 @@ def save_overlap_tree(
         data_path = root_dir / "data"
     save_path = data_path / "footprint_analysis/overlap_trees" / subfolder
     os.makedirs(save_path, exist_ok=True)
-    # print(f"Saving tree to {save_path / f'{shape_id}_{shape_layer}.json'}")
+    # print(f"Saving tree to {save_path / f'{root_id}_{root_layer}.json'}")
     tree = overlap_tree(
-        shape_id,
-        shape_layer,
+        root_id,
+        root_layer,
         layers,
         layer_times,
         layer_cover,
@@ -484,15 +528,15 @@ def save_overlap_tree(
 
     # print(f"tree: {tree}")
     tree_data = {
-        "shape_id": shape_id,
-        "shape_layer": shape_layer,
+        "root_id": root_id,
+        "root_layer": root_layer,
         "layers": layers,
         "layer_times": layer_times,
         "extension": extension,
         "keep_shapes": keep_shapes,
         "tree": convert_shapes_to_serializable(tree),
     }
-    with open(save_path / f"{shape_id}_{shape_layer}.json", "w") as f:
+    with open(save_path / f"{root_id}_{root_layer}.json", "w") as f:
         json.dump(tree_data, f)
     return
 
@@ -506,8 +550,9 @@ project_list = [
     "trondheim_2016",
     "trondheim_kommune_2022",
 ]
-bshape = bshape_from_tile_coords(3696, 45796)
-bshape = bshape_from_tile_coords(3695, 45798)
+bshape = bshape_from_tile_coords(3694, 45796)
+bshape = bshape_from_tile_coords(3692, 45785)
+bshape = bshape_from_tile_coords(3691, 45771)
 (
     project_layer_gdfs,
     project_coverages,
@@ -516,30 +561,6 @@ bshape = bshape_from_tile_coords(3695, 45798)
     project_details,
 ) = prepare_projects_for_trees(project_list, bshape)
 
-# print(project_layer_gdfs)
-# print(project_coverages)
-# print(project_times)
-
-# tree1 = overlap_tree(
-#     248,  # 215,  # 248,
-#     "trondheim_1991",
-#     project_list,
-#     project_times,
-#     project_coverages,
-#     project_layer_gdfs,
-# )
-
-# for project, shapes in tree1.items():
-#     print(f"\nproject: {project}, shapes: {list(shapes.keys())}")
-#     for shape, data in shapes.items():
-#         print(f"shape: {shape}")
-#         for comparison_project, comparisons in data["comparisons"].items():
-#             print(f"comparison project: {comparison_project}")
-#             for comparison_shape, comparison_data in comparisons.items():
-#                 print(f"comparison shape: {comparison_shape}")
-#                 for key, value in comparison_data.items():
-#                     print(f"{key}: {value}")
-# print(tree1)
 
 geometries, coverage_shapes, tifs = prepare_projects_for_plots(
     project_list,
@@ -555,7 +576,7 @@ print(geometries["trondheim_1991"].keys())
 
 # %% start plotting some cases to get a feeling for the data
 tree = overlap_tree(
-    117,  # ,#256,  # 244,  # 257,  # 244,  # 215,# 257,# 248,
+    "3690_45774_651",  # 244,  # 257,  # 244,  # 215,# 257,# 248,
     "trondheim_1991",
     project_list,
     project_times,
@@ -567,26 +588,6 @@ special_footprint_ids = {p: [] for p in project_list}
 for project, shapes in tree.items():
     special_footprint_ids[project] = list(shapes.keys())
 # special_footprint_ids["trondheim_1991"] = [
-#     277,
-#     282,
-#     257,
-#     237,
-#     248,
-#     215,
-#     199,
-#     221,
-#     236,
-#     244,
-#     239,
-#     235,
-#     233,
-#     222,
-#     256,
-#     272,
-#     276,
-#     280,
-#     279,
-#     250,
 # ]
 
 stacked_combined_plot(

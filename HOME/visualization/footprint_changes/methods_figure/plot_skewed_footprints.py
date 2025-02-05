@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 
 def plot_footprint(
-    footprint: list[list[float]],
+    footprint: dict[str, list[list[float]]],
     ax: plt.Axes = None,
     color="k",
     ls="-",
@@ -16,25 +16,39 @@ def plot_footprint(
     fill_color: str = "gray",
     fill_alpha: float = 0.5,
 ):
-    # Ensure the polygon is closed by repeating the first vertex
-    verts = footprint + [footprint[0]]
-    x, y = zip(*verts)  # Unpack vertices into x and y
-    if not fill:
-        fill_color = None
-    ax.plot(x, y, ls=ls, lw=lw, color=color)  # Plot the polygon
-    if fill:
-        ax.fill(x, y, color=fill_color, alpha=fill_alpha)  # Optionally fill the polygon
+    # split drawing into exterior and all interiors:
+    polygons = [footprint["exterior"]] + footprint["interiors"]
+    for polygon in polygons:
+        # print("polygon: ", polygon)
+        if len(polygon) == 0:
+            # print("empty polygon: ", polygon)
+            continue
+        verts = polygon + [polygon[0]]
+        x, y = zip(*verts)  # Unpack vertices into x and y
+        if not fill:
+            fill_color = None
+        else:
+            raise NotImplementedError("filling not implemented yet")
+        ax.plot(x, y, ls=ls, lw=lw, color=color)  # Plot the polygon
+
     return
 
 
 def plot_skewed_footprints(
-    footprints: list[list[float]],
+    footprints: list[dict[str, list[list[float]]]],
     ax: plt.Axes = None,
     skew: float = 0.5,
     flatten: float = 0.9,
 ):
-    for fp in footprints:
-        skewed_flattened_footprint = skew_flatten_verts(fp, skew=skew, flatten=flatten)
+    for footprint in footprints:
+        skewed_flattened_footprint = {}
+        skewed_flattened_footprint["exterior"] = skew_flatten_verts(
+            footprint["exterior"], skew=skew, flatten=flatten
+        )
+        skewed_flattened_footprint["interiors"] = [
+            skew_flatten_verts(interior, skew=skew, flatten=flatten)
+            for interior in footprint["interiors"]
+        ]
         plot_footprint(skewed_flattened_footprint, ax=ax)
     return
 
@@ -45,7 +59,7 @@ def skew_flatten_verts(
     return [[x + y * skew, y * flatten] for x, y in verts]
 
 
-def get_extend_boxes(footprints_t: list[list[list[float]]]):
+def get_extend_boxes(footprints_l: list[dict[str, list[list[float]]]]):
     """
     Aid function that makes an extend box for the maximum extend
     across all layers of footprints
@@ -54,12 +68,20 @@ def get_extend_boxes(footprints_t: list[list[list[float]]]):
     x1s = []
     y0s = []
     y1s = []
-    for i, footprints in enumerate(footprints_t):
+    for i, footprints in enumerate(footprints_l):
         # get box coordinates:
-        x0 = min([min([v[0] for v in fp]) for fp in footprints if len(fp) > 0])
-        x1 = max([max([v[0] for v in fp]) for fp in footprints if len(fp) > 0])
-        y0 = min([min([v[1] for v in fp]) for fp in footprints if len(fp) > 0])
-        y1 = max([max([v[1] for v in fp]) for fp in footprints if len(fp) > 0])
+        x0 = min(
+            [min([v[0] for v in fp]) for fp["exterior"] in footprints if len(fp) > 0]
+        )
+        x1 = max(
+            [max([v[0] for v in fp]) for fp["exterior"] in footprints if len(fp) > 0]
+        )
+        y0 = min(
+            [min([v[1] for v in fp]) for fp["exterior"] in footprints if len(fp) > 0]
+        )
+        y1 = max(
+            [max([v[1] for v in fp]) for fp["exterior"] in footprints if len(fp) > 0]
+        )
         x0s.append(x0)
         x1s.append(x1)
         y0s.append(y0)
@@ -188,12 +210,14 @@ if __name__ == "__main__":
         [TC[0] + 40 + 20, TC[1] + 30 + 20],
         [TC[0] + 40 + 20, TC[1] + 30],
     ]
+    s1 = {"exterior": h1, "interiors": []}
+    s2 = {"exterior": h2, "interiors": []}
     fig, ax = plt.subplots()
-    plot_skewed_footprints([h1, h2], ax=ax, skew=0.25, flatten=0.7)
+    plot_skewed_footprints([s1, s2], ax=ax, skew=0.25, flatten=0.7)
     plt.axis("off")
     ax.set_aspect("equal")
     plt.show()
-
+    # %%
     # new test
     fig, ax = plt.subplots()
     stacked_skewed_footprints(

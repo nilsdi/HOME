@@ -156,20 +156,21 @@ def stacked_combined_plot(
             tile_min_x = box_max_x + 0.2 * y_dist * flatten
             tile_max_x = tile_min_x + tile_max_y - tile_min_y
 
-            img = tifs[project]
-            if img is not None:
-                # if rgb:
-                if len(img.shape) == 3:
-                    ax.imshow(
-                        img,
-                        extent=[tile_min_x, tile_max_x, tile_min_y, tile_max_y],
-                    )
-                elif len(img.shape) == 2:
-                    ax.imshow(
-                        img,
-                        extent=[tile_min_x, tile_max_x, tile_min_y, tile_max_y],
-                        cmap="gray",
-                    )
+            if project in tifs.keys():
+                img = tifs[project]
+                if img is not None:
+                    # if rgb:
+                    if len(img.shape) == 3:
+                        ax.imshow(
+                            img,
+                            extent=[tile_min_x, tile_max_x, tile_min_y, tile_max_y],
+                        )
+                    elif len(img.shape) == 2:
+                        ax.imshow(
+                            img,
+                            extent=[tile_min_x, tile_max_x, tile_min_y, tile_max_y],
+                            cmap="gray",
+                        )
         footprints = skewed_flattened_footprints[project]
         for sid, fp in footprints.items():
             if special_footprint_ids:
