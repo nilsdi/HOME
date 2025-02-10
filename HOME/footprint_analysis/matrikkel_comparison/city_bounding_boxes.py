@@ -1,3 +1,8 @@
+"""
+Playing around with the municipal boundaries of Norway.
+Some of the functions might be used in other plots (e.g.get_municipal_boundaries)
+"""
+
 # %%
 import folium
 from shapely.geometry import box
