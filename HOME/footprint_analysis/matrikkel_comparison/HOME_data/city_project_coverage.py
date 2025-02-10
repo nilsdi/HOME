@@ -5,10 +5,15 @@ Checking the coverage of the projects we used for each city vs the municipal bou
 # %%
 from pathlib import Path
 import json
-from shapely.geometry import shape
+from shapely.geometry import shape, box
 from datetime import datetime
 import matplotlib.pyplot as plt
-
+import geopandas as gpd
+from tqdm import tqdm
+from matplotlib import cm
+import matplotlib.patches as mpatches
+from matplotlib.lines import Line2D
+from matplotlib.gridspec import GridSpec
 
 from HOME.utils.get_project_metadata import (
     get_project_metadata,
@@ -19,36 +24,36 @@ from HOME.footprint_analysis.matrikkel_comparison.city_bounding_boxes import (
     get_municipal_boundaries,
 )
 
-root_dir = Path(__file__).parents[3]
+root_dir = Path(__file__).parents[4]
 
 # %%
 # list the projects by city:
 if __name__ == "__main__":
-    cities = ["trondheim", "oslo", "bergen", "stavanger", "tromsø"]
+    cities = [
+        "trondheim",
+        "oslo",
+        "bergen",
+        "stavanger",
+        "bærum",
+        "kristiansand",
+        "drammen",
+        "asker",
+        "lillestrøm",
+        "fredrikstad",
+        "sandnes",
+        "tromsø",
+        "skien",
+        "ålesund",
+        "bodø",
+    ]
 
     # %%
     # get the boundaries for the cities
     municipality_boundaries = {city: get_municipal_boundaries(city) for city in cities}
     # also check which projects would be interesting from a coverage perspective
     metadata_all_projects = _get_newest_metadata()
-    print(metadata_all_projects.keys())
-    # %%
     all_projects = metadata_all_projects["ProjectList"][:]
-    # exclude some with bad crs:
-    # bad_projects = []
-    # for project, metadata in zip(
-    #     all_projects, metadata_all_projects["ProjectMetadata"]
-    # ):
-    #     if metadata["properties"]["opprinneligbildesys"] not in ["22", "23"]:
-    #         print(f"Project {project} has bad crs: {metadata['properties']['opprinneligbildesys']}")
-    #         bad_projects.append(project)
-    # bad_projects = ["Vest-Finnmark midlertidig ortofoto 2023", "Hammerfest sentrum 2022", "Nordvest Finnmark 2022"]
-    # for project in bad_projects:
-    #     all_projects.remove(project)
-    # all_projects.remove("Vest-Finnmark midlertidig ortofoto 2023")
     geometries = get_project_geometry(all_projects)
-    # %%
-    # geometries = [geo.to_crs(crs = 25833) for geo in geometries]
     geometries = [geo.to_crs(epsg=4326) for geo in geometries]
     # %%
 
@@ -129,7 +134,7 @@ if __name__ == "__main__":
 
     with open(
         root_dir
-        / "footprint_analysis/matrikkel_comparison/HOME_data/city_project_coverage.json",
+        / "HOME/footprint_analysis/matrikkel_comparison/HOME_data/city_project_coverage.json",
         "w",
     ) as f:
         json.dump(City_coverage_rel_area, f, default=datetime_converter)
@@ -150,7 +155,12 @@ if __name__ == "__main__":
         fig.show()
 
     # %%
-    def get_city_best_coverage(city, coverage_data):
+    def get_city_best_coverage(city, coverage_data, n_projects_decade=10):
+        """
+        Get the best coverage for a city, by selecting the n_projects_decade
+        best (highest relative coverage withtin the municipality boundaries)
+        projects for each decade
+        """
         best_candidates = {}
         decades = []
         for project, data in coverage_data.items():
@@ -170,51 +180,16 @@ if __name__ == "__main__":
             )
         selected_candidates = {}
         for decade, data in best_candidates.items():
-            selected_candidates[decade] = dict(list(data["candidates"].items())[:10])
+            selected_candidates[decade] = dict(
+                list(data["candidates"].items())[:n_projects_decade]
+            )
         return selected_candidates
 
     trondheim_best_coverage = get_city_best_coverage(
         "trondheim", City_overlaps_shapes["trondheim"]
     )
-    trondheim_best_coverage == trondheim_coverage_geo_plot
+    # trondheim_best_coverage == trondheim_coverage_geo_plot
     print(trondheim_best_coverage)
-    # %%
-    trondheim_coverage_geo_plot_candidates = {}
-    decades = []
-    for project, data in City_overlaps_shapes["trondheim"].items():
-        project_year = data["time"].year
-        project_decade = project_year - project_year % 10
-        # print(f"Project {project} from {project_year} in decade {project_decade}")
-        if project_decade not in decades:
-            decades.append(project_decade)
-            trondheim_coverage_geo_plot_candidates[project_decade] = {"candidates": {}}
-        trondheim_coverage_geo_plot_candidates[project_decade]["candidates"][
-            project
-        ] = {
-            "overlap": data["relative_overlap"],
-            "geometry": data["geometry"],
-            "time": data["time"],
-        }
-
-    # sort the projects within each decade by relative overlap
-    for decade, data in trondheim_coverage_geo_plot_candidates.items():
-        data["candidates"] = dict(
-            sorted(
-                data["candidates"].items(),
-                key=lambda item: item[1]["overlap"],
-                reverse=True,
-            )
-        )
-
-    print(trondheim_coverage_geo_plot)
-
-    # make the plot data with the first 10 candidates only
-    trondheim_coverage_geo_plot = {}
-    for decade, data in trondheim_coverage_geo_plot_candidates.items():
-        trondheim_coverage_geo_plot[decade] = dict(
-            list(data["candidates"].items())[:10]
-        )
-    print(trondheim_coverage_geo_plot)
 
 
 # %% bar plot of covered area
@@ -233,114 +208,140 @@ def bar_plot_coverage(coverage_data, city):
 
 bar_plot_coverage(trondheim_best_coverage, "trondheim")
 
-fig, ax = plt.subplots(len(decades), 1, figsize=(10, 16))
-for i, (decade, data) in enumerate(trondheim_coverage_geo_plot.items()):
-    ax[i].bar(data.keys(), [i["overlap"] for i in data.values()])
-    # set the text size of the x-ticks to 5
-    plt.setp(ax[i].get_xticklabels(), fontsize=5)
-    ax[i].set_title(f"{decade}")
-    ax[i].set_ylim(0, 1)
-# ax[i].set_xlabel("Project", rotation=45)
-# ax[i].set_ylabel("Relative coverage")
-# %% area plot with overlapping projects
-ncols = 3
-nrows = len(decades) // ncols + 1
-fig, ax = plt.subplots(nrows, ncols, figsize=(20, 20))
-import geopandas as gpd
-from tqdm import tqdm
-from matplotlib import cm
-
-# Make ten colors from the tab10 colormap
-tab10 = cm.get_cmap("tab10")
-colors = [tab10(i) for i in range(10)]
-
-city_gdf = gpd.GeoSeries(city_boundaries_shapely["trondheim"])
-citty_extend = city_gdf.total_bounds
-print(citty_extend)
-
-for i, (decade, data) in tqdm(
-    enumerate(trondheim_coverage_geo_plot.items()), total=len(decades)
-):
-    for j, (project, pdata) in enumerate(data.items()):
-        # print(f"Plotting {project} from {decade}, data: {pdata}")
-        row = i // ncols
-        col = i % ncols
-        gdf = gpd.GeoSeries(pdata["geometry"])
-        gdf.plot(ax=ax[row, col], alpha=0.3, edgecolor="k", facecolor=colors[j])
-        # add to legend:
-        ax[row, col].plot(
-            [],
-            [],
-            color=colors[j],
-            label=f"{project} ({pdata['time'].year}, {pdata['overlap']:.2f})",
-        )
-    # print the trondheim shade
-
-    city_gdf.plot(
-        ax=ax[row, col], alpha=1, edgecolor="crimson", linewidth=2, facecolor="none"
-    )
-    ax[row, col].set_title(f"decade:{decade}")
-    # automatically set the limits
-    ax[row, col].set_xlim(citty_extend[0] - 0.1, citty_extend[2] + 0.1)
-    ax[row, col].set_ylim(citty_extend[1] - 0.1, citty_extend[3] + 0.1)
-    # ax[row, col].set_xlim(9.9, 10.8)
-    ax[row, col].set_ylim(63.1, 63.6)
-    ax[row, col].legend(fontsize=4)
-    # aspect ratio: equal
-    # ax[row, col].set_aspect("equal")
-    ax[row, col].axis("off")
-
-# deactivate the plot for the remaning tiles:
-for i in range(row * ncols + col + 1, nrows * ncols):
-    ax[i // ncols, i % ncols].axis("off")
-plt.tight_layout()
-fig.subplots_adjust(hspace=0.1, wspace=0.1)
-
 
 # %%
 def plot_city_coverage(city, coverage_data):
+    # Load the natural earth low resolution dataset
+    world = gpd.read_file(
+        root_dir / "data/raw/maps/world_high_res/ne_10m_land.shp", crs=4326
+    )
+    # # Check the initial CRS of the world dataset
+    # print("Initial CRS:", world.crs)
+    # # Inspect the geometries before and after the transformation
+    # print("Geometries before transformation:", world.geometry.head())
+    world = world.to_crs(
+        epsg=25832
+    )  # for some reason 25833 does not work at all (check world plot)
+    # # Check the CRS after transformation
+    # print("Transformed CRS:", world.crs)
+    # print("Geometries after transformation:", world.geometry.head())
+
+    # # Plot the transformed geometries
+    # fig, ax = plt.subplots( figsize=(10, 10))
+    # world.plot(ax = ax)
+    # plt.xlim(-1e7, 1e7)
+    # plt.ylim(-0e7, 2e7)
+    # plt.show()
+    # plt.close()
+
+    decades = list(coverage_data.keys())
     ncols = 3
     nrows = len(coverage_data.keys()) // ncols + 1
-    fig, ax = plt.subplots(nrows, ncols, figsize=(40, 40))
 
+    city_gdf = gpd.GeoSeries(city_boundaries_shapely[city], crs=4326).to_crs(epsg=25832)
+    city_extend = city_gdf.total_bounds
+    city_heigh_width_ratio = (city_extend[3] - city_extend[1]) / (
+        city_extend[2] - city_extend[0]
+    )
+    print(city_heigh_width_ratio)
+    desired_aspect_ratio = 1.5  # ratio between height and width of the plot
+    closest_ratio_difference = 10 * 10
+    for n_cols in range(1, len(decades) + 1):
+        n_rows = len(decades) // n_cols + 1
+        if n_cols * (n_rows - 1) == len(decades):
+            n_rows -= 1
+        current_aspect_ratio = city_heigh_width_ratio * n_rows / n_cols
+        ratio_difference = abs(current_aspect_ratio - desired_aspect_ratio)
+        if ratio_difference < closest_ratio_difference:
+            closest_ratio_difference = ratio_difference
+            best_n_cols = n_cols
+            best_n_rows = n_rows
+    ncols = best_n_cols
+    nrows = best_n_rows
+    print(
+        f"best_n_cols: {best_n_cols}, best_n_rows: {best_n_rows} for a total of {len(decades)} plots"
+    )
+    fig_width = 25
+    fig_height = fig_width * desired_aspect_ratio
+
+    # fig_height = 30
+    # fig_width = fig_height /city_heigh_width_ratio
+
+    print(f"fig_width: {fig_width}, fig_height: {fig_height}")
+    fig, axs = plt.subplots(nrows, ncols, figsize=(fig_width, fig_height))
+    for r in range(nrows):
+        for c in range(ncols):
+            axs[r, c].axis("off")
+    gs = GridSpec(nrows, ncols, figure=fig)
     # make ten colors from the tab10 colormap
     tab10 = cm.get_cmap("tab10")
     colors = [tab10(i) for i in range(10)]
 
-    city_gdf = gpd.GeoSeries(city_boundaries_shapely[city])
-    city_extend = city_gdf.total_bounds
+    world_clipped = world.cx[
+        city_extend[0] : city_extend[2], city_extend[1] : city_extend[3]
+    ]
+    # Intersect the world data with the bounding box of the city
+    # world_clipped = gpd.overlay(world, city_bbox_gdf, how='intersection')
+    hatch_patch = mpatches.Patch(
+        facecolor="none", edgecolor="black", hatch="//", label="land", alpha=0.2
+    )
+    city_border_patch = Line2D(
+        [0], [0], color="crimson", linewidth=1.5, label=f"{city} borders"
+    )
     for i, (decade, data) in tqdm(enumerate(coverage_data.items()), total=len(decades)):
+        row = i // ncols
+        col = i % ncols
+        ax = fig.add_subplot(gs[row, col])
+        city_gdf.plot(
+            ax=ax,
+            alpha=1,
+            edgecolor="crimson",
+            linewidth=1.5,
+            facecolor="none",
+        )
+        handles, labels = ax.get_legend_handles_labels()
         for j, (project, pdata) in enumerate(data.items()):
-            row = i // ncols
-            col = i % ncols
-            gdf = gpd.GeoSeries(pdata["geometry"])
-            gdf.plot(ax=ax[row, col], alpha=0.3, edgecolor="k", facecolor=colors[j])
-            ax[row, col].plot(
-                [],
-                [],
+            gdf = gpd.GeoSeries(pdata["geometry"], crs=4326).to_crs(epsg=25832)
+            gdf.plot(
+                ax=ax,
+                alpha=0.3,
+                edgecolor=colors[j],
+                facecolor=colors[j],
+            )
+            project_patch = mpatches.Patch(
                 color=colors[j],
                 label=f"{project} (t ={pdata['time'].year},%={pdata['relative_overlap']:.2f})",
             )
+            handles.append(project_patch)
         # print(gdf)
-        city_gdf.plot(
-            ax=ax[row, col], alpha=1, edgecolor="crimson", linewidth=2, facecolor="none"
+
+        world_clipped.plot(
+            ax=ax, color="none", hatch="//", edgecolor="black", alpha=0.2
         )
-        ax[row, col].set_title(f"decade:{decade}", fontsize=16)
+        # Add the custom legend entry to the existing legend handles
+        handles.append(city_border_patch)
+        handles.append(hatch_patch)
+        ax.legend(handles=handles, fontsize=8)
+
+        # world_clipped.plot(ax=ax[row, col], color="none", edgecolor="black", alpha=0.2)
+        ax.set_title(f"projects from the {decade}s", fontsize=20)
         # automatically set the limits
-        ax[row, col].set_xlim(city_extend[0] - 0.1, city_extend[2] + 0.1)
-        ax[row, col].set_ylim(city_extend[1] - 0.1, city_extend[3] + 0.1)
-        ax[row, col].legend(fontsize=7)
+        ax.set_xlim(city_extend[0] - 0.1, city_extend[2] + 0.1)
+        ax.set_ylim(city_extend[1] - 0.1, city_extend[3] + 0.1)
+        # ax[row, col].legend(fontsize=7)
         # aspect ratio: equal
         # ax[row, col].set_aspect("equal")
-        ax[row, col].axis("off")
+        ax.set_axis_off()
+        # break
 
     # deactivate the plot for the remaning tiles:
     for i in range(row * ncols + col + 1, nrows * ncols):
-        ax[i // ncols, i % ncols].axis("off")
+        fig.add_subplot(gs[i // ncols, i % ncols]).axis("off")
     # set title for entire plot
-    fig.suptitle(f"Coverage of {city}", fontsize=20)
+    fig.suptitle(f"Coverage of {city}", fontsize=36, y=1 + 0.2 / fig_height)
     plt.tight_layout()
-    fig.subplots_adjust(hspace=0.1, wspace=0.1)
+    # fig.subplots_adjust(top=0.3, hspace=0.1, wspace=0.1)
+    fig.subplots_adjust(top=0.95, bottom=0.05, left=0.05, right=0.95)
     plt.show()
     return fig, ax
 
@@ -353,5 +354,9 @@ for city in cities:
     # save each plot just here
     fig.savefig(
         root_dir
-        / f"footprint_analysis/matrikkel_comparison/HOME_data/{city}_coverage_plot.png"
+        / f"data/figures/matrikkel_comparison/data_selection_cities/{city}_coverage_plot.png",
+        dpi=300,
+        bbox_inches="tight",
     )
+
+# %%
