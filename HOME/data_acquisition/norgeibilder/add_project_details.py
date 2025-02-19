@@ -85,10 +85,16 @@ def add_project_details(project_list):
                 properties["pixelstorrelse"]
             )
             bildesys = properties["opprinneligbildesys"]
-            assert bildesys in ["22", "23"], f"bildesys {bildesys} not supported"
-            project_details[project_name]["original_crs"] = (
-                25833 if bildesys == "23" else 25832
-            )
+            # assert bildesys in ["22", "23"], f"bildesys {bildesys} not supported"
+            if bildesys == "23":
+                project_details[project_name]["original_crs"] = 25833
+            elif bildesys == "22":
+                project_details[project_name]["original_crs"] = 25832
+            else:
+                project_details[project_name]["original_crs"] = None
+            # project_details[project_name]["original_crs"] = (
+            #     25833 if bildesys == "23" elif bildesys "22" 25832
+            # )sc
             project_details[project_name]["status"] = "pending"
 
     # save the file
