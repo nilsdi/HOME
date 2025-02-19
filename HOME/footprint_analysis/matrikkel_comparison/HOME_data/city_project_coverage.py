@@ -26,38 +26,19 @@ from HOME.footprint_analysis.matrikkel_comparison.city_bounding_boxes import (
 
 root_dir = Path(__file__).parents[4]
 
-# %%
-# list the projects by city:
-if __name__ == "__main__":
-    cities = [
-        "trondheim",
-        "oslo",
-        "bergen",
-        "stavanger",
-        "bærum",
-        "kristiansand",
-        "drammen",
-        "asker",
-        "lillestrøm",
-        "fredrikstad",
-        "sandnes",
-        "tromsø",
-        "skien",
-        "ålesund",
-        "bodø",
-    ]
 
-    # %%
-    # get the boundaries for the cities
+# %%
+def get_city_projects(
+    cities: list[str],
+    required_resolution: float = 0.6,
+):
     municipality_boundaries = {city: get_municipal_boundaries(city) for city in cities}
-    # also check which projects would be interesting from a coverage perspective
+
     metadata_all_projects = _get_newest_metadata()
     all_projects = metadata_all_projects["ProjectList"][:]
     geometries = get_project_geometry(all_projects)
     geometries = [geo.to_crs(epsg=4326) for geo in geometries]
-    # %%
 
-    # Convert city boundaries to shapely geometries
     city_boundaries_shapely = {
         city: shape(boundary) for city, boundary in municipality_boundaries.items()
     }
@@ -80,21 +61,15 @@ if __name__ == "__main__":
                 # If conversion to date fails, return None
                 return capture_date
 
-    City_overlaps = {city: [] for city in cities}
-    City_full_coverage = {city: [] for city in cities}
-    City_coverage_rel_area = {city: {} for city in cities}
-    City_overlaps_shapes = {city: {} for city in cities}
-    # Check for overlaps and full coverage
+    city_overlaps_shapes = {city: {} for city in cities}
     for project, metadata, geometry_series in zip(
         all_projects, metadata_all_projects["ProjectMetadata"], geometries
     ):
-        # check first that the resolution is at least 0.3m:
-        if float(metadata["properties"]["pixelstorrelse"]) > 0.3:
+        # check first that the resolution is at least 0.6m:
+        if float(metadata["properties"]["pixelstorrelse"]) > required_resolution:
             continue
         for city, city_boundary in city_boundaries_shapely.items():
-            # print(f'Checking project {project} in city {city}')
             intersects = False
-            completly_covers = False
             total_overlap_area = 0
             for geometry in geometry_series:
                 if geometry.intersects(city_boundary):
@@ -104,55 +79,120 @@ if __name__ == "__main__":
                         total_overlap_area += intersects_area
                     except:
                         print(f"Error in project {project} in city {city}")
-                if geometry.contains(city_boundary):
-                    completly_covers = True
             if intersects:
-                City_overlaps[city].append(project)
-                City_coverage_rel_area[city][project] = {
-                    "relative_overlap": total_overlap_area / city_boundaries_area[city],
-                    "time": get_project_date(metadata["properties"]["fotodato_date"]),
-                }
-                City_overlaps_shapes[city][project] = {
+                city_overlaps_shapes[city][project] = {
                     "relative_overlap": total_overlap_area / city_boundaries_area[city],
                     "time": get_project_date(metadata["properties"]["fotodato_date"]),
                     "geometry": geometry_series,
                 }
-            if completly_covers:
-                City_full_coverage[city].append(project)
-            # print(f'Intersects: {intersects}, completly covers: {completly_covers}')
-    print(City_overlaps)
-    print(City_full_coverage)
-    print(City_coverage_rel_area)
+    return city_overlaps_shapes, city_boundaries_shapely
+
+    # # %%
+    # # get the boundaries for the cities
+    # municipality_boundaries = {city: get_municipal_boundaries(city) for city in cities}
+    # # also check which projects would be interesting from a coverage perspective
+    # metadata_all_projects = _get_newest_metadata()
+    # all_projects = metadata_all_projects["ProjectList"][:]
+    # geometries = get_project_geometry(all_projects)
+    # geometries = [geo.to_crs(epsg=4326) for geo in geometries]
+    # # %%
+
+    # # Convert city boundaries to shapely geometries
+    # city_boundaries_shapely = {
+    #     city: shape(boundary) for city, boundary in municipality_boundaries.items()
+    # }
+    # city_boundaries_area = {
+    #     city: city_boundary.area
+    #     for city, city_boundary in city_boundaries_shapely.items()
+    # }
+
+    # def get_project_date(capture_date: str):
+    #     try:
+    #         # Try to convert the input as a Unix timestamp in milliseconds
+    #         timestamp_ms = int(capture_date)
+    #         timestamp_s = timestamp_ms / 1000
+    #         return datetime.fromtimestamp(timestamp_s)
+    #     except ValueError:
+    #         # If conversion to int fails, assume the input is a date string
+    #         try:
+    #             return datetime.strptime(capture_date, "%Y-%m-%d")
+    #         except ValueError:
+    #             # If conversion to date fails, return None
+    #             return capture_date
+
+    # City_overlaps = {city: [] for city in cities}
+    # City_full_coverage = {city: [] for city in cities}
+    # City_coverage_rel_area = {city: {} for city in cities}
+    # City_overlaps_shapes = {city: {} for city in cities}
+    # # Check for overlaps and full coverage
+    # for project, metadata, geometry_series in zip(
+    #     all_projects, metadata_all_projects["ProjectMetadata"], geometries
+    # ):
+    #     # check first that the resolution is at least 0.6m:
+    #     if float(metadata["properties"]["pixelstorrelse"]) > 0.6:
+    #         continue
+    #     for city, city_boundary in city_boundaries_shapely.items():
+    #         # print(f'Checking project {project} in city {city}')
+    #         intersects = False
+    #         completly_covers = False
+    #         total_overlap_area = 0
+    #         for geometry in geometry_series:
+    #             if geometry.intersects(city_boundary):
+    #                 intersects = True
+    #                 try:
+    #                     intersects_area = geometry.intersection(city_boundary).area
+    #                     total_overlap_area += intersects_area
+    #                 except:
+    #                     print(f"Error in project {project} in city {city}")
+    #             if geometry.contains(city_boundary):
+    #                 completly_covers = True
+    #         if intersects:
+    #             City_overlaps[city].append(project)
+    #             City_coverage_rel_area[city][project] = {
+    #                 "relative_overlap": total_overlap_area / city_boundaries_area[city],
+    #                 "time": get_project_date(metadata["properties"]["fotodato_date"]),
+    #             }
+    #             City_overlaps_shapes[city][project] = {
+    #                 "relative_overlap": total_overlap_area / city_boundaries_area[city],
+    #                 "time": get_project_date(metadata["properties"]["fotodato_date"]),
+    #                 "geometry": geometry_series,
+    #             }
+    #         if completly_covers:
+    #             City_full_coverage[city].append(project)
+    #         # print(f'Intersects: {intersects}, completly covers: {completly_covers}')
+    # print(City_overlaps)
+    # print(City_full_coverage)
+    # print(City_coverage_rel_area)
 
     # save city coverage data to a json
-    def datetime_converter(o):
-        if isinstance(o, datetime):
-            return o.isoformat()
-        raise TypeError(
-            f"Object of type {o.__class__.__name__} is not JSON serializable"
-        )
 
-    with open(
-        root_dir
-        / "HOME/footprint_analysis/matrikkel_comparison/HOME_data/city_project_coverage.json",
-        "w",
-    ) as f:
-        json.dump(City_coverage_rel_area, f, default=datetime_converter)
 
-    for city, coverage in City_coverage_rel_area.items():
-        print(f"City: {city}")
-        fig, ax = plt.subplots()
-        for project, coverage_data in coverage.items():
-            ax.plot(
-                coverage_data["time"],
-                coverage_data["relative_overlap"],
-                "o",
-                label=project,
-            )
-        ax.set_title(f"Relative coverage of {city}")
-        ax.set_xlabel("Time")
-        ax.set_ylabel("Relative coverage")
-        fig.show()
+def datetime_converter(o):
+    if isinstance(o, datetime):
+        return o.isoformat()
+    raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
+
+    # with open(
+    #     root_dir
+    #     / "HOME/footprint_analysis/matrikkel_comparison/HOME_data/city_project_coverage.json",
+    #     "w",
+    # ) as f:
+    #     json.dump(City_coverage_rel_area, f, default=datetime_converter)
+
+    # for city, coverage in City_coverage_rel_area.items():
+    #     print(f"City: {city}")
+    #     fig, ax = plt.subplots()
+    #     for project, coverage_data in coverage.items():
+    #         ax.plot(
+    #             coverage_data["time"],
+    #             coverage_data["relative_overlap"],
+    #             "o",
+    #             label=project,
+    #         )
+    #     ax.set_title(f"Relative coverage of {city}")
+    #     ax.set_xlabel("Time")
+    #     ax.set_ylabel("Relative coverage")
+    #     fig.show()
 
     # %%
     def get_city_best_coverage(city, coverage_data, n_projects_decade=10):
@@ -185,11 +225,11 @@ if __name__ == "__main__":
             )
         return selected_candidates
 
-    trondheim_best_coverage = get_city_best_coverage(
-        "trondheim", City_overlaps_shapes["trondheim"]
-    )
-    # trondheim_best_coverage == trondheim_coverage_geo_plot
-    print(trondheim_best_coverage)
+    # trondheim_best_coverage = get_city_best_coverage(
+    #     "trondheim", City_overlaps_shapes["trondheim"]
+    # )
+    # # trondheim_best_coverage == trondheim_coverage_geo_plot
+    # print(trondheim_best_coverage)
 
 
 # %% bar plot of covered area
@@ -206,11 +246,11 @@ def bar_plot_coverage(coverage_data, city):
     fig.show()
 
 
-bar_plot_coverage(trondheim_best_coverage, "trondheim")
+# bar_plot_coverage(trondheim_best_coverage, "trondheim")
 
 
 # %%
-def plot_city_coverage(city, coverage_data):
+def plot_city_coverage(city, coverage_data, city_boundary):
     # Load the natural earth low resolution dataset
     world = gpd.read_file(
         root_dir / "data/raw/maps/world_high_res/ne_10m_land.shp", crs=4326
@@ -238,7 +278,7 @@ def plot_city_coverage(city, coverage_data):
     ncols = 3
     nrows = len(coverage_data.keys()) // ncols + 1
 
-    city_gdf = gpd.GeoSeries(city_boundaries_shapely[city], crs=4326).to_crs(epsg=25832)
+    city_gdf = gpd.GeoSeries(city_boundary, crs=4326).to_crs(epsg=25832)
     city_extend = city_gdf.total_bounds
     city_heigh_width_ratio = (city_extend[3] - city_extend[1]) / (
         city_extend[2] - city_extend[0]
@@ -346,17 +386,53 @@ def plot_city_coverage(city, coverage_data):
     return fig, ax
 
 
-plot_city_coverage("trondheim", trondheim_best_coverage)
+# plot_city_coverage("trondheim", trondheim_best_coverage)
 # %%
-for city in cities:
-    best_coverage = get_city_best_coverage(city, City_overlaps_shapes[city])
-    fig, ax = plot_city_coverage(city, best_coverage)
-    # save each plot just here
-    fig.savefig(
-        root_dir
-        / f"data/figures/matrikkel_comparison/data_selection_cities/{city}_coverage_plot.png",
-        dpi=300,
-        bbox_inches="tight",
+# list the projects by city:
+if __name__ == "__main__":
+    cities = [
+        "trondheim",
+        "oslo",
+        "bergen",
+        "stavanger",
+        "bærum",
+        "kristiansand",
+        "drammen",
+        "asker",
+        "lillestrøm",
+        "fredrikstad",
+        "sandnes",
+        "tromsø",
+        "skien",
+        "ålesund",
+        "bodø",
+    ]
+    resolution_required = 0.6
+    city_overlaps_shapes, city_boundaries_shapely = get_city_projects(
+        cities, resolution_required
     )
+    n_best = 10
+    for city in cities:
+        best_coverage = get_city_best_coverage(city, city_overlaps_shapes[city], n_best)
+        fig, ax = plot_city_coverage(city, best_coverage, city_boundaries_shapely[city])
+        file_name = f"{city}_coverage_plot_res_{resolution_required}_nbest_{n_best}"
+        # save each plot just here
+        fig.savefig(
+            root_dir
+            / f"data/figures/matrikkel_comparison/data_selection_cities"
+            / f"{file_name}.png",
+            dpi=300,
+            bbox_inches="tight",
+        )
+        # save the best coverage for the ctys to a json
+        # remove all the shapely geometries
+        for decade, data in best_coverage.items():
+            for project, pdata in data.items():
+                pdata.pop("geometry")
+        with open(
+            root_dir / f"data/matrikkel_comparison/city_data/{file_name}.json",
+            "w",
+        ) as f:
+            json.dump(best_coverage, f, default=datetime_converter)
 
 # %%
