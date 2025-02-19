@@ -174,7 +174,8 @@ def predict_and_eval(
         acc_R = None
 
     # Recall for class 1
-    predictions_log[prediction_key]["recall"] = acc_R[1]
+    if evaluate:
+        predictions_log[prediction_key]["recall"] = acc_R[1]
     with open(data_path / "metadata_log/predictions_log.json", "w") as file:
         json.dump(predictions_log, file, indent=4)
 

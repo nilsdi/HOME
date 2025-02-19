@@ -54,6 +54,9 @@ def get_project_geometry(project_names: str or list[str]) -> gpd.GeoSeries:
 
     project_geometries = []
     project_metadatas = get_project_metadata(project_names)
+    if len(project_names) == 1:
+        project_metadatas = [project_metadatas]
+
     for project_name, project_metadata in zip(project_names, project_metadatas):
         project_crs_id = project_metadata["properties"]["opprinneligbildesys"]
         # assert project_crs_id in ["22", "23"]
@@ -65,7 +68,8 @@ def get_project_geometry(project_names: str or list[str]) -> gpd.GeoSeries:
         project_geometry = gpd.GeoSeries(shape(project_metadata["geometry"]), crs=25833)
         project_geometries.append(project_geometry)
         # project_geometries.append(project_geometry.to_crs(project_crs))
-    if isinstance(project_names, str):
+
+    if len(project_names) == 1:
         return project_geometries[0]
     return project_geometries
 

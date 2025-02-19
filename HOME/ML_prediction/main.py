@@ -7,6 +7,8 @@ import argparse
 import contextlib
 import os
 import sys
+import time
+import json
 
 from HOME.ML_prediction.preprocessing import (
     step_01_tile_generation,
@@ -61,6 +63,18 @@ def suppress_output(filepath=None):
             sys.stderr = old_stderr
 
 
+def get_directory_size(directory):
+    """Get size of directory in GB"""
+    total = 0
+    with os.scandir(directory) as it:
+        for entry in it:
+            if entry.is_file():
+                total += entry.stat().st_size
+            elif entry.is_dir():
+                total += get_directory_size(entry.path)
+    return total / (1024 * 1024 * 1024)  # Convert bytes to GB
+
+
 def run_project(
     project_name,
     project_details,
@@ -69,17 +83,20 @@ def run_project(
     labels=False,
     gdf_omrade=None,
     remove_download=False,
-):
+) -> dict:
     """
     Run the prediction pipeline for a single project
 
-    Arguments:
-    project_name: str, name of the project
-    project_details: dict, details of the project
-    tile_size: int, size of the tiles
-    res: float, resolution of the orthophotos
-    labels: bool, whether to use labels or not
-    gdf_omrade: geopandas dataframe, labels for the buildings
+    Args:
+        project_name: str, name of the project
+        project_details: dict, details of the project
+        tile_size: int, size of the tiles
+        res: float, resolution of the orthophotos
+        labels: bool, whether to use labels or not
+        gdf_omrade: geopandas dataframe, labels for the buildings
+
+    Returns:
+        dict, runtime of the different steps
     """
 
     channels = project_details[project_name]["channels"]
@@ -87,8 +104,9 @@ def run_project(
     # compression = f"i_{compression_name}_{compression_value}"
 
     print(f"Starting prediction for {project_name}")
-
+    processing_times = {}
     # Step 1: Generate tiles
+    t0 = time.time()
     tile_key, labels = step_01_tile_generation.tile_generation(
         project_name,
         tile_size,
@@ -97,18 +115,24 @@ def run_project(
         labels=labels,
         gdf_omrade=gdf_omrade,
     )
-
+    t1 = time.time()
+    processing_times["tile_generation"] = t1 - t0
     if remove_download:
         shutil.rmtree(data_path / f"raw/orthophoto/originals/{project_name}")
 
     # Step 2: Make text file
+    t2 = time.time()
     step_02_make_text_file.make_text_file(project_name=project_name, tile_key=tile_key)
-
+    t3 = time.time()
+    processing_times["make_text_file"] = t3 - t2
     # Step 3: Predict
+    t4 = time.time()
     BW = channels == "BW"
     prediction_key = predict.predict_and_eval(
         project_name, tile_key, BW=BW, evaluate=labels
     )
+    t5 = time.time()
+    processing_times["prediction"] = t5 - t4
 
     # Step 4: Reassemble tiles
     n_tiles_edge = 10
@@ -116,15 +140,19 @@ def run_project(
     assembly_key, geotiff_extends = step_01_reassembling_tiles.reassemble_tiles(
         project_name, prediction_key, n_tiles_edge, n_overlap
     )
+    t6 = time.time()
+    processing_times["reassembling"] = t6 - t5
 
     # Step 5: Regularize
     polygon_id = step_02_regularization.regularize(
         project_name, assembly_key, geotiff_extends
     )
+    t7 = time.time()
+    processing_times["regularization"] = t7 - t6
 
     # Step 4: (Optional) Visualize a few tiles.
     # plot_prediction_input(project_name, n_tiles=4, save=True, show=True)
-    return
+    return processing_times
 
 
 def download(project_name, project_details):
@@ -180,19 +208,34 @@ def process(
     log_folder = data_path / "metadata_log/execution_log"
 
     for project_name in projects_to_run:
+        with open(data_path / "metadata_log/prediction_main_runtime.json", "r") as file:
+            runtimes = json.load(file)
+            runtimes[project_name] = {}
+        with open(data_path / "metadata_log/download_size.json", "r") as file:
+            download_size = json.load(file)
+            download_size[project_name] = {}
+        print(f'Processing project "{project_name}"')
         if len(os.listdir(data_path / f"raw/orthophoto/originals/")) < 5:
-            try:
+            if True:  # try:
                 print(f"Downloading {project_name}")
                 with suppress_output(log_folder / f"{project_name}_download.log"):
+                    download_start_time = time.time()
                     downloaded = download(project_name, project_details)
+                    download_end_time = time.time()
+                    runtimes[project_name]["download"] = (
+                        download_end_time - download_start_time
+                    )
+                    download_size[project_name]["size"] = get_directory_size(
+                        data_path / f"raw/orthophoto/originals/{project_name}"
+                    )
                 if downloaded:
                     project_details = load_project_details(data_path)
                     project_details[project_name]["status"] = "downloaded"
                     save_project_details(project_details, data_path)
-                try:
+                if True:  # try:
                     print(f"Processing {project_name}")
                     with suppress_output(log_folder / f"{project_name}_process.log"):
-                        run_project(
+                        processing_times = run_project(
                             project_name,
                             project_details=project_details,
                             tile_size=tile_size,
@@ -201,13 +244,20 @@ def process(
                             gdf_omrade=gdf_omrade,
                             remove_download=remove_download,
                         )
+                        run_end_time = time.time()
+                    for key, value in processing_times.items():
+                        runtimes[project_name][key] = value
                     project_details = load_project_details(data_path)
                     project_details[project_name]["status"] = "processed"
                     save_project_details(project_details, data_path)
-                except Exception as e:
+                if False:  # except Exception as e:
                     print(f"Error processing {project_name}: {e}")
-            except Exception as e:
+            if False:  # except Exception as e:
                 print(f"Error downloading {project_name}: {e}")
+        with open(data_path / "metadata_log/prediction_main_runtime.json", "w") as file:
+            json.dump(runtimes, file)
+        with open(data_path / "metadata_log/download_size.json", "w") as file:
+            json.dump(download_size, file)
 
 
 def reprocess(
