@@ -38,3 +38,4 @@ dependencies: # not specifying versions to allow for solving during the build pr
   - sphinx 
   - sphinx_rtd_theme
   - tqdm
+  - pyogrio
