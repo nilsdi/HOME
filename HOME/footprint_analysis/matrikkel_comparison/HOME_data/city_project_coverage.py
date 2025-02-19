@@ -408,10 +408,12 @@ if __name__ == "__main__":
         "bodø",
     ]
     resolution_required = 0.6
+    n_best = 10
+    # %%
     city_overlaps_shapes, city_boundaries_shapely = get_city_projects(
         cities, resolution_required
     )
-    n_best = 10
+
     for city in cities:
         best_coverage = get_city_best_coverage(city, city_overlaps_shapes[city], n_best)
         fig, ax = plot_city_coverage(city, best_coverage, city_boundaries_shapely[city])
@@ -434,5 +436,25 @@ if __name__ == "__main__":
             "w",
         ) as f:
             json.dump(best_coverage, f, default=datetime_converter)
+
+    # %% print list of projects for speicific city:
+    city = "kristiansand"
+    best_coverage_json = (
+        root_dir
+        / f"data/matrikkel_comparison/city_data/{city}_coverage_plot_res_{resolution_required}_nbest_{n_best}.json"
+    )
+    with open(best_coverage_json, "r") as f:
+        best_coverage = json.load(f)
+
+    projects_needed = []
+    for decade, data in best_coverage.items():
+        for project, pdata in data.items():
+            projects_needed.append(project.lower().replace(" ", "_"))
+    print(projects_needed)
+    project_needed_cl = ""
+    for project in projects_needed:
+        project_needed_cl += f"{project} "
+
+    print(project_needed_cl)
 
 # %%

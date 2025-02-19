@@ -183,12 +183,28 @@ def process(
     with suppress_output():
         project_details = add_project_details(list_of_projects)
 
+    # check prediction log if project had been predicted before (should in the future also consider settings)
+    prediction_log_path = data_path / "metadata_log/predictions_log.json"
+    with open(prediction_log_path, "r") as file:
+        predictions_log = json.load(file)
+    prediction_ids = list(predictions_log.keys())
+    predicted_projects = [
+        predictions_log[prediction_id]["project_name"]
+        for prediction_id in prediction_ids
+    ]
+
     projects_to_run = []  # list of IDs of projects to run (integers) in the future,
     # names of projects right now
 
     for project_name in list_of_projects:
-        if project_details[project_name]["status"] != "processed":
+        # if project_details[project_name]["status"] != "processed":
+        #     projects_to_run.append(project_name)
+        if project_name not in predicted_projects:
             projects_to_run.append(project_name)
+        else:
+            print(
+                f"{project_name} has already been predicted with ID {prediction_ids[predicted_projects.index(project_name)]}, we will not run it again."
+            )
 
     if labels:
         path_label = (
@@ -216,7 +232,7 @@ def process(
             download_size[project_name] = {}
         print(f'Processing project "{project_name}"')
         if len(os.listdir(data_path / f"raw/orthophoto/originals/")) < 5:
-            if True:  # try:
+            try:
                 print(f"Downloading {project_name}")
                 with suppress_output(log_folder / f"{project_name}_download.log"):
                     download_start_time = time.time()
@@ -252,7 +268,7 @@ def process(
                     save_project_details(project_details, data_path)
                 if False:  # except Exception as e:
                     print(f"Error processing {project_name}: {e}")
-            if False:  # except Exception as e:
+            except Exception as e:
                 print(f"Error downloading {project_name}: {e}")
         with open(data_path / "metadata_log/prediction_main_runtime.json", "w") as file:
             json.dump(runtimes, file)
@@ -428,10 +444,10 @@ if __name__ == "__main__":
         default=None,
     )
     parser.add_argument(
-        "--labels",
-        action="store_true",
+        "--no_labels",
+        action="store_false",
         help="Whether to use labels for the prediction",
-        default=False,
+        default=True,
     )
     parser.add_argument(
         "--remove_download",
