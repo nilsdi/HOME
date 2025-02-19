@@ -46,6 +46,8 @@ def plot_building_layers(
     simplication_tolerance: float = 2,
     buffer_distance: float = 0.5,
     cmap: str = "tab10",
+    colors=None,
+    line_width: float = 1,
 ):
     """
     Plot the building layers for a given area
@@ -86,7 +88,7 @@ def plot_building_layers(
         geometries_t.append(selected_polygons)
         if len(selected_large_tiles) > 0:
             # coverage
-            print(f"selected_large_tiles: {selected_large_tiles}")
+            # print(f"selected_large_tiles: {selected_large_tiles}")
             path_start = "/".join(selected_large_tiles[0].split("/")[:-1])
             coverage_fgbs = [
                 path_start
@@ -94,9 +96,9 @@ def plot_building_layers(
                 + "_".join(t.split("/")[-1].split("_")[1:])
                 for t in selected_large_tiles
             ]
-            print(f"coverage_fgbs: {coverage_fgbs}")
+            # print(f"coverage_fgbs: {coverage_fgbs}")
             # merge the polygons of the coverage
-            coverages_gdb = get_bound_polygons(coverage_fgbs, bshape)
+            coverages_gdb = get_bound_polygons(coverage_fgbs, b_shape)
             coverage = unary_union(coverages_gdb.geometry)
             intersect_coverage = coverage.intersection(b_shape)
             # print(intersect_coverage)
@@ -104,14 +106,18 @@ def plot_building_layers(
                 intersect_coverage = [e for e in intersect_coverage.geoms if e.area > 0]
             else:
                 intersect_coverage = [intersect_coverage]
-            print(f" the coverage object is of type {type(intersect_coverage)}")
-            coverages_t[project] = intersect_coverage
+            # print(f" the coverage object is of type {type(intersect_coverage)}")
+
+            coverages_t[project] = [b_shape]  # [
+            #     [y, x] for x, y in bshape.exterior.coords
+            # ]  # intersect_coverage
+            # print(f"coverages_t[project]: {coverages_t[project]}")
             # coverages_t[project] = b_shape.exterior
 
         # small tiles
         selected_small_tiles = find_small_tiles(
             polygonisation_ids[project],
-            bshape,
+            b_shape,
             res=res,
             tile_size=tile_size,
             overlap=tile_overlap,
@@ -146,18 +152,20 @@ def plot_building_layers(
         footprints_t,
         t,
         coverages_t,
-        bshape,
+        b_shape,
         overlap=layer_overlap,
         tifs=tifs,
         cmap=cmap,
+        colors=colors,
         figsize=figsize,
+        line_width=line_width,
     )
-    return
+    return fig, ax
 
 
 # %% first example
 if __name__ == "__main__":
-    root_dir = Path(__file__).parents[3]
+    root_dir = Path(__file__).parents[4]
     data_path = root_dir / "data"
     project_list = [
         "trondheim_1991",
@@ -168,11 +176,41 @@ if __name__ == "__main__":
         "trondheim_kommune_2022",
     ]
     bshape = get_bounding_shape(3696, 45796)
-    plot_building_layers(project_list, bshape, layer_overlap=0.1, figsize=(10, 50))
+    fig, ax = plot_building_layers(
+        project_list, bshape, layer_overlap=0.1, figsize=(10, 50)
+    )
+    fig.savefig(root_dir / f"data/figures/overlaps/overlaps_3696_45796.png", dpi=300)
+    # %%
+    print(type(bshape), bshape)
+    yx_coords = [[x, y] for x, y in bshape.exterior.coords]
+    print(yx_coords)
     # %% second example
-    bshape = bshape_from_tile_coords(3754, 45755)
-    plot_building_layers(project_list, bshape, layer_overlap=0.1)
+    bshape = get_bounding_shape(3754, 45755)
+    plot_building_layers(project_list, bshape, layer_overlap=0.45)
 
+    # %% make the basis for the methods figure
+    custom_bshape = Polygon(
+        [
+            [567775.6, 7034265.6],
+            [567775.6, 7034182.0],
+            [567859.2, 7034182.0],
+            [567859.2, 7034265.6],
+            [567775.6, 7034265.6],
+        ]
+    )
+    # print(type(custom_bshape), custom_bshape)
+    custom_projects = ["trondheim_1991", "trondheim_2006", "trondheim_kommune_2022"]
+    colors = ["#FED968", "#F7941D", "#C02026"]
+    fig, ax = plot_building_layers(
+        custom_projects,
+        custom_bshape,
+        layer_overlap=-0.1,
+        colors=colors,
+        line_width=2.5,
+    )
+    fig.savefig(root_dir / "data/figures/overlaps/methods_overlaps.png", dpi=900)
+
+    # plot_building_layers(project_list, custom_bshape, layer_overlap=0.1)
     # %% third example
     bshape = bshape_from_tile_coords(3695, 45788)
     plot_building_layers(project_list, bshape, layer_overlap=0.1)

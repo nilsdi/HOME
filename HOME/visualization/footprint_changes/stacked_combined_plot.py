@@ -38,7 +38,9 @@ def stacked_combined_plot(
     flatten: float = 0.9,
     overlap: float = -0.1,
     cmap: str = "tab20",
+    colors: list[str] = None,
     figsize: tuple = None,
+    line_width: float = 1,
     special_footprint_ids: dict[str, list[int]] = None,  # TODO: print them special
 ):
     """
@@ -59,8 +61,9 @@ def stacked_combined_plot(
     """
 
     # prepare colors for each layer
-    colormap = colormaps[cmap]
-    colors = colormap(np.arange(len(footprints_t) % colormap.N))
+    if not colors:
+        colormap = colormaps[cmap]
+        colors = colormap(np.arange(len(footprints_t) % colormap.N))
 
     if not figsize:
         figsize = (20, 20)
@@ -175,7 +178,7 @@ def stacked_combined_plot(
         for sid, fp in footprints.items():
             if special_footprint_ids:
                 if sid in special_footprint_ids[project]:
-                    plot_footprint(fp, ax=ax, color="black", lw=2)
+                    plot_footprint(fp, ax=ax, color="black", lw=line_width + 1)
                     # plot the id of the special footprint in the middle of the footprint
                     x, y = zip(*fp)
                     ax.text(
@@ -188,9 +191,9 @@ def stacked_combined_plot(
                         fontsize=6,
                     )
                 else:
-                    plot_footprint(fp, ax=ax, color=colors[i])
+                    plot_footprint(fp, ax=ax, color=colors[i], lw=line_width)
             else:
-                plot_footprint(fp, ax=ax, color=colors[i])
+                plot_footprint(fp, ax=ax, color=colors[i], lw=line_width)
 
     plt.axis("off")
     ax.set_aspect("equal")
