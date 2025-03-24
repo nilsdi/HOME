@@ -247,6 +247,8 @@ def bar_plot_coverage(coverage_data, city):
 
 
 # bar_plot_coverage(trondheim_best_coverage, "trondheim")
+# %%
+print(f"showed marceau that I did it")
 
 
 # %%
@@ -438,6 +440,8 @@ if __name__ == "__main__":
             json.dump(best_coverage, f, default=datetime_converter)
 
     # %% print list of projects for speicific city:
+    resolution_required = 0.6
+    n_best = 10
     city = "kristiansand"
     best_coverage_json = (
         root_dir

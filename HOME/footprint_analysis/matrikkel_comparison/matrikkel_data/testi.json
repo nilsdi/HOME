@@ -1,0 +1,333 @@
+{
+    "name": "Bygning",
+    "id": {
+        "name": "BygningId",
+        "value": 330364850
+    },
+    "metadata": {
+        "name": "Metadata",
+        "item": [representasjonspunkt, bygningstypeKodeId, naringsgruppeKodeId, oppdateringsdato, kommuneId, bruksenhetIds, kontaktpersoner, ufullstendigAreal, vannforsyningsKodeId, energikildeKodeIds, opprinnelsesKodeId, etasjer, tidligereByggId, versjon, bygningstatusHistorikker, harHeis, avsluttetAv, bygningsnummer, sluttdato, uuid, lopenummer, bebygdAreal, avlopsKodeId, bygningstatusKodeId, harSefrakminne, skjermingsverdig, utenBebygdAreal, id, oppdatertAv, etasjedata, kommunalTilleggsdel, oppvarmingsKodeIds, harKulturminne, versjonId
+        ]
+    },
+    "oppdateringsdato": {
+        "name": "Timestamp",
+        "timestamp": datetime.datetime(2020,
+        6,
+        15,
+        20,
+        51,
+        4,
+        889000)
+    },
+    "sluttdato": {
+        "name": "Timestamp",
+        "timestamp": datetime.datetime(9999,
+        1,
+        1,
+        0,
+        0)
+    },
+    "versjonId": 3,
+    "oppdatertAv": smatmynd,
+    "versjon": 1592247064889,
+    "bygningsnummer": 300121289,
+    "lopenummer": 0,
+    "kommuneId": {
+        "name": "KommuneId",
+        "value": 5001
+    },
+    "representasjonspunkt": {
+        "name": "Representasjonspunkt",
+        "metadata": {
+            "name": "Metadata",
+            "item": [position, koordinatkvalitetKodeId, koordinatsystemKodeId, stedfestingVerifisert, kvalitet, originalKoordinatsystemKodeId
+            ]
+        },
+        "representasjonspunkt": {
+            "name": "KoordinatsystemKodeId",
+            "value": 10
+        },
+        "position": {
+            "name": "Position",
+            "metadata": {
+                "name": "Metadata",
+                "item": [x, z, y
+                ]
+            },
+            "x": 570789.8,
+            "y": 7032542.0
+        },
+        "stedfestingVerifisert": True
+    },
+    "harSefrakminne": False,
+    "harKulturminne": False,
+    "harHeis": False,
+    "skjermingsverdig": False,
+    "bebygdAreal": 0.0,
+    "utenBebygdAreal": False,
+    "etasjer": ,
+    "bruksenhetIds": {
+        "name": "BruksenhetIdList",
+        "item": [
+            {
+                "name": "BruksenhetId",
+                "value": 330372901
+            },
+            {
+                "name": "BruksenhetId",
+                "value": 330372900
+            },
+            {
+                "name": "BruksenhetId",
+                "value": 330372903
+            },
+            {
+                "name": "BruksenhetId",
+                "value": 330372902
+            },
+            {
+                "name": "BruksenhetId",
+                "value": 330372905
+            },
+            {
+                "name": "BruksenhetId",
+                "value": 330372904
+            },
+            {
+                "name": "BruksenhetId",
+                "value": 330372907
+            },
+            {
+                "name": "BruksenhetId",
+                "value": 330372906
+            }
+        ]
+    },
+    "bygningsstatusHistorikker": {
+        "name": "BygningsstatusHistorikkList",
+        "item": [
+            {
+                "name": "BygningsstatusHistorikk",
+                "metadata": {
+                    "name": "Metadata",
+                    "item": [registrertDato, bygningstatusKodeId, oppdateringsdato, id, versjonId, oppdatertAv, dato, slettetDato, referanse, arsakTilForingKodeId, avsluttetAv, signatur, uuid, sluttdato
+                    ]
+                },
+                "oppdateringsdato": {
+                    "name": "Timestamp",
+                    "timestamp": datetime.datetime(2013,
+                    10,
+                    27,
+                    1,
+                    0)
+                },
+                "sluttdato": {
+                    "name": "Timestamp",
+                    "timestamp": datetime.datetime(9999,
+                    1,
+                    1,
+                    0,
+                    0)
+                },
+                "versjonId": 1,
+                "oppdatertAv": smatmynd,
+                "id": 330371296,
+                "bygningsstatusKodeId": {
+                    "name": "BygningsstatusKodeId",
+                    "value": 0
+                },
+                "arsakTilForingKodeId": {
+                    "name": "ArsakTilForingKodeId",
+                    "value": 0
+                },
+                "dato": {
+                    "name": "LocalDate",
+                    "date": datetime.date(2009,
+                    3,
+                    25)
+                },
+                "registrertDato": {
+                    "name": "Timestamp",
+                    "timestamp": datetime.datetime(2010,
+                    3,
+                    1,
+                    9,
+                    19,
+                    14)
+                }
+            },
+            {
+                "name": "BygningsstatusHistorikk",
+                "metadata": {
+                    "name": "Metadata",
+                    "item": [registrertDato, bygningstatusKodeId, oppdateringsdato, id, versjonId, oppdatertAv, dato, slettetDato, referanse, arsakTilForingKodeId, avsluttetAv, signatur, uuid, sluttdato
+                    ]
+                },
+                "oppdateringsdato": {
+                    "name": "Timestamp",
+                    "timestamp": datetime.datetime(2013,
+                    10,
+                    27,
+                    1,
+                    0)
+                },
+                "sluttdato": {
+                    "name": "Timestamp",
+                    "timestamp": datetime.datetime(9999,
+                    1,
+                    1,
+                    0,
+                    0)
+                },
+                "versjonId": 1,
+                "oppdatertAv": smatmynd,
+                "id": 330371297,
+                "bygningsstatusKodeId": {
+                    "name": "BygningsstatusKodeId",
+                    "value": 1
+                },
+                "arsakTilForingKodeId": {
+                    "name": "ArsakTilForingKodeId",
+                    "value": 0
+                },
+                "dato": {
+                    "name": "LocalDate",
+                    "date": datetime.date(2009,
+                    7,
+                    2)
+                },
+                "registrertDato": {
+                    "name": "Timestamp",
+                    "timestamp": datetime.datetime(2010,
+                    3,
+                    1,
+                    9,
+                    19,
+                    14)
+                }
+            },
+            {
+                "name": "BygningsstatusHistorikk",
+                "metadata": {
+                    "name": "Metadata",
+                    "item": [registrertDato, bygningstatusKodeId, oppdateringsdato, id, versjonId, oppdatertAv, dato, slettetDato, referanse, arsakTilForingKodeId, avsluttetAv, signatur, uuid, sluttdato
+                    ]
+                },
+                "oppdateringsdato": {
+                    "name": "Timestamp",
+                    "timestamp": datetime.datetime(2013,
+                    10,
+                    27,
+                    1,
+                    0)
+                },
+                "sluttdato": {
+                    "name": "Timestamp",
+                    "timestamp": datetime.datetime(9999,
+                    1,
+                    1,
+                    0,
+                    0)
+                },
+                "versjonId": 1,
+                "oppdatertAv": smatmynd,
+                "id": 367017782,
+                "bygningsstatusKodeId": {
+                    "name": "BygningsstatusKodeId",
+                    "value": 2
+                },
+                "arsakTilForingKodeId": {
+                    "name": "ArsakTilForingKodeId",
+                    "value": 0
+                },
+                "dato": {
+                    "name": "LocalDate",
+                    "date": datetime.date(2010,
+                    8,
+                    25)
+                },
+                "registrertDato": {
+                    "name": "Timestamp",
+                    "timestamp": datetime.datetime(2011,
+                    2,
+                    21,
+                    10,
+                    38,
+                    8)
+                }
+            }
+        ]
+    },
+    "kontaktpersoner": ,
+    "oppvarmingsKodeIds": ,
+    "energikildeKodeIds": ,
+    "bygningsstatusKodeId": {
+        "name": "BygningsstatusKodeId",
+        "value": 2
+    },
+    "naringsgruppeKodeId": {
+        "name": "NaringsgruppeKodeId",
+        "value": 1
+    },
+    "etasjedata": {
+        "name": "Etasjedata",
+        "metadata": {
+            "name": "Metadata",
+            "item": [alternativtAreal2, antallBoenheter, bruttoarealTilAnnet, bruksarealTilBolig, bruksarealTotalt, bruttoarealTilBolig, alternativtAreal, bruttoarealTotalt, bruksarealTilAnnet
+            ]
+        },
+        "antallBoenheter": 0,
+        "bruksarealTilBolig": 0.0,
+        "bruksarealTilAnnet": 0.0,
+        "bruksarealTotalt": 0.0,
+        "alternativtAreal": 0.0,
+        "alternativtAreal2": 0.0,
+        "bruttoarealTilBolig": 0.0,
+        "bruttoarealTilAnnet": 0.0,
+        "bruttoarealTotalt": 0.0
+    },
+    "kommunalTilleggsdel": {
+        "name": "BygningTillegg",
+        "metadata": {
+            "name": "Metadata",
+            "item": [antallRoklop, kommentarer, privatKloakkRensingsKodeId, brenseltankNedgravd, bygningsReferanser, materialeIYtterveggKoder, fundamenteringsKodeId, alternativtArealBygning, kartblad, septiktank, vertikalBarekonstrKoder, antallEtasjer, renovasjonsKodeId, horisontalBarekonstrKoder, kildePrivatVannforsyningKodeId
+            ]
+        },
+        "alternativtArealBygning": 0.0,
+        "antallEtasjer": 0,
+        "antallRoklop": 0,
+        "brenseltankNedgravd": 0,
+        "septiktank": False,
+        "kildePrivatVannforsyningKodeId": {
+            "name": "KildePrivatVannforsyningKodeId",
+            "value": 0
+        },
+        "privatKloakkRensingsKodeId": {
+            "name": "PrivatKloakkRensingsKodeId",
+            "value": 0
+        },
+        "renovasjonsKodeId": {
+            "name": "RenovasjonsKodeId",
+            "value": 0
+        },
+        "fundamenteringsKodeId": {
+            "name": "FundamenteringsKodeId",
+            "value": 0
+        },
+        "materialeIYtterveggKoder": ,
+        "horisontalBarekonstrKoder": ,
+        "vertikalBarekonstrKoder": ,
+        "kommentarer": ,
+        "bygningsReferanser":
+    },
+    "uuid": {
+        "name": "UUID",
+        "navnerom": "https: //data.geonorge.no/matrikkel",
+        "uuid": 1d2d61d9-37cf-5514-a242-bfadc43ac5bf
+    },
+    "bygningstypeKodeId": {
+        "name": "BygningstypeKodeId",
+        "value": 19
+    },
+    "ufullstendigAreal": False
+}

@@ -35,6 +35,7 @@ import folium
 from shapely.geometry import box
 
 bbox = [10.4081, 63.4305, 10.4101, 63.4325]
+
 # bbox = [270202.737422,7041627.464458, 270250.921554,7041681.901292 ] # _25833
 veg_grenser_4326 = veg_grenser.to_crs("EPSG:4326")
 bbox_veg_grenser = veg_grenser_4326.cx[bbox[0] : bbox[2], bbox[1] : bbox[3]]
@@ -46,6 +47,26 @@ folium.GeoJson(
     box(*bbox), style_function=lambda x: {"color": "blue", "fill": False}
 ).add_to(m)
 for _, row in bbox_veg_grenser.iterrows():
+    folium.GeoJson(row.geometry, style_function=lambda x: {"color": "red"}).add_to(m)
+m
+# %%
+bbox = [10.37081, 63.4205, 10.4201, 63.4325]
+layer = "fkb_veg_omrade"
+# convert bbox to ETRS89 / UTM zone 33N
+bbox_25833 = gpd.GeoSeries(box(*bbox), crs="EPSG:4326").to_crs("EPSG:25833")
+veg_omrader = gpd.read_file(
+    FKB_veg_path, layer=layer, bbox=tuple(bbox_25833.total_bounds)
+)
+print(veg_omrader.crs)
+veg_omrader_4326 = veg_omrader.to_crs("EPSG:4326")
+m = folium.Map(location=[63.4305, 10.3951], zoom_start=13)
+# Add a rectangle for the bounding box
+folium.GeoJson(
+    box(*bbox), style_function=lambda x: {"color": "blue", "fill": False}
+).add_to(m)
+for _, row in veg_omrader_4326.iterrows():
+    # print(row)
+    # break
     folium.GeoJson(row.geometry, style_function=lambda x: {"color": "red"}).add_to(m)
 m
 # %%
@@ -66,6 +87,42 @@ folium.GeoJson(
 for _, row in bbox_veg_omrader.iterrows():
     folium.GeoJson(row.geometry, style_function=lambda x: {"color": "red"}).add_to(m)
 m
+# %% same but with centerlines:
+bbox = [10.37081, 63.4205, 10.4201, 63.4325]
+layer = "fkb_veg_senterlinje"
+# convert bbox to ETRS89 / UTM zone 33N
+bbox_25833 = gpd.GeoSeries(box(*bbox), crs="EPSG:4326").to_crs("EPSG:25833")
+veg_senterlinje = gpd.read_file(
+    FKB_veg_path, layer=layer, bbox=tuple(bbox_25833.total_bounds)
+)
+print(veg_senterlinje.crs)
+veg_senterlinje_4326 = veg_senterlinje.to_crs("EPSG:4326")
+m = folium.Map(location=[63.4305, 10.3951], zoom_start=13)
+# Add a rectangle for the bounding box
+folium.GeoJson(
+    box(*bbox), style_function=lambda x: {"color": "blue", "fill": False}
+).add_to(m)
+for _, row in veg_senterlinje_4326.iterrows():
+    # print(row)
+    # break
+    folium.GeoJson(row.geometry, style_function=lambda x: {"color": "red"}).add_to(m)
+m
+# %%
+layer = "fkb_veg_posisjon"
+veg_posisjon = gpd.read_file(
+    FKB_veg_path, layer=layer, bbox=tuple(bbox_25833.total_bounds)
+)
+veg_posisjon_4326 = veg_posisjon.to_crs("EPSG:4326")
+m = folium.Map(location=[63.4305, 10.3951], zoom_start=13)
+# Add a rectangle for the bounding box
+folium.GeoJson(
+    box(*bbox), style_function=lambda x: {"color": "blue", "fill": False}
+).add_to(m)
+for _, row in veg_posisjon_4326.iterrows():
+    # print(row)
+    # break
+    folium.GeoJson(row.geometry, style_function=lambda x: {"color": "red"}).add_to(m)
+m
 # %%
 import fiona
 
@@ -83,3 +140,5 @@ with fiona.open(FKB_bygning_path, layer=layer_name) as layer:
     metadata = layer.meta
     print("Metadata for layer '{}':".format(layer_name))
     print(metadata)
+
+# %%

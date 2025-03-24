@@ -9,8 +9,12 @@ import pandas as pd
 from tqdm import tqdm
 import geopandas as gpd
 import matplotlib.pyplot as plt
+import folium
 
 from pathlib import Path
+from pyproj import Transformer
+from shapely.ops import transform
+from shapely.geometry import Point, MultiPolygon, Polygon, shape
 
 from matrikkel.analysis.building_attributes.get_cohort import get_cohort_from_building
 from matrikkel.analysis.building_attributes.get_status import get_building_statuses
@@ -20,7 +24,7 @@ from HOME.footprint_analysis.matrikkel_comparison.city_bounding_boxes import (
 
 
 root_dir = Path(__file__).parents[4]
-print(root_dir)
+# print(root_dir)
 
 
 # %%
@@ -33,6 +37,7 @@ def get_municipality_pickle(municipality: str):
         municipality_buildings, metadata = pickle.load(file)
     return municipality_buildings, metadata
 
+
 def get_all_buildings_from_pickle(pickle):
     buildings = []
     for entry in pickle:
@@ -42,7 +47,8 @@ def get_all_buildings_from_pickle(pickle):
                 buildings.append(building)
     return buildings
 
-def read_FKB(fkb_path:str):
+
+def read_FKB(fkb_path: str):
     fle_path = root_dir / fkb_path
     layers = fiona.listlayers(fle_path)
     if "fkb_bygning_omrade" in layers:
@@ -51,11 +57,13 @@ def read_FKB(fkb_path:str):
         raise Exception(f"the layer bygning_omrade is not in the file {fle_path}")
     return bygning_omrader
 
-def read_FKB_pickle(fkb_pickle_path:str):
+
+def read_FKB_pickle(fkb_pickle_path: str):
     file_path = root_dir / fkb_pickle_path
     with open(file_path, "rb") as file:
         fkb_data = pickle.load(file)
     return fkb_data
+
 
 class Building:
     def __init__(self):
@@ -75,41 +83,47 @@ class Building:
             if add and self.footprint_area:
                 stock[i] += self.footprint_area
         return stock
-    
+
     def __repr__(self):
         return f"Building {self.bygningsnummer} from {self.cohort}"
+
 
 class BuildingMatrikkel(Building):
     def __init__(self, building_dict):
         self.building_dict = building_dict
         self.bygningsnummer = self.building_dict["bygningsnummer"]
+        self.location, self.location_crs = self.get_location()
         self.cohort = self.get_cohort()
         self.fkb_match = False
         self.set_building_statuses()
         self.set_final_status()
-        #self.set_footprint(bygning_omrader)
+        # self.set_footprint(bygning_omrader)
 
     def get_cohort(self):
         return get_cohort_from_building(self.building_dict)
 
-    def set_footprint_old(self, bygning_omrader):
-        # find the correct row:
-        try:
-            index = bygning_omrader[
-                bygning_omrader["bygningsnummer"] == self.bygningsnummer
-            ].index[0]
-            footprint = bygning_omrader.loc[index, "geometry"]
-            footprint_area = bygning_omrader.loc[index, "SHAPE_Area"]
-        except Exception as e:
-            # print(f'error in get_footprint: {e}')
-            footprint = None
-            footprint_area = None
-            self.fkb_match = False
-        self.footprint, self.footprint_area =  footprint, footprint_area
+    def get_location(self):
+        # check if the building has a location
+        if not "representasjonspunkt" in self.building_dict.keys():
+            return None, None
+        x = self.building_dict["representasjonspunkt"]["position"]["x"]
+        y = self.building_dict["representasjonspunkt"]["position"]["y"]
+        koordinatsystemKodeId = self.building_dict["representasjonspunkt"][
+            "koordinatsystemKodeId"
+        ]["value"]
+        if koordinatsystemKodeId == 10:
+            location_crs = "EPSG:5122"  # "EPSG:25832" ?
+        elif koordinatsystemKodeId == 11:
+            location_crs = "EPSG:5123"
+        else:
+            raise Exception(
+                f"Unknown coordinate system {koordinatsystemKodeId} for building {self.bygningsnummer}"
+            )
+        return (x, y), location_crs
 
-    def  set_footprint(self, FKB_row):
-        #print(f'assgigning footprint for {self.bygningsnummer}: {FKB_row}')
-        #print(f'geometry: {FKB_row["geometry"]}, area: {FKB_row["SHAPE_Area"]}')
+    def set_footprint(self, FKB_row):
+        # print(f'assgigning footprint for {self.bygningsnummer}: {FKB_row}')
+        # print(f'geometry: {FKB_row["geometry"]}, area: {FKB_row["SHAPE_Area"]}')
         if FKB_row["geometry"].empty:
             self.footprint = None
             self.footprint_area = None
@@ -120,7 +134,7 @@ class BuildingMatrikkel(Building):
 
     def set_building_statuses(self):
         self.statuses = get_building_statuses(self.building_dict)
-    
+
     def set_final_status(self):
         if not self.statuses:
             self.final_status = "No status"
@@ -135,9 +149,9 @@ class BuildingFKB(Building):
         self.cohort = -1
         self.final_status = fkb_row["bygningsstatus"]
         self.set_footprint()
-    
+
     def set_footprint(self):
-        #print(f'the geometry of the FKB row is: {self.fkb_row["geometry"]}')
+        # print(f'the geometry of the FKB row is: {self.fkb_row["geometry"]}')
         if not self.fkb_row["geometry"]:
             self.footprint = None
             self.footprint_area = None
@@ -147,7 +161,10 @@ class BuildingFKB(Building):
         return
 
 
-def make_buildings(buildings:list[dict], FKB: gpd.GeoDataFrame):
+def make_buildings(buildings: list[dict], FKB: gpd.GeoDataFrame):
+    """
+    Make building objects by combining both FKB and matrikkel data.
+    """
     building_objects = []
     FKB_matches = 0
     FKB_rows_used = []
@@ -164,100 +181,393 @@ def make_buildings(buildings:list[dict], FKB: gpd.GeoDataFrame):
         building_objects.append(new_building)
         if new_building.fkb_match:
             FKB_matches += 1
-    #print(f'length of FKB_rows_used: {len(FKB_rows_used)}')
+    # print(f'length of FKB_rows_used: {len(FKB_rows_used)}')
     for index, row in tqdm(FKB.iterrows(), desc="FKB building objects", total=len(FKB)):
-        #print(f'index: {index}, row: {row}')
+        # print(f'index: {index}, row: {row}')
         if type(index) != int:
             continue
-        #print(f'index: {index}, FKB_used: {type(FKB_rows_used)}, first elements: {FKB_rows_used[0:10]}')#, index in FKB_used: {index in FKB_rows_used}')
+        # print(f'index: {index}, FKB_used: {type(FKB_rows_used)}, first elements: {FKB_rows_used[0:10]}')#, index in FKB_used: {index in FKB_rows_used}')
         if not index in FKB_rows_used:
             new_building = BuildingFKB(row)
             building_objects.append(new_building)
     return building_objects, FKB_matches
 
+
 def get_time_series(building_objects):
     time = list(range(1900, 2026))
     n_buildings = [0] * len(time)
-    build_area = [0] * len(time)
+    build_area_upper = [0] * len(time)
+    build_area_lower = [0] * len(time)
     for building in building_objects:
         if building.cohort > 1900:
             n_buildings[building.cohort - 1901] += 1
             if building.footprint_area:
-                build_area[building.cohort - 1900] += building.footprint_area
-        else:
+                build_area_upper[building.cohort - 1900] += building.footprint_area
+                build_area_lower[building.cohort - 1900] += building.footprint_area
+        else:  # for the upper bound we include unlabeled buildings in the older cohorts, for lower bound we ignore them
             n_buildings[0] += 1
             if building.footprint_area:
-                build_area[0] += building.footprint_area
-            
-    build_area_stock = [0] * len(time)
+                build_area_upper[0] += building.footprint_area
+
+    build_area_stock_upper = [0] * len(time)
+    build_area_stock_lower = [0] * len(time)
     for i in range(len(time)):
-        build_area_stock[i] = sum(build_area[: i + 1])
-    
-    return time, n_buildings, build_area, build_area_stock
-def preliminary_building_plots(time, n_buildings, build_area, build_area_stock):
+        build_area_stock_upper[i] = sum(build_area_upper[: i + 1])
+        build_area_stock_lower[i] = sum(build_area_lower[: i + 1])
+        # could in theory check final status and take away the demolished buildings, but that's a very very low number
+
+    return (
+        time,
+        n_buildings,
+        build_area_upper,
+        build_area_stock_upper,
+        build_area_stock_lower,
+    )
+
+
+def preliminary_building_plots(
+    time, n_buildings, build_area, build_area_stock_upper, build_area_stock_lower
+):
     plt.bar(time, n_buildings)
+    plt.title("Number of buildings constructed")
     plt.show()
 
     # make a bar plot of the building area
     plt.bar(time, build_area)
+    plt.title("Building area constructed")
     plt.show()
 
-    plt.plot(time, build_area_stock, ls=':')
+    plt.plot(time, build_area_stock_lower, ls=":")
+    plt.plot(time, build_area_stock_upper, ls=":")
+    plt.title("Building area stock lower and upper bound")
     plt.show()
     return
-#%%
+
+
+def filter_FKB_to_overlapping(FKB_data: gpd.GeoDataFrame, city_boundaries):
+    """
+    Filter the FKB data to only include buildings that overlap with the city boundaries.
+    The function transforms the FKB data to the same CRS as the city boundaries
+    and then filters the data to only include buildings that intersect with the city boundaries.
+
+    Args:
+        FKB_data (gpd.GeoDataFrame): The FKB data to filter - any crs is fine
+        city_boundaries (shapely.geometry.Polygon): The city boundaries to filter by - crs EPSG:4326
+
+    Returns:
+        gpd.GeoDataFrame: The filtered FKB data that overlaps with the city boundaries.
+    """
+    # get the FKB data in the same crs as the city boundaries
+    FKB_25832 = FKB_data.to_crs("epsg:4326")
+    filtered_FKB = FKB_25832[FKB_25832.intersects(city_boundaries)]
+    return filtered_FKB
+
+
+def get_city_data(city: str):
+    """
+    Get the city data from the matrikkel and FKB data, and make building objects.
+    """
+    city_pickle, city_metadata = get_municipality_pickle(city)
+    city_buildings_matrikkel = get_all_buildings_from_pickle(city_pickle)
+    print(f"found {len(city_buildings_matrikkel)} matrikkel buildings in {city}")
+    FKB_bygning_Norge_pickle_path = (
+        "data/raw/FKB_bygning/Basisdata_0000_Norge_5973_FKB-Bygning_FGDB.pkl"
+    )
+    FKB_bygning_Norge = read_FKB_pickle(FKB_bygning_Norge_pickle_path)
+    city_boundaries = shape(get_municipal_boundaries(city))
+    FKB_bygning_city = filter_FKB_to_overlapping(FKB_bygning_Norge, city_boundaries)
+    print(
+        f"found {len(FKB_bygning_city)} overlapping buildings out of {len(FKB_bygning_Norge)}"
+    )
+
+    return city_buildings_matrikkel, FKB_bygning_city
+
+
+# %%
+if __name__ == "__main__":
+    # get the city data for Trondheim
+    city = "trondheim"
+    city_buildings_matrikkel, FKB_bygning_city = get_city_data(city)
+    city_building_objects, fkb_matches = make_buildings(
+        city_buildings_matrikkel, FKB_bygning_city
+    )
+    print(
+        f"We started with {len(city_buildings_matrikkel)} buildings from matrikkel and {len(FKB_bygning_city)} buildings from FKB"
+    )
+    print(
+        f"found {fkb_matches} FKB matches, which are buildings that combine FKB and matrikkel data"
+    )
+    print(
+        f" we further have {len(city_buildings_matrikkel) - fkb_matches} buildings that represent only matrikkel data, "
+        + f"and {len(FKB_bygning_city) - fkb_matches} buildings that represent only FKB data"
+    )
+    (
+        time,
+        n_buildings,
+        build_area_upper,
+        build_area_stock_upper,
+        build_area_stock_lower,
+    ) = get_time_series(city_building_objects)
+    preliminary_building_plots(
+        time,
+        n_buildings,
+        build_area_upper,
+        build_area_stock_upper,
+        build_area_stock_lower,
+    )
+    # %%
+
+    # make a small bbox and only plot the buildings in that bbox
+    bbox = [
+        [63.418, 10.442],  # southwest corner
+        [63.428, 10.460],  # northeast corner
+    ]
+    center_bbox = [(bbox[0][0] + bbox[1][0]) / 2, (bbox[0][1] + bbox[1][1]) / 2]
+    m = folium.Map(location=center_bbox, zoom_start=14)
+    # draw the bbox
+    folium.Rectangle(
+        bounds=bbox, color="blue", fill=True, fill_opacity=0.2, weight=1
+    ).add_to(m)
+
+    for building in city_building_objects:  # [0:1000]:
+        if type(building) == BuildingFKB:
+            continue
+        if not building.location:
+            continue
+        # first we convert the crs
+        transformer_to_4326 = Transformer.from_crs(
+            "epsg:25832", "epsg:4326", always_xy=True  # building.location_crs
+        ).transform
+        # print(f'building location: {building.location}, crs: {building.location_crs}')
+        building_location = transform(transformer_to_4326, Point(building.location))
+        building_location = (
+            building_location.y,
+            building_location.x,
+        )  # convert to tuple
+        # print(building_location)
+        # print(f'building location: {building_location}')
+        # if the building location point  is overlapping the bbox, we add it to the map
+        if building_location[0] > bbox[0][0] and building_location[0] < bbox[1][0]:
+            if building_location[1] > bbox[0][1] and building_location[1] < bbox[1][1]:
+                folium.Rectangle(
+                    bounds=[
+                        [
+                            building_location[0] - 0.00001,
+                            building_location[1] - 0.00002,
+                        ],
+                        [
+                            building_location[0] + 0.00001,
+                            building_location[1] + 0.00002,
+                        ],
+                    ],
+                    color="red",
+                    fill=True,
+                    fill_opacity=0.2,
+                    weight=1,
+                ).add_to(m)
+                if not building.footprint:
+                    continue
+                # print(f"added building {building.bygningsnummer} to the map")
+                # plot the actual footprint:
+                footprint = transform(transformer_to_4326, building.footprint)
+                # add to the map
+                folium.GeoJson(
+                    footprint,
+                    style_function=lambda x: {
+                        "color": "green",
+                        "weight": 1,
+                        "fillOpacity": 0.2,
+                    },
+                ).add_to(m)
+
+    m
+
+    # %%
+    for building in city_building_objects:
+        if type(building) == BuildingMatrikkel:
+            continue
+        if not building.footprint:
+            continue
+        # first we convert the crs
+        transformer_to_4326 = Transformer.from_crs(
+            "epsg:25832", "epsg:4326", always_xy=True  # building.location_crs
+        ).transform
+        footprint = transform(transformer_to_4326, building.footprint)
+        # add to the map
+        folium.GeoJson(
+            footprint,
+            style_function=lambda x: {
+                "color": "purple",
+                "weight": 1,
+                "fillOpacity": 0.2,
+            },
+        ).add_to(m)
+    m
+
+    # make a folium map of all the buildings
+# %%
 city = "trondheim"
 city_pickle, city_metadata = get_municipality_pickle(city)
 city_buildings = get_all_buildings_from_pickle(city_pickle)
-print(f"found {len(city_buildings)} buildings in {city}")
-FKB_bygning_path = "data/raw/FKB_bygning/Basisdata_5001_Trondheim_5972_FKB-Bygning_FGDB.gdb"
-FKB_bygning_pickle_path = "data/raw/FKB_bygning/Basisdata_0000_Norge_5973_FKB-Bygning_FGDB.pkl"
-FKB_bygning_pickle_path = "data/raw/FKB_bygning/Basisdata_5001_Trondheim_5972_FKB-Bygning_FGDB.pkl"
-#FKB_bygning = read_FKB(FKB_bygning_path)
+print(f"found {len(city_buildings)} matrikkel buildings in {city}")
+FKB_bygning_path = (
+    "data/raw/FKB_bygning/Basisdata_5001_Trondheim_5972_FKB-Bygning_FGDB.gdb"
+)
+FKB_bygning_Norge_pickle_path = (
+    "data/raw/FKB_bygning/Basisdata_0000_Norge_5973_FKB-Bygning_FGDB.pkl"
+)
+FKB_bygning_pickle_path = (
+    "data/raw/FKB_bygning/Basisdata_5001_Trondheim_5972_FKB-Bygning_FGDB.pkl"
+)
+# FKB_bygning = read_FKB(FKB_bygning_path)
 FKB_bygning = read_FKB_pickle(FKB_bygning_pickle_path)
-#%%
+print(f"found {len(FKB_bygning)} FKB buildings in {city}")
+# %%
 city_building_objects, fkb_matches = make_buildings(city_buildings, FKB_bygning)
-print(f'We started with {len(city_buildings)} buildings from matrikkel and {len(FKB_bygning)} buildings from FKB')
-print(f'found {fkb_matches} FKB matches, meaning we have {fkb_matches} many buildings that combine FKB and matrikkel data')
-print(f' we further have {len(city_buildings) - fkb_matches} buildings that represent only matrikkel data, and {len(FKB_bygning) - fkb_matches} buildings that represent only FKB data')
-time, n_buildings, build_area, build_area_stock = get_time_series(city_building_objects)
-#preliminary_building_plots(time, n_buildings, build_area, build_area_stock)
+print(
+    f"We started with {len(city_buildings)} buildings from matrikkel and {len(FKB_bygning)} buildings from FKB"
+)
+print(
+    f"found {fkb_matches} FKB matches, which are buildings that combine FKB and matrikkel data"
+)
+print(
+    f" we further have {len(city_buildings) - fkb_matches} buildings that represent only matrikkel data, and {len(FKB_bygning) - fkb_matches} buildings that represent only FKB data"
+)
+time, n_buildings, build_area, build_area_stock_upper, build_area_stock_lower = (
+    get_time_series(city_building_objects)
+)
+preliminary_building_plots(
+    time, n_buildings, build_area, build_area_stock_upper, build_area_stock_lower
+)
 
-#%%
+# %%
+# make a folium map of all the buildings
+import folium
+
+# make a small bbox and only plot the buildings in that bbox
+bbox = [
+    [63.418, 10.442],  # southwest corner
+    [63.428, 10.460],  # northeast corner
+]
+center_bbox = [(bbox[0][0] + bbox[1][0]) / 2, (bbox[0][1] + bbox[1][1]) / 2]
+m = folium.Map(location=center_bbox, zoom_start=14)
+# draw the bbox
+folium.Rectangle(
+    bounds=bbox, color="blue", fill=True, fill_opacity=0.2, weight=1
+).add_to(m)
+m
+# %%
+from pyproj import Transformer
+from shapely.ops import transform
+from shapely.geometry import Point
+
+for building in city_building_objects:  # [0:1000]:
+    if type(building) == BuildingFKB:
+        continue
+    if not building.location:
+        continue
+    # first we convert the crs
+    transformer_to_4326 = Transformer.from_crs(
+        "epsg:25832", "epsg:4326", always_xy=True  # building.location_crs
+    ).transform
+    # print(f'building location: {building.location}, crs: {building.location_crs}')
+    building_location = transform(transformer_to_4326, Point(building.location))
+    building_location = (building_location.y, building_location.x)  # convert to tuple
+    # print(building_location)
+    # print(f'building location: {building_location}')
+    # if the building location point  is overlapping the bbox, we add it to the map
+    if building_location[0] > bbox[0][0] and building_location[0] < bbox[1][0]:
+        if building_location[1] > bbox[0][1] and building_location[1] < bbox[1][1]:
+            folium.Rectangle(
+                bounds=[
+                    [building_location[0] - 0.00001, building_location[1] - 0.00002],
+                    [building_location[0] + 0.00001, building_location[1] + 0.00002],
+                ],
+                color="red",
+                fill=True,
+                fill_opacity=0.2,
+                weight=1,
+            ).add_to(m)
+            if not building.footprint:
+                continue
+            # print(f"added building {building.bygningsnummer} to the map")
+            # plot the actual footprint:
+            footprint = transform(transformer_to_4326, building.footprint)
+            # add to the map
+            folium.GeoJson(
+                footprint,
+                style_function=lambda x: {
+                    "color": "green",
+                    "weight": 1,
+                    "fillOpacity": 0.2,
+                },
+            ).add_to(m)
+
+m
+
+# %%
+for building in city_building_objects:
+    if type(building) == BuildingMatrikkel:
+        continue
+    if not building.footprint:
+        continue
+    # first we convert the crs
+    transformer_to_4326 = Transformer.from_crs(
+        "epsg:25832", "epsg:4326", always_xy=True  # building.location_crs
+    ).transform
+    footprint = transform(transformer_to_4326, building.footprint)
+    # add to the map
+    folium.GeoJson(
+        footprint,
+        style_function=lambda x: {"color": "purple", "weight": 1, "fillOpacity": 0.2},
+    ).add_to(m)
+m
+
+# %% now add the FKB buildings
+
+# %%
 print(city_building_objects[0])
 print(city_building_objects[0].footprint_area)
 print(city_building_objects[0].building_dict)
 bd_dict = city_building_objects[0].building_dict
 bd_dict["bebygdAreal"]
 
-#%%
+# %%
 for building in city_building_objects:
     footprint_mat = building.building_dict["bebygdAreal"]
     footprint_FKB = building.footprint_area
     if footprint_mat != 0:
         if footprint_mat != footprint_FKB:
-            print(f'footprint mismatch for building {building.bygningsnummer}: matrikkel: {footprint_mat}, FKB: {footprint_FKB}')
-#%%
+            print(
+                f"footprint mismatch for building {building.bygningsnummer}: matrikkel: {footprint_mat}, FKB: {footprint_FKB}"
+            )
+# %%
 time = list(range(1900, 2026))
+
 
 def get_build_area_stock(time, building_objects):
     build_area_stock = [0] * len(time)
     for building in building_objects:
         build_area_stock = building.add_to_stock(time, build_area_stock)
     return build_area_stock
+
+
 ## atributing unknown cohorts to -1
 # matrikkel_and FKB only
-building_objects_matrikkel_FKB = [b for b in city_building_objects if type(b) == BuildingMatrikkel]
+building_objects_matrikkel_FKB = [
+    b for b in city_building_objects if type(b) == BuildingMatrikkel
+]
 matrikkel_FKB_stock = get_build_area_stock(time, building_objects_matrikkel_FKB)
 # both FKB and matrikkel
 building_objects_all = [b for b in city_building_objects if type(b) == BuildingFKB]
 object_base_stock = get_build_area_stock(time, city_building_objects)
-plt.plot(time, object_base_stock, ls=':', c = 'r', label = 'object base')
-plt.plot(time, build_area_stock, ls=':', c = 'b', label = 'total matrikkel')
+plt.plot(time, object_base_stock, ls=":", c="r", label="object base")
+plt.plot(time, build_area_stock, ls=":", c="b", label="total matrikkel")
 plt.xlim(1970, 2025)
 plt.show()
-#%%
+# %%
 time = list(range(1900, 2026))
+
 
 def get_build_area_stock(time, building_objects):
     build_area_stock = [0] * len(time)
@@ -265,29 +575,33 @@ def get_build_area_stock(time, building_objects):
         build_area_stock = building.add_to_stock(time, build_area_stock)
     return build_area_stock
 
+
 object_base_stock = get_build_area_stock(time, city_building_objects)
-plt.plot(time, object_base_stock, ls=':', c = 'r', label = 'object base')
-plt.plot(time, build_area_stock, ls=':', c = 'b', label = 'total matrikkel')
+plt.plot(time, object_base_stock, ls=":", c="r", label="object base")
+plt.plot(time, build_area_stock, ls=":", c="b", label="total matrikkel")
 plt.xlim(1970, 2025)
 plt.show()
 
-#%%
+# %%
 final_statuses = [b.final_status for b in city_building_objects]
+# print the unique final statuses
+unique_final_statuses = set(final_statuses)
+print(f"unique final statuses: {unique_final_statuses}")
 # Create the histogram
-plt.hist(final_statuses, bins=len(set(final_statuses)), edgecolor='black')
+plt.hist(final_statuses, bins=len(set(final_statuses)), edgecolor="black")
 
 # Set the xtick labels
-plt.xticks(rotation=45, ha='right')
+plt.xticks(rotation=45, ha="right")
 
 # Set labels and title
-plt.xlabel('Final Status')
-plt.ylabel('Frequency')
-plt.title('Histogram of Final Statuses')
+plt.xlabel("Final Status")
+plt.ylabel("Frequency")
+plt.title("Histogram of Final Statuses")
 
 # Show the plot
 plt.tight_layout()
 plt.show()
-#%%
+# %%
 testbuildings = city_building_objects[:10]
 testbuildings[0].building_dict
 # %%
@@ -301,39 +615,76 @@ from shapely.geometry import MultiPolygon, Polygon, shape
 from shapely.ops import transform
 from pyproj import Transformer
 
+
 def filter_buildings_to_overlapping(city_building_objects, city, FKB_data):
     city_boundary = shape(get_municipal_boundaries(city))
-    transformer_to_4326 = Transformer.from_crs(FKB_data.crs,  "epsg:4326", always_xy=True).transform
+    transformer_to_4326 = Transformer.from_crs(
+        FKB_data.crs, "epsg:4326", always_xy=True
+    ).transform
 
     def check_overlap(building_geometry, city_boundary):
         return building_geometry.intersects(city_boundary)
-    
+
     overlapping_buildings = []
     for building in city_building_objects:
         if not building.footprint:
             continue
-        converted_building = transform(transformer_25832_to_4326, building.footprint)
+        converted_building = transform(transformer_to_4326, building.footprint)
         overlapping = check_overlap(converted_building, city_boundary)
         if overlapping:
             overlapping_buildings.append(building)
     return overlapping_buildings
 
-overlapping_buildings = filter_buildings_to_overlapping(city_building_objects, city, FKB_bygning)
-print(f'found {len(overlapping_buildings)} overlapping buildings out of {len(city_building_objects)}')
-#%%
+
+overlapping_buildings = filter_buildings_to_overlapping(
+    city_building_objects, city, FKB_bygning
+)
+print(
+    f"found {len(overlapping_buildings)} overlapping buildings out of {len(city_building_objects)}"
+)
+
+
+# %% check if we can reduce the FKB data file to a municipality
+def filter_FKB_to_overlapping(FKB_data, city_boundaries):
+    # get the FKB data in the same crs as the city boundaries
+    FKB_25832 = FKB_data.to_crs("epsg:4326")
+    filtered_FKB = FKB_25832[FKB_25832.intersects(city_boundaries)]
+    return filtered_FKB
+
+
+city = "trondheim"
+city_boundaries = shape(get_municipal_boundaries(city))
+
+FKB_bygning_Norge = read_FKB_pickle(FKB_bygning_Norge_pickle_path)
+FKB_bygning_city = filter_FKB_to_overlapping(FKB_bygning_Norge, city_boundaries)
+print(
+    f"found {len(FKB_bygning_city)} overlapping buildings out of {len(FKB_bygning_Norge)}"
+)
+# %%
 city_boundary = shape(get_municipal_boundaries(city))
-transformer_25832_to_4326 = Transformer.from_crs("epsg:25832", "epsg:4326", always_xy=True).transform
+# print the area of the city boundary
+print(f"area of city boundary: {city_boundary.area}")
+transformer_25832_to_4326 = Transformer.from_crs(
+    "epsg:25832", "epsg:4326", always_xy=True
+).transform
+transformer_4326_to_25832 = Transformer.from_crs(
+    "epsg:4326", "epsg:25832", always_xy=True
+).transform
+city_boundary_25832 = transform(transformer_4326_to_25832, city_boundary)
+print(f" area of city boundary: {city_boundary_25832.area}")
+
 
 def check_overlap(building_geometry, city_boundary):
     return building_geometry.intersects(city_boundary)
 
+
 for building in city_building_objects[90000:90100]:
-    print(f'type of building.footprint: {type(building.footprint)}')
-    print(f'type of city_boundary: {type(city_boundary)}')
+    print(f"type of building.footprint: {type(building.footprint)}")
+    print(f"type of city_boundary: {type(city_boundary)}")
     if not building.footprint:
         overlapping = False
         continue
     converted_building = transform(transformer_25832_to_4326, building.footprint)
     overlapping = check_overlap(converted_building, city_boundary)
-    print(f'found overlap for building {building}: {overlapping}')
+    print(f"found overlap for building {building}: {overlapping}")
 # %%

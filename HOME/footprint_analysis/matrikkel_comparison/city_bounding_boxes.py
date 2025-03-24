@@ -16,7 +16,7 @@ from pathlib import Path
 
 # %%
 root_dir = Path(__file__).parents[3]
-print(root_dir)
+# print(root_dir)
 data_path = root_dir / "data"
 
 # %%

@@ -495,7 +495,7 @@ if __name__ == "__main__":
         ), "Please provide a list of projects with --projects"
         process(
             list_of_projects=args.projects,
-            labels=args.labels,
+            labels=args.no_labels,
             remove_download=args.remove_download,
             tile_size=args.tile_size,
             res=args.res,
