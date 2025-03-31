@@ -223,7 +223,9 @@ def prepare_projects_for_trees(
     project_coverages = {}
     project_times = {}
     polygon_detail_dict = {}
-    for year, project, project_details in zip(times, project_list, projects_details):
+    for year, project, project_details in zip(
+        times, project_list, projects_details.items()
+    ):
         project_times[project] = year
         polygon_id = polygon_ids[project]
         polygon_details = get_polygon_details(polygon_id)

@@ -247,8 +247,6 @@ def bar_plot_coverage(coverage_data, city):
 
 
 # bar_plot_coverage(trondheim_best_coverage, "trondheim")
-# %%
-print(f"showed marceau that I did it")
 
 
 # %%

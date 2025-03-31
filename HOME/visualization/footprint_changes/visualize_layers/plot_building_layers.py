@@ -65,7 +65,10 @@ def plot_building_layers(
     )
     projects_details = get_project_details(project_list)
     # capture dates
-    t = {p: pd["capture_date"].year for p, pd in zip(project_list, projects_details)}
+    t = {
+        p: pd["capture_date"].year
+        for p, pd in zip(project_list, projects_details.items())
+    }
     geometries_t = []
     coverages_t = {}
     tifs = {}

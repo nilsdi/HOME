@@ -1,0 +1,27 @@
+name: TMM4128_model
+channels:
+  - conda-forge
+  - nvidia
+  - pytorch
+  - defaults
+dependencies:
+  - cudatoolkit=11.3
+  - pytorch==1.12.1
+  - torchaudio==0.12.1
+  - torchvision==0.13.1
+  - conda-libmamba-solver
+  - scipy
+  - matplotlib
+  - imgaug
+  - gdal
+  - rasterio
+  - geopandas
+  - ipykernel
+  - contextily
+  - git-filter-repo
+  - suds
+  - ipywidgets
+  - jupyter
+  - pyogrio
+  - cryptography
+prefix: /home/franciib/.conda/envs/TMM4128_model

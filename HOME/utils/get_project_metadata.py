@@ -7,7 +7,7 @@ import json
 import os
 
 
-def get_project_metadata(project_names: str or list[str]) -> dict:
+def get_project_metadata(project_names: str or list[str]) -> list:
     """
     Get metadata for a project or a list of projects.
 
@@ -15,7 +15,7 @@ def get_project_metadata(project_names: str or list[str]) -> dict:
     - project_name: str or list of strings, name of the project
 
     Returns:
-    - metadata_project: dict or list of dicts, metadata for the project (type, properties, geometry)
+    - metadata_project: list of dicts, metadata for the project (type, properties, geometry)
 
     Raises:
     - NotFoundError: if the project is not found in the list of metadata
@@ -34,8 +34,6 @@ def get_project_metadata(project_names: str or list[str]) -> dict:
         project_index = project_list_adjusted_names.index(project_name_adjusted)
         metadata_project = metadata["ProjectMetadata"][project_index]
         metadata_projects.append(metadata_project)
-    if len(metadata_projects) == 1:
-        return metadata_projects[0]
     return metadata_projects
 
 
@@ -54,10 +52,9 @@ def get_project_geometry(project_names: str or list[str]) -> gpd.GeoSeries:
 
     project_geometries = []
     project_metadatas = get_project_metadata(project_names)
-    if len(project_names) == 1:
-        project_metadatas = [project_metadatas]
 
     for project_name, project_metadata in zip(project_names, project_metadatas):
+        # print(project_metadata)
         project_crs_id = project_metadata["properties"]["opprinneligbildesys"]
         # assert project_crs_id in ["22", "23"]
         # if project_crs_id not in ["22", "23"]:
@@ -87,8 +84,8 @@ def get_project_details(project_names: str or list[str]) -> dict:
     if isinstance(project_names, str):
         project_names = [project_names]
     project_metadatas = get_project_metadata(project_names)
-    projects_details = []
-    for project_metadata in project_metadatas:
+    projects_details = {}
+    for project_name, project_metadata in zip(project_names, project_metadatas):
         project_properties = project_metadata["properties"]
         # codes copied from the ortophoto specification document
         image_category_codes = {
@@ -138,6 +135,10 @@ def get_project_details(project_names: str or list[str]) -> dict:
         except:
             project_details["original_resolution"] = None
         try:
+            project_details["id"] = int(project_properties["nib_project_id"])
+        except:
+            project_details["id"] = None
+        try:
             project_details["capture_date"] = get_project_date(
                 project_properties["fotodato_date"]
             )
@@ -167,7 +168,7 @@ def get_project_details(project_names: str or list[str]) -> dict:
             ]
         except:
             project_details["orthophoto type"] = None
-        projects_details.append(project_details)
+        projects_details[project_name] = project_details
     return projects_details
 
 
@@ -212,7 +213,7 @@ def _get_newest_metadata() -> dict:
 
 if __name__ == "__main__":
     test_metadata = get_project_metadata("Kyken 2023")
-    print(test_metadata["properties"])
+    print(test_metadata[0]["properties"])
     test_geometry = get_project_geometry("Kyken 2023")
     print(get_project_details("Kyken 2023"))
     print(get_project_details("trondheim_1999"))

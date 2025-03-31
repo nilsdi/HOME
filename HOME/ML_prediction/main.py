@@ -24,16 +24,14 @@ from HOME.data_acquisition.norgeibilder.orthophoto_api.download_originals import
     download_original_NIB,
 )
 from HOME.get_data_path import get_data_path
+from HOME.utils.get_project_metadata import get_project_details
 from HOME.utils.project_paths import (
-    save_project_details,
-    load_project_details,
     get_assembling_details,
     get_tile_ids,
     get_prediction_ids,
     get_assemble_ids,
     get_polygon_ids,
 )
-from HOME.data_acquisition.norgeibilder.add_project_details import add_project_details
 from HOME.utils.check_project_stage import check_list_stage
 
 # %%
@@ -63,6 +61,28 @@ def suppress_output(filepath=None):
             sys.stderr = old_stderr
 
 
+def get_unique_log_filename(log_folder, project_name, base_name="download.log"):
+    """
+    Generate a unique log file name by appending a number if the file already exists.
+
+    Args:
+        log_folder (Path): Path to the folder where the log file will be saved.
+        project_name (str): Name of the project.
+        base_name (str): Base name of the log file.
+
+    Returns:
+        Path: A unique log file path.
+    """
+    log_file = log_folder / f"{project_name}_{base_name}"
+    counter = 1
+    while log_file.exists():
+        log_file = (
+            log_folder / f"{project_name}_{base_name.split('.')[0]}_{counter}.log"
+        )
+        counter += 1
+    return log_file
+
+
 def get_directory_size(directory):
     """Get size of directory in GB"""
     total = 0
@@ -89,7 +109,7 @@ def run_project(
 
     Args:
         project_name: str, name of the project
-        project_details: dict, details of the project
+        project_details: dict, details of the project from the metadata file
         tile_size: int, size of the tiles
         res: float, resolution of the orthophotos
         labels: bool, whether to use labels or not
@@ -99,7 +119,7 @@ def run_project(
         dict, runtime of the different steps
     """
 
-    channels = project_details[project_name]["channels"]
+    channels = project_details["bandwidth"]
 
     # compression = f"i_{compression_name}_{compression_value}"
 
@@ -119,6 +139,9 @@ def run_project(
     processing_times["tile_generation"] = t1 - t0
     if remove_download:
         shutil.rmtree(data_path / f"raw/orthophoto/originals/{project_name}")
+        print(
+            f"Removed downloaded files for {project_name} in {data_path / f'raw/orthophoto/originals/{project_name}'}"
+        )
 
     # Step 2: Make text file
     t2 = time.time()
@@ -156,13 +179,10 @@ def run_project(
 
 
 def download(project_name, project_details):
-    downloaded = False
-    if project_details[project_name]["status"] == "pending":
-        project_id = project_details[project_name]["id"]
-        download_urls = request_download(project_id)
-        download_original_NIB(download_urls, project_name)
-        downloaded = True
-    return downloaded
+    project_id = project_details["id"]
+    download_urls = request_download(project_id)
+    download_original_NIB(download_urls, project_name)
+    return
 
 
 def process(
@@ -179,10 +199,6 @@ def process(
     list_of_projects: list, list of project names to run the prediction pipeline
     """
 
-    # root_dir = Path(__file__).parents[2]
-    with suppress_output():
-        project_details = add_project_details(list_of_projects)
-
     # check prediction log if project had been predicted before (should in the future also consider settings)
     prediction_log_path = data_path / "metadata_log/predictions_log.json"
     with open(prediction_log_path, "r") as file:
@@ -197,8 +213,6 @@ def process(
     # names of projects right now
 
     for project_name in list_of_projects:
-        # if project_details[project_name]["status"] != "processed":
-        #     projects_to_run.append(project_name)
         if project_name not in predicted_projects:
             projects_to_run.append(project_name)
         else:
@@ -222,6 +236,7 @@ def process(
         gdf_omrade = None
 
     log_folder = data_path / "metadata_log/execution_log"
+    projects_details = get_project_details(projects_to_run)
 
     for project_name in projects_to_run:
         with open(data_path / "metadata_log/prediction_main_runtime.json", "r") as file:
@@ -231,12 +246,18 @@ def process(
             download_size = json.load(file)
             download_size[project_name] = {}
         print(f'Processing project "{project_name}"')
+        project_details = projects_details[project_name]
         if len(os.listdir(data_path / f"raw/orthophoto/originals/")) < 5:
             try:
                 print(f"Downloading {project_name}")
-                with suppress_output(log_folder / f"{project_name}_download.log"):
+                # check if there already is a download log file
+                log_file = get_unique_log_filename(
+                    log_folder, project_name, base_name="download.log"
+                )
+                print(f"Log file: {log_file}")
+                with suppress_output(log_file):
                     download_start_time = time.time()
-                    downloaded = download(project_name, project_details)
+                    download(project_name, project_details)
                     download_end_time = time.time()
                     runtimes[project_name]["download"] = (
                         download_end_time - download_start_time
@@ -244,13 +265,13 @@ def process(
                     download_size[project_name]["size"] = get_directory_size(
                         data_path / f"raw/orthophoto/originals/{project_name}"
                     )
-                if downloaded:
-                    project_details = load_project_details(data_path)
-                    project_details[project_name]["status"] = "downloaded"
-                    save_project_details(project_details, data_path)
-                if True:  # try:
+
+                try:
                     print(f"Processing {project_name}")
-                    with suppress_output(log_folder / f"{project_name}_process.log"):
+                    log_file = get_unique_log_filename(
+                        log_folder, project_name, base_name="process.log"
+                    )
+                    with suppress_output(log_file):
                         processing_times = run_project(
                             project_name,
                             project_details=project_details,
@@ -260,16 +281,16 @@ def process(
                             gdf_omrade=gdf_omrade,
                             remove_download=remove_download,
                         )
-                        run_end_time = time.time()
                     for key, value in processing_times.items():
                         runtimes[project_name][key] = value
-                    project_details = load_project_details(data_path)
-                    project_details[project_name]["status"] = "processed"
-                    save_project_details(project_details, data_path)
-                if False:  # except Exception as e:
+                except Exception as e:
                     print(f"Error processing {project_name}: {e}")
             except Exception as e:
                 print(f"Error downloading {project_name}: {e}")
+        else:
+            print(
+                f"Skipping {project_name} because there are 5 original projects stored."
+            )
         with open(data_path / "metadata_log/prediction_main_runtime.json", "w") as file:
             json.dump(runtimes, file)
         with open(data_path / "metadata_log/download_size.json", "w") as file:
@@ -294,9 +315,7 @@ def reprocess(
     res: float, resolution of the orthophotos
     remove_download: bool, whether to remove the downloaded files after tiling
     """
-    project_details = load_project_details(data_path)
-    if list_of_projects is None:
-        list_of_projects = list(project_details.keys())
+    projects_details = get_project_details(list_of_projects)
     log_folder = data_path / "metadata_log/execution_log"
 
     stages = check_list_stage(list_of_projects)
@@ -344,8 +363,9 @@ def reprocess(
 
     for project_name in list_of_projects:
         status = stages[project_name]["stage"]
+        projects_details = projects_details[project_name]
 
-        channels = project_details[project_name]["channels"]
+        channels = project_details[project_name]["bandwidth"]
         BW = channels == "BW"
 
         topredict = False
@@ -403,9 +423,6 @@ def reprocess(
                     project_name, assembly_key, geotiff_extends
                 )
             print(f"{project_name} processed")
-            project_details = load_project_details(data_path)
-            project_details[project_name]["status"] = "processed"
-            save_project_details(project_details, data_path)
 
         elif status == "processed":
             print(f"{project_name} already processed")
@@ -453,7 +470,7 @@ if __name__ == "__main__":
         "--remove_download",
         action="store_true",
         help="Whether to remove the downloaded files after prediction",
-        default=False,
+        default=True,
     )
     parser.add_argument(
         "--reprocess",

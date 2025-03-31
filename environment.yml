@@ -1,4 +1,4 @@
-name: HOME
+name: HOME3
 channels:
   - conda-forge
   - pytorch

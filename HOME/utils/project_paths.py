@@ -95,6 +95,9 @@ def get_polygon_details(poly_id: int, data_path: Path = None) -> dict:
 
 
 def save_project_details(project_details: int, data_path: Path = None) -> dict:
+    """
+    should be obsolete, check if it is used anywhere
+    """
     if data_path is None:
         data_path = root_dir / "data"
     with open(
@@ -104,6 +107,9 @@ def save_project_details(project_details: int, data_path: Path = None) -> dict:
 
 
 def load_project_details(data_path: Path = None):
+    """
+    should be obsolete, check if it is used anywhere
+    """
     if data_path is None:
         data_path = root_dir / "data"
     with open(
