@@ -37,6 +37,7 @@ def get_labels(
     # Calculate the scaling factors
     # scaling factor in the y direction
     # Calculate the dimensions of the new GeoTIFF
+    # print(f"Debug: left={left}, right={right}, pixel_size={pixel_size}")
     width = int((right - left) / pixel_size)
     height = int((top - bottom) / pixel_size)
     transform = from_bounds(left, bottom, right, top, width, height)

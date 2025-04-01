@@ -9,6 +9,7 @@ import os
 import sys
 import time
 import json
+import traceback
 
 from HOME.ML_prediction.preprocessing import (
     step_01_tile_generation,
@@ -56,6 +57,11 @@ def suppress_output(filepath=None):
             sys.stdout = logfile
             sys.stderr = logfile
             yield
+        except Exception as e:
+            # Log the full traceback to the file
+            logfile.write("An exception occurred:\n")
+            traceback.print_exc(file=logfile)
+            raise  # Re-raise the exception after logging
         finally:
             sys.stdout = old_stdout
             sys.stderr = old_stderr
@@ -247,17 +253,24 @@ def process(
             download_size[project_name] = {}
         print(f'Processing project "{project_name}"')
         project_details = projects_details[project_name]
-        if len(os.listdir(data_path / f"raw/orthophoto/originals/")) < 5:
+        # check if the project is already downloaded:
+        project_downloaded = False
+        project_data_folders = os.listdir(data_path / f"raw/orthophoto/originals/")
+        if project_name in project_data_folders:
+            print(f"Project {project_name} already downloaded")
+            project_downloaded = True
+        elif len(project_data_folders) < 5:
             try:
                 print(f"Downloading {project_name}")
                 # check if there already is a download log file
                 log_file = get_unique_log_filename(
                     log_folder, project_name, base_name="download.log"
                 )
-                print(f"Log file: {log_file}")
+                # print(f"Log file: {log_file}")
                 with suppress_output(log_file):
                     download_start_time = time.time()
                     download(project_name, project_details)
+                    project_downloaded = True
                     download_end_time = time.time()
                     runtimes[project_name]["download"] = (
                         download_end_time - download_start_time
@@ -265,36 +278,39 @@ def process(
                     download_size[project_name]["size"] = get_directory_size(
                         data_path / f"raw/orthophoto/originals/{project_name}"
                     )
-
-                try:
-                    print(f"Processing {project_name}")
-                    log_file = get_unique_log_filename(
-                        log_folder, project_name, base_name="process.log"
-                    )
-                    with suppress_output(log_file):
-                        processing_times = run_project(
-                            project_name,
-                            project_details=project_details,
-                            tile_size=tile_size,
-                            res=res,
-                            labels=labels,
-                            gdf_omrade=gdf_omrade,
-                            remove_download=remove_download,
-                        )
-                    for key, value in processing_times.items():
-                        runtimes[project_name][key] = value
-                except Exception as e:
-                    print(f"Error processing {project_name}: {e}")
+                with open(data_path / "metadata_log/download_size.json", "w") as file:
+                    json.dump(download_size, file)
             except Exception as e:
                 print(f"Error downloading {project_name}: {e}")
         else:
             print(
-                f"Skipping {project_name} because there are 5 original projects stored."
+                f"Skipping {project_name} because there are 5 original projects stored and we can't download more."
             )
-        with open(data_path / "metadata_log/prediction_main_runtime.json", "w") as file:
-            json.dump(runtimes, file)
-        with open(data_path / "metadata_log/download_size.json", "w") as file:
-            json.dump(download_size, file)
+        if project_downloaded:
+            try:
+                print(f"Processing {project_name}")
+                log_file = get_unique_log_filename(
+                    log_folder, project_name, base_name="process.log"
+                )
+                with suppress_output(log_file):
+                    processing_times = run_project(
+                        project_name,
+                        project_details=project_details,
+                        tile_size=tile_size,
+                        res=res,
+                        labels=labels,
+                        gdf_omrade=gdf_omrade,
+                        remove_download=remove_download,
+                    )
+                for key, value in processing_times.items():
+                    runtimes[project_name][key] = value
+
+                with open(
+                    data_path / "metadata_log/prediction_main_runtime.json", "w"
+                ) as file:
+                    json.dump(runtimes, file)
+            except Exception as e:
+                print(f"Error processing {project_name}: {e}")
 
 
 def reprocess(

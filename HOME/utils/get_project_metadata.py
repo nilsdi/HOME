@@ -112,6 +112,10 @@ def get_project_details(project_names: str or list[str]) -> dict:
             1: "analogue",
             2: "digital",
         }
+        crs_codes = {
+            22: 25832,
+            23: 25833,
+        }
 
         def get_project_date(capture_date: str):
             try:
@@ -150,6 +154,15 @@ def get_project_details(project_names: str or list[str]) -> dict:
             ]
         except:
             project_details["original image format"] = None
+        try:
+            project_details["original_crs"] = crs_codes[
+                int(project_properties["opprinneligbildesys"])
+            ]
+        except:
+            if project_name in ["søgne_sør_2000", "kristiansand_øst_2001"]:
+                project_details["original_crs"] = crs_codes[22]
+            else:
+                project_details["original_crs"] = None
         try:
             project_details["bandwidth"] = image_category_codes[
                 int(project_properties["bildekategori"])
@@ -217,5 +230,6 @@ if __name__ == "__main__":
     test_geometry = get_project_geometry("Kyken 2023")
     print(get_project_details("Kyken 2023"))
     print(get_project_details("trondheim_1999"))
+    print(get_project_details("søgne_sør_2000"))
 
 # %%

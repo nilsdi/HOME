@@ -22,9 +22,7 @@ os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = str(pow(2, 40))
 import cv2  # noqa
 from HOME.get_data_path import get_data_path
 from HOME.ML_training.preprocessing.get_label_data.get_labels import get_labels
-from HOME.utils.project_paths import (
-    load_project_details,
-)
+from HOME.utils.get_project_metadata import get_project_details
 
 # Get the root directory of the project
 root_dir = Path(__file__).resolve().parents[3]
@@ -55,8 +53,8 @@ def detect_encoding_from_directive(file_path):
 
 
 def coords_from_sos(sos_file, grid_size_m):
-    min_no_pattern = r"\.\.\.MIN-N[\x9dØ]\s+(\d+)\s+(\d+)"
-    max_no_pattern = r"\.\.\.MAX-N[\x9dØ]\s+(\d+)\s+(\d+)"
+    min_no_pattern = r"\.\.\.MIN-N\S*\s+(-?\d+)\s+(-?\d+)"
+    max_no_pattern = r"\.\.\.MAX-N\S*\s+(-?\d+)\s+(-?\d+)"
 
     encoding = detect_encoding_from_directive(sos_file)
     with open(sos_file, "r", encoding=encoding) as f:
@@ -98,6 +96,12 @@ def tile_images(
     prediction_mask.
     """
     image_files = [f for f in os.listdir(input_dir_images) if f.endswith(".tif")]
+    if len(image_files) == 0:
+        image_files = [f for f in os.listdir(input_dir_images) if f.endswith(".jpg")]
+    if len(image_files) == 0:
+        raise Exception(
+            f"No image files (tif, jpg) found in {input_dir_images}. Please check the directory."
+        )
     tile_pixels = {(x, y): [] for (x, y) in tile_coverage.index}
 
     for image_file in tqdm(image_files):
@@ -228,14 +232,24 @@ def tile_labels(
     gdf_omrade=None,
     crs=25833,
 ):
+    """
+    Filters the image tiles down to the ones that overlap with the mask (where the buildings are)
+    and saves them in the output_dir_labels. The tiles are named according to their
+    position relative in the grid that would be started at absolute 0,0 in CRS EPSG:25833
+    """
 
     year = int(project_name.split("_")[-1])
 
     # Create output directories if they don't exist
     os.makedirs(output_dir_labels, exist_ok=True)
 
-    # Get list of all image files in the input directory
+    # Get list of all image files in the input directory (which is also the output dir)
     image_tiles = [f for f in os.listdir(output_dir_images) if f.endswith(".tif")]
+
+    if len(image_tiles) == 0:
+        raise Exception(
+            f"No image tiles where produced for the output dir {output_dir_images}. Please check the previous steps."
+        )
 
     # Initialize min and max coordinates
     min_grid_x = min_grid_y = float("inf")
@@ -363,11 +377,19 @@ def tile_generation(
     # Create archive directories if they don't exist
     input_dir_images = data_path / f"raw/orthophoto/originals/{project_name}/"
 
-    if project_details is None:
-        project_details = load_project_details(data_path)
+    if not project_details:
+        project_details = get_project_details(project_name)
 
     crs = project_details[project_name]["original_crs"]
-    res_original = project_details[project_name]["original_res"]
+    if not crs:
+        raise ValueError(
+            f"CRS not found for project {project_name}. Please check the project details."
+        )
+    res_original = project_details[project_name]["original_resolution"]
+    if not res_original:
+        raise ValueError(
+            f"Original resolution not found for project {project_name}. Please check the project details."
+        )
 
     effective_tile_size = tile_size * (1 - overlap_rate)
     grid_size_m = res * effective_tile_size
