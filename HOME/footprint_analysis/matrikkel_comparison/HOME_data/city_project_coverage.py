@@ -440,7 +440,7 @@ if __name__ == "__main__":
     # %% print list of projects for speicific city:
     resolution_required = 0.6
     n_best = 10
-    city = "kristiansand"
+    city = "ålesund"
     best_coverage_json = (
         root_dir
         / f"data/matrikkel_comparison/city_data/{city}_coverage_plot_res_{resolution_required}_nbest_{n_best}.json"

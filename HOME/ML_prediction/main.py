@@ -10,6 +10,7 @@ import sys
 import time
 import json
 import traceback
+import subprocess
 
 from HOME.ML_prediction.preprocessing import (
     step_01_tile_generation,
@@ -65,6 +66,63 @@ def suppress_output(filepath=None):
         finally:
             sys.stdout = old_stdout
             sys.stderr = old_stderr
+
+
+def get_directory_size_human_readable(
+    directory, summary: str = False, human_readable: bool = True
+):
+    """
+    Get the size of a directory in a human-readable format (similar to `du -sh`).
+
+    Args:
+        directory (str): Path to the directory.
+        summary (str): If True, return a summary of the directory sizes, else return sizes of all subdirectories.
+
+    Returns:
+        str: Size of the directory in human-readable format.
+    """
+    if summary:
+        if human_readable:
+            command_keys = "-sh"
+        else:
+            command_keys = "-s"
+    else:
+        if human_readable:
+            command_keys = "-h"
+        else:
+            raise ValueError(
+                "non-human-readable format is not supported for detailed sizes."
+            )
+            command_keys = ""
+    try:
+        if summary:
+            result = subprocess.run(
+                ["du", command_keys, directory],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=True,
+            )
+            return result.stdout.split()[0]  # Return the size part of the output
+        else:
+            result = subprocess.run(
+                ["du", command_keys, directory],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=True,
+            )
+            # return a dictionary witht the subdirectory sizes
+            sizes = {}
+            for line in result.stdout.splitlines():
+                size, path = line.split(maxsplit=1)
+                # split the path to get the directory name
+                path = path.split("/")[-1]
+                sizes[path] = size
+            return sizes
+    except subprocess.CalledProcessError as e:
+        print(f"Error: {e.stderr}")
+        return None
 
 
 def get_unique_log_filename(log_folder, project_name, base_name="download.log"):
@@ -256,10 +314,16 @@ def process(
         # check if the project is already downloaded:
         project_downloaded = False
         project_data_folders = os.listdir(data_path / f"raw/orthophoto/originals/")
+        du_originals = get_directory_size_human_readable(
+            data_path / f"raw/orthophoto/originals/", summary=True, human_readable=False
+        )
         if project_name in project_data_folders:
             print(f"Project {project_name} already downloaded")
             project_downloaded = True
-        elif len(project_data_folders) < 5:
+
+        elif (
+            int(du_originals) < 10**9
+        ):  # if the size of the originals folder is less than 1TB prior to the download, we can download more
             try:
                 print(f"Downloading {project_name}")
                 # check if there already is a download log file
@@ -283,8 +347,9 @@ def process(
             except Exception as e:
                 print(f"Error downloading {project_name}: {e}")
         else:
-            print(
-                f"Skipping {project_name} because there are 5 original projects stored and we can't download more."
+            raise Exception(
+                f"Not enough space to proceed with download of {project_name}. "
+                f"Current disk use of {data_path / 'raw/orthophoto/originals/'} is {np.round(int(du_originals)/10**6,0)} GB."
             )
         if project_downloaded:
             try:

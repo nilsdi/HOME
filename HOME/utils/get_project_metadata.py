@@ -5,6 +5,7 @@ import geopandas as gpd
 from shapely.geometry import shape
 import json
 import os
+import unicodedata
 
 
 def get_project_metadata(project_names: str or list[str]) -> list:
@@ -23,14 +24,21 @@ def get_project_metadata(project_names: str or list[str]) -> list:
     metadata = _get_newest_metadata()
     if isinstance(project_names, str):
         project_names = [project_names]
+    project_names = [
+        unicodedata.normalize("NFC", project_name) for project_name in project_names
+    ]
     metadata_projects = []
     for project_name in project_names:
         project_name_adjusted = project_name.lower().replace(" ", "_")
         project_list_adjusted_names = [
             x.lower().replace(" ", "_") for x in metadata["ProjectList"]
         ]
+        project_list_adjusted_names = [
+            unicodedata.normalize("NFC", project_name)
+            for project_name in project_list_adjusted_names
+        ]
         if project_name_adjusted not in project_list_adjusted_names:
-            raise Exception(f"Project {project_name} not found in metadata")
+            raise Exception(f"Project {project_name_adjusted} not found in metadata")
         project_index = project_list_adjusted_names.index(project_name_adjusted)
         metadata_project = metadata["ProjectMetadata"][project_index]
         metadata_projects.append(metadata_project)
@@ -159,7 +167,17 @@ def get_project_details(project_names: str or list[str]) -> dict:
                 int(project_properties["opprinneligbildesys"])
             ]
         except:
-            if project_name in ["søgne_sør_2000", "kristiansand_øst_2001"]:
+            if (
+                project_name
+                in [  # these projects have the crs not in the central metadata,
+                    # but rather in the sos files in the folder. #TODO make this part of the routine?
+                    "søgne_sør_2000",
+                    "kristiansand_øst_2001",
+                    "kristiansand_nord_2002",
+                    "kristiansand_vest_2000",
+                    "songdalen_1998",
+                ]
+            ):
                 project_details["original_crs"] = crs_codes[22]
             else:
                 project_details["original_crs"] = None
@@ -225,6 +243,9 @@ def _get_newest_metadata() -> dict:
 # %%
 
 if __name__ == "__main__":
+    # all_meta_data = _get_newest_metadata()
+    # print(f'projects in metadata: {all_meta_data["ProjectList"]}')
+    print(get_project_metadata("skr\u00e5foto_i_lindesnes_midlertidig_2022"))
     test_metadata = get_project_metadata("Kyken 2023")
     print(test_metadata[0]["properties"])
     test_geometry = get_project_geometry("Kyken 2023")
