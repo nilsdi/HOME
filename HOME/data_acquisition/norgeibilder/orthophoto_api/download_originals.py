@@ -6,6 +6,8 @@ from requests.auth import HTTPBasicAuth
 from pathlib import Path
 from tqdm import tqdm
 
+from HOME.utils.directory_size import get_directory_size_human_readable
+
 root_dir = Path(__file__).parents[4]
 
 
@@ -63,9 +65,17 @@ def download_original_NIB(
             with open(save_path, "wb") as file:
                 file.write(response.content)
 
+        # check that the disk usage of the save_dir is less than 2 TB:
+        du_originals = get_directory_size_human_readable(
+            data_path / f"raw/orthophoto/originals/", summary=True, human_readable=False
+        )
+        if du_originals > (1024**4) * 2:  # 2 TB
+            raise Exception(
+                f"Disk usage of {data_path / 'raw/orthophoto/originals/'} is {du_originals} - please clean up."
+            )
+
 
 # %% test runs
-
 if __name__ == "__main__":
     project_id = 4251
     download_urls = request_download(project_id)
