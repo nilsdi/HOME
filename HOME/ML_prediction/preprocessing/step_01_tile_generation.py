@@ -269,6 +269,9 @@ def tile_labels(
         max_grid_x = max(max_grid_x, grid_x)
         max_grid_y = max(max_grid_y, grid_y)
 
+    # for now we don't allow labels if the project is too large - since it will occupy to much memory.
+    if (max_grid_x - min_grid_x) * (max_grid_y - min_grid_y) > 700**2:
+        return False
     effective_tile_size = int(tile_size * (1 - overlap_rate))
     grid_size_m = res * effective_tile_size
 

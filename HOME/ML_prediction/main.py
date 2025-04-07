@@ -11,6 +11,8 @@ import time
 import json
 import traceback
 import subprocess
+import numpy as np
+from datetime import datetime
 
 from HOME.ML_prediction.preprocessing import (
     step_01_tile_generation,
@@ -309,7 +311,8 @@ def process(
         with open(data_path / "metadata_log/download_size.json", "r") as file:
             download_size = json.load(file)
             download_size[project_name] = {}
-        print(f'Processing project "{project_name}"')
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print(f'Processing project "{project_name} ({current_time})"')
         project_details = projects_details[project_name]
         # check if the project is already downloaded:
         project_downloaded = False

@@ -57,7 +57,7 @@ def get_labels(
         geometries = fkb_omrade_gdf_filtered.geometry.to_list()
         mask = geometry_mask(
             geometries, transform=transform, out_shape=(height, width), invert=True
-        )
+        )  # TODO probably making the large arrays is stupid for larger projects - can we fix this?
 
         # Set the corresponding elements of the array to 1
         data[mask] = 1
