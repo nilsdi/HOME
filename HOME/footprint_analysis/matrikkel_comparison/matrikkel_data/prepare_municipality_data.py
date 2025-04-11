@@ -9,6 +9,7 @@ import pandas as pd
 from tqdm import tqdm
 import geopandas as gpd
 import matplotlib.pyplot as plt
+import numpy as np
 import folium
 
 from pathlib import Path
@@ -18,6 +19,7 @@ from shapely.geometry import Point, MultiPolygon, Polygon, shape
 
 from matrikkel.analysis.building_attributes.get_cohort import get_cohort_from_building
 from matrikkel.analysis.building_attributes.get_status import get_building_statuses
+from matrikkel.analysis.building_attributes.get_build_area import get_build_area
 from HOME.footprint_analysis.matrikkel_comparison.city_bounding_boxes import (
     get_municipal_boundaries,
 )
@@ -68,21 +70,6 @@ def read_FKB_pickle(fkb_pickle_path: str):
 class Building:
     def __init__(self):
         self.cohort = -1
-        pass
-
-    def add_to_stock(self, time, stock):
-        for i, year in enumerate(time):
-            add = False
-            if self.cohort <= year:
-                add = True
-                if self.final_status in ["Bygging avlyst", "Bygningsnummer utgått"]:
-                    add = False
-                elif self.final_status in ["Bygning revet/brent"]:
-                    if max(self.statuses.keys()).year <= year:
-                        add = False
-            if add and self.footprint_area:
-                stock[i] += self.footprint_area
-        return stock
 
     def __repr__(self):
         return f"Building {self.bygningsnummer} from {self.cohort}"
@@ -98,6 +85,7 @@ class BuildingMatrikkel(Building):
         self.set_building_statuses()
         self.set_final_status()
         # self.set_footprint(bygning_omrader)
+        self.set_footprint_area_matrikkel()
 
     def get_cohort(self):
         return get_cohort_from_building(self.building_dict)
@@ -141,6 +129,9 @@ class BuildingMatrikkel(Building):
         else:
             self.final_status = self.statuses[max(self.statuses.keys())]
 
+    def set_footprint_area_matrikkel(self):
+        self.footprint_area_matrikkel = get_build_area(self.building_dict)
+
 
 class BuildingFKB(Building):
     def __init__(self, fkb_row):
@@ -155,9 +146,15 @@ class BuildingFKB(Building):
         if not self.fkb_row["geometry"]:
             self.footprint = None
             self.footprint_area = None
+            self.location = None
         else:
             self.footprint_area = self.fkb_row["SHAPE_Area"]
             self.footprint = self.fkb_row["geometry"]
+            self.location = (
+                self.footprint.centroid.x,
+                self.footprint.centroid.y,
+            )
+            self.location_crs = "EPSG:25832"
         return
 
 
@@ -199,15 +196,25 @@ def get_time_series(building_objects):
     build_area_upper = [0] * len(time)
     build_area_lower = [0] * len(time)
     for building in building_objects:
+        lower_area = building.footprint_area
+        upper_area = building.footprint_area
+        if type(building) == BuildingMatrikkel:
+            if building.footprint_area_matrikkel:
+                lower_area = min(
+                    [building.footprint_area_matrikkel, building.footprint_area]
+                )
+                upper_area = max(
+                    [building.footprint_area_matrikkel, building.footprint_area]
+                )
         if building.cohort > 1900:
             n_buildings[building.cohort - 1901] += 1
             if building.footprint_area:
-                build_area_upper[building.cohort - 1900] += building.footprint_area
-                build_area_lower[building.cohort - 1900] += building.footprint_area
+                build_area_upper[building.cohort - 1900] += upper_area
+                build_area_lower[building.cohort - 1900] += lower_area
         else:  # for the upper bound we include unlabeled buildings in the older cohorts, for lower bound we ignore them
             n_buildings[0] += 1
             if building.footprint_area:
-                build_area_upper[0] += building.footprint_area
+                build_area_upper[0] += upper_area
 
     build_area_stock_upper = [0] * len(time)
     build_area_stock_lower = [0] * len(time)
@@ -283,6 +290,73 @@ def get_city_data(city: str):
     return city_buildings_matrikkel, FKB_bygning_city
 
 
+def make_age_map(
+    city_building_objects: list, city_boundaries: dict, resolution_long_edge: int = 512
+):
+    """
+    Make a map of the buildings in the city, colored by their age.
+    We therefore build a grid of the city and assign the buildings to the grid cells.
+    the cells are colored by the age of the buildings in the cell.
+
+    Args:
+        city_building_objects (list): The list of building objects to plot.
+        city_boundaries (dict): The city boundaries to plot the buildings in - epsg:25832
+        resolution_long_edge (int): The resolution of the grid cells - default is 512
+
+    Returns:
+        fig, ax: The figure and axis of the plot.
+    """
+    # make a grid of the city boundaries
+    bounds = city_boundaries.bounds
+    x_min = bounds[0]
+    x_max = bounds[2]
+    y_min = bounds[1]
+    y_max = bounds[3]
+    x_range = x_max - x_min
+    y_range = y_max - y_min
+
+    max_extended = max(x_range, y_range)
+    grid_size = max_extended / resolution_long_edge
+    x_grid = int(x_range / grid_size)
+    y_grid = int(y_range / grid_size)
+    # make an array to store the boundaries of the grid cells
+    x_grid_bounds = [x_max + i * grid_size for i in range(x_grid + 1)]
+    y_grid_bounds = [y_min + i * grid_size for i in range(y_grid + 1)]
+    # make an array to store the age of the buildings in the grid cells
+    ages_array = [[[0] for _ in range(y_grid)] for i in range(x_grid)]
+    areas_array = [[[0] for _ in range(y_grid)] for i in range(x_grid)]
+    color_array = [[[0] for _ in range(y_grid)] for i in range(x_grid)]
+    # print(ages_array)
+    transformer_from_5122 = Transformer.from_crs(
+        "EPSG:25832", "EPSG:4326", always_xy=True  # building.location_crs
+    ).transform
+    for building in city_building_objects:
+        if building.location:
+            if building.location_crs == "EPSG:5122":
+                location = transform(transformer_from_5122, Point(building.location))
+            else:
+                location = Point(building.location)
+                # print(building.location_crs)
+            # get the coordinates of the building
+            x = location.x
+            y = location.y
+            # get the grid cell that the building is in
+            x_index = int((x - x_min) / grid_size)
+            y_index = int((y - y_min) / grid_size)
+            print(
+                f"building {building.bygningsnummer} is in grid cell {x_index}, {y_index}"
+            )
+            # check if the building is in the grid cell
+            if x_index >= 0 and x_index < x_grid and y_index >= 0 and y_index < y_grid:
+                # add the age of the building to the grid cell
+                ages_array[x_index][y_index].append(building.cohort)
+                areas_array[x_index][y_index].append(building.footprint_area)
+
+    print(ages_array[294][161])
+    print(areas_array[294][161])
+    return
+
+
 # %%
 if __name__ == "__main__":
     # get the city data for Trondheim
@@ -301,6 +375,7 @@ if __name__ == "__main__":
         f" we further have {len(city_buildings_matrikkel) - fkb_matches} buildings that represent only matrikkel data, "
         + f"and {len(FKB_bygning_city) - fkb_matches} buildings that represent only FKB data"
     )
+    # %%
     (
         time,
         n_buildings,
@@ -315,6 +390,9 @@ if __name__ == "__main__":
         build_area_stock_upper,
         build_area_stock_lower,
     )
+    # %%
+    city_boundaries = shape(get_municipal_boundaries(city))
+    make_age_map(city_building_objects, city_boundaries, resolution_long_edge=512)
     # %%
 
     # make a small bbox and only plot the buildings in that bbox
