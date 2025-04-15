@@ -9,6 +9,7 @@ import pandas as pd
 from tqdm import tqdm
 import geopandas as gpd
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import numpy as np
 import folium
 
@@ -16,6 +17,8 @@ from pathlib import Path
 from pyproj import Transformer
 from shapely.ops import transform
 from shapely.geometry import Point, MultiPolygon, Polygon, shape
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
 
 from matrikkel.analysis.building_attributes.get_cohort import get_cohort_from_building
 from matrikkel.analysis.building_attributes.get_status import get_building_statuses
@@ -325,6 +328,8 @@ def make_age_map(
     # make an array to store the age of the buildings in the grid cells
     ages_array = [[[0] for _ in range(y_grid)] for i in range(x_grid)]
     areas_array = [[[0] for _ in range(y_grid)] for i in range(x_grid)]
+    average_age_array = [[0 for _ in range(y_grid)] for i in range(x_grid)]
+    total_area_array = [[0 for _ in range(y_grid)] for i in range(x_grid)]
     color_array = [[[0] for _ in range(y_grid)] for i in range(x_grid)]
     # print(ages_array)
     transformer_from_5122 = Transformer.from_crs(
@@ -343,17 +348,96 @@ def make_age_map(
             # get the grid cell that the building is in
             x_index = int((x - x_min) / grid_size)
             y_index = int((y - y_min) / grid_size)
-            print(
-                f"building {building.bygningsnummer} is in grid cell {x_index}, {y_index}"
-            )
+            # print(
+            #     f"building {building.bygningsnummer} is in grid cell {x_index}, {y_index}"
+            # )
             # check if the building is in the grid cell
             if x_index >= 0 and x_index < x_grid and y_index >= 0 and y_index < y_grid:
                 # add the age of the building to the grid cell
                 ages_array[x_index][y_index].append(building.cohort)
                 areas_array[x_index][y_index].append(building.footprint_area)
 
+    # insert the average age (weighed by the area) of the buildings in the grid cells
+    for i in range(x_grid):
+        for j in range(y_grid):
+            # exclude all age entries that are -1
+            average_age_entries = [age for age in ages_array[i][j] if age != -1]
+            areas_entries = [
+                area
+                for area, age in zip(areas_array[i][j], ages_array[i][j])
+                if age != -1
+            ]
+            if len(average_age_entries) == 0:
+                average_age_array[i][j] = -1
+                color_array[i][j] = -1
+                continue
+            total_area = sum(areas_entries)
+            if (
+                total_area == 0
+            ):  # if all available buildings sum to 0, we count each the same
+                areas_entries = [1 for _ in range(len(areas_entries))]
+            average_age_array[i][j] = np.average(
+                average_age_entries, weights=areas_entries
+            )
+            total_area_array[i][j] = total_area
+
+    max_total_area = max([max(total_area_array[i]) for i in range(x_grid)])
+    # create a colormap for the ages - 1900-2025
+    norm = mcolors.Normalize(vmin=1900, vmax=2025)
+    cmap = plt.cm.viridis
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    for i in range(x_grid):
+        for j in range(y_grid):
+            if average_age_array[i][j] == -1:
+                color_array[i][j] = (1, 1, 1, 1)  # make white
+                continue
+
+            color = cmap(norm(average_age_array[i][j]))
+            color_rgba = mcolors.to_rgba(color)
+            color_rgba = (
+                color_rgba[0],
+                color_rgba[1],
+                color_rgba[2],
+                color_rgba[3]
+                * min([total_area_array[i][j] / (max_total_area * 0.3), 1]) ** 0.35,
+            )
+            color_array[i][j] = color_rgba
+
     print(ages_array[294][161])
     print(areas_array[294][161])
+    print(average_age_array[294][161])
+
+    # make a figure and axis
+    fig, ax = plt.subplots(figsize=(10, 10))
+    color_array = np.array(color_array)
+    color_array = np.rot90(color_array)
+    # display the color array as an image
+    ax.imshow(
+        color_array,
+        extent=(x_min, x_max, y_min, y_max),
+        interpolation="bilinear",
+        aspect="auto",
+    )
+    # add a colorbar
+    sm.set_array([])
+    inset_axis_cbar = inset_axes(
+        ax,
+        width=0.2,
+        height="40%",
+        loc="lower left",
+        bbox_to_anchor=(0.1, 0, 0.8, 0.8),
+        bbox_transform=ax.transAxes,
+        borderpad=0.1,
+    )
+    cbar = plt.colorbar(
+        sm, cax=inset_axis_cbar, orientation="vertical", pad=0.1, shrink=0.5
+    )
+    cbar.set_label("Average building age")
+    # fig.colorbar(sm, ax=ax, label="Average building age")
+    # add the city boundaries
+    city_gdf = gpd.GeoSeries(city_boundaries, crs=4326)
+    city_gdf.plot(ax=ax, edgecolor="darkgrey", linewidth=0.5, facecolor="none")
+    ax.axis("off")
     return
 
 
@@ -392,7 +476,7 @@ if __name__ == "__main__":
     )
     # %%
     city_boundaries = shape(get_municipal_boundaries(city))
-    make_age_map(city_building_objects, city_boundaries, resolution_long_edge=512)
+    make_age_map(city_building_objects, city_boundaries, resolution_long_edge=500)
     # %%
 
     # make a small bbox and only plot the buildings in that bbox
