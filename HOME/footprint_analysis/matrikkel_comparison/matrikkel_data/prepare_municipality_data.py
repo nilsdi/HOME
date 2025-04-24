@@ -10,6 +10,7 @@ from tqdm import tqdm
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import matplotlib
 import numpy as np
 import folium
 
@@ -26,10 +27,11 @@ from matrikkel.analysis.building_attributes.get_build_area import get_build_area
 from HOME.footprint_analysis.matrikkel_comparison.city_bounding_boxes import (
     get_municipal_boundaries,
 )
+from HOME.visualization.utils.shade_relief_maps import plot_topography_around_city
 
 
 root_dir = Path(__file__).parents[4]
-# print(root_dir)
+print(root_dir)
 
 
 # %%
@@ -294,7 +296,15 @@ def get_city_data(city: str):
 
 
 def make_age_map(
-    city_building_objects: list, city_boundaries: dict, resolution_long_edge: int = 512
+    city_building_objects: list,
+    city_boundaries: dict,
+    resolution_long_edge: int = 512,
+    city_name: str = "Trondheim",
+    root_dir: Path = root_dir,
+    xlim: tuple = None,
+    ylim: tuple = None,
+    color_bar_location: str = "lower left",
+    show_axis: bool = False,
 ):
     """
     Make a map of the buildings in the city, colored by their age.
@@ -385,6 +395,8 @@ def make_age_map(
     # create a colormap for the ages - 1900-2025
     norm = mcolors.Normalize(vmin=1900, vmax=2025)
     cmap = plt.cm.viridis
+    cmap = plt.cm.get_cmap("viridis", 256)
+    cmap = matplotlib.colormaps.get_cmap("gist_heat")
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     for i in range(x_grid):
         for j in range(y_grid):
@@ -409,6 +421,19 @@ def make_age_map(
 
     # make a figure and axis
     fig, ax = plt.subplots(figsize=(10, 10))
+    # put the topography in the background
+    ax = plot_topography_around_city(  # TODO need to adjust crs between the two functions
+        ax,
+        city_boundaries.bounds,
+        root_dir=root_dir,
+        buffer=0.05,
+        crs="EPSG:4326",
+        grid_size=(5000, 5000),
+        shaded_cmap="Greys",
+        shaded_cmap_alpha=0.5,
+        topo_cmap="terrain",
+        topo_alpha=0.20,
+    )
     color_array = np.array(color_array)
     color_array = np.rot90(color_array)
     # display the color array as an image
@@ -424,7 +449,7 @@ def make_age_map(
         ax,
         width=0.2,
         height="40%",
-        loc="lower left",
+        loc=color_bar_location,
         bbox_to_anchor=(0.1, 0, 0.8, 0.8),
         bbox_transform=ax.transAxes,
         borderpad=0.1,
@@ -437,7 +462,19 @@ def make_age_map(
     # add the city boundaries
     city_gdf = gpd.GeoSeries(city_boundaries, crs=4326)
     city_gdf.plot(ax=ax, edgecolor="darkgrey", linewidth=0.5, facecolor="none")
-    ax.axis("off")
+    if xlim:
+        x_min = xlim[0]
+        x_max = xlim[1]
+    if ylim:
+        y_min = ylim[0]
+        y_max = ylim[1]
+    ax.set_xlim(x_min, x_max)
+    ax.set_ylim(y_min, y_max)
+    # add a title
+    ax.set_title(f"Building age map for {city_name}")
+    if not show_axis:
+        ax.axis("off")
+
     return
 
 
@@ -476,7 +513,17 @@ if __name__ == "__main__":
     )
     # %%
     city_boundaries = shape(get_municipal_boundaries(city))
-    make_age_map(city_building_objects, city_boundaries, resolution_long_edge=500)
+    make_age_map(
+        city_building_objects,
+        city_boundaries,
+        resolution_long_edge=700,
+        city_name=city,
+        root_dir=root_dir,
+        xlim=(10.27, 10.65),
+        ylim=(63.29, 63.49),
+        color_bar_location="lower right",
+        show_axis=False,
+    )
     # %%
 
     # make a small bbox and only plot the buildings in that bbox
