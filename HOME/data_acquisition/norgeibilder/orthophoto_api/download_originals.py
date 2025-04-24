@@ -69,7 +69,7 @@ def download_original_NIB(
         du_originals = get_directory_size_human_readable(
             data_path / f"raw/orthophoto/originals/", summary=True, human_readable=False
         )
-        if du_originals > (1024**4) * 2:  # 2 TB
+        if int(du_originals) > (1024**4) * 2:  # 2 TB
             raise Exception(
                 f"Disk usage of {data_path / 'raw/orthophoto/originals/'} is {du_originals} - please clean up."
             )

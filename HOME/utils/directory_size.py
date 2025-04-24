@@ -75,3 +75,13 @@ if __name__ == "__main__":
     directory = data_path
     size = get_directory_size_human_readable(directory, summary=True)
     print(f"Size of {directory}: {size}")
+
+    size_machine = get_directory_size_human_readable(
+        directory, summary=True, human_readable=False
+    )
+    print(f"Size of in machine readable. {directory}: {size_machine}")
+    # %%
+    print(type(size_machine))
+    print(int(size_machine))
+
+# %%
