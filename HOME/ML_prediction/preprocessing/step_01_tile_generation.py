@@ -47,6 +47,8 @@ def detect_encoding_from_directive(file_path):
                     )  # Decode as ASCII to get encoding name
                     if encoding == "DOSN8":
                         return "ISO8859-1"
+                    elif encoding.upper() == "ISO8859-10":
+                        return "iso8859-10"
                     return encoding
     # Default to UTF-8 if no encoding directive is found
     return "utf-8"
@@ -57,6 +59,8 @@ def coords_from_sos(sos_file, grid_size_m):
     max_no_pattern = r"\.\.\.MAX-N\S*\s+(-?\d+)\s+(-?\d+)"
 
     encoding = detect_encoding_from_directive(sos_file)
+    if encoding.lower() == "ansi":
+        encoding = "windows-1252"
     with open(sos_file, "r", encoding=encoding) as f:
         meta_text = f.read()
         min_no_match = re.search(min_no_pattern, meta_text)
