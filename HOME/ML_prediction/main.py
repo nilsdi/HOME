@@ -264,6 +264,7 @@ def process(
         du_originals = get_directory_size_human_readable(
             data_path / f"raw/orthophoto/originals/", summary=True, human_readable=False
         )
+        print("current disk use of originals folder: ", du_originals)
         if project_name in project_data_folders:
             print(f"Project {project_name} already downloaded")
             project_downloaded = True

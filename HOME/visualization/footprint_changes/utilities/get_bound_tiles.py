@@ -70,7 +70,7 @@ def find_polygonisations(
                 and polygon_details["buffer_distance"] == buffer_distance
             ):
                 fitting_polygonisation_ids[project] = polygonisation_id
-            elif True:  # for debugging why there isn't a polygon that fits
+            elif False:  # for debugging why there isn't a polygon that fits
                 # print where it failed:
                 print(
                     f"Failed for {project} with polygonisation_id {polygonisation_id}"

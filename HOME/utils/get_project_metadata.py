@@ -245,12 +245,14 @@ def _get_newest_metadata() -> dict:
 if __name__ == "__main__":
     # all_meta_data = _get_newest_metadata()
     # print(f'projects in metadata: {all_meta_data["ProjectList"]}')
-    print(get_project_metadata("skr\u00e5foto_i_lindesnes_midlertidig_2022"))
+    # print(get_project_metadata("skr\u00e5foto_i_lindesnes_midlertidig_2022"))
     test_metadata = get_project_metadata("Kyken 2023")
     print(test_metadata[0]["properties"])
     test_geometry = get_project_geometry("Kyken 2023")
     print(get_project_details("Kyken 2023"))
     print(get_project_details("trondheim_1999"))
     print(get_project_details("søgne_sør_2000"))
+    # %%
+    print(get_project_details("trondheim_1999")["trondheim_1999"]["capture_date"])
 
 # %%
