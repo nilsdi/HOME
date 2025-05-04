@@ -13,6 +13,8 @@ import matplotlib.colors as mcolors
 import matplotlib
 import numpy as np
 import folium
+import pickle
+from datetime import datetime
 
 from pathlib import Path
 from pyproj import Transformer
@@ -478,6 +480,26 @@ def make_age_map(
     return
 
 
+def save_city_building_objects(
+    city_building_objects: list,
+    city_name: str,
+    root_dir: Path = root_dir,
+):
+    """
+    Save the city building objects to a pickle file.
+    """
+    save_loc = root_dir / "data" / "matrikkel_comparison" / "matrikkel_municipal_data"
+    save_loc.mkdir(parents=True, exist_ok=True)
+    with open(
+        save_loc
+        / f"{city_name}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_buildings.pkl",
+        "wb",
+    ) as file:
+        pickle.dump(city_building_objects, file)
+    print(f"saved {len(city_building_objects)} buildings to {file.name}")
+    return
+
+
 # %%
 if __name__ == "__main__":
     # get the city data for Trondheim
@@ -496,6 +518,8 @@ if __name__ == "__main__":
         f" we further have {len(city_buildings_matrikkel) - fkb_matches} buildings that represent only matrikkel data, "
         + f"and {len(FKB_bygning_city) - fkb_matches} buildings that represent only FKB data"
     )
+    # save the city building objects to a pickle file
+    save_city_building_objects(city_building_objects, city_name=city, root_dir=root_dir)
     # %%
     (
         time,
