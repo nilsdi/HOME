@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import json
 import time
+import pickle
 
 from pathlib import Path
 from datetime import datetime
@@ -400,7 +401,8 @@ def get_total_footprint_data(time_period_coverage: dict[int, dict]):
 
     return time_line, lower_bound_values, upper_bound_values
 
-def rolling_average(time_series:list[float], window_size:int):
+
+def rolling_average(time_series: list[float], window_size: int):
     """
     Calculate the rolling average of a time series.
     Args:
@@ -411,8 +413,59 @@ def rolling_average(time_series:list[float], window_size:int):
     """
     return np.convolve(time_series, np.ones(window_size), "valid") / window_size
 
-def set_uncertainty_interval():
+
+def get_rolling_average_mean_percentiles(
+    upper_bounds: list[float], lower_bounds: list[float], window_size: int
+):
+    rolling_side = window_size // 2
+    if window_size % 2 != 0:
+        raise ValueError(f"Window size must be an even int, not {window_size}.")
+    length = len(upper_bounds)
+    mean = np.zeros(length)
+    lower_percentile = np.zeros(length)
+    upper_percentile = np.zeros(length)
+    lower_percentile_from_std = np.zeros(length)
+    upper_percentile_from_std = np.zeros(length)
+    for i in range(length):  # rolling through timeseries
+        lower_i = i - rolling_side
+        upper_i = i + rolling_side
+        if lower_i < 0:
+            lower_i = 0
+        if upper_i > length - 1:
+            upper_i = length - 1
+        data_in_window = list(upper_bounds[lower_i:upper_i]) + list(
+            lower_bounds[lower_i:upper_i]
+        )
+        lower_percentile[i] = np.percentile(data_in_window, 25)
+        upper_percentile[i] = np.percentile(data_in_window, 75)
+        mean[i] = np.average(data_in_window)
+        std = np.std(data_in_window)
+        lower_percentile_from_std = mean[i] - 2 * std
+        upper_percentile_from_std = mean[i] + 2 * std
+
+    return (
+        mean,
+        lower_percentile,
+        upper_percentile,
+        lower_percentile_from_std,
+        upper_percentile_from_std,
+    )
+
+
+def save_project_time_period_coverage(
+    project_time_period_coverage: dict, municipality: str
+):
+    save_loc = root_dir / "data/matrikkel_comparison/HOME_municipal_data"
+    save_loc.mkdir(parents=True, exist_ok=True)
+    now_strftime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    save_path = (
+        save_loc / f"{municipality}_{now_strftime}_project_time_period_coverage.pkl"
+    )
+    with open(save_path, "wb") as f:
+        pickle.dump(project_time_period_coverage, f)
+    print(f"Saved project time period coverage to {save_path}")
     return
+
 
 # %%
 if __name__ == "__main__":
@@ -424,7 +477,7 @@ if __name__ == "__main__":
         "trondheim_1988",
         "trondheim_1971",
     ]
-    trondheim_projects_large = find_projects_for_municipality("trondheim")
+    trondheim_projects_long = find_projects_for_municipality("trondheim")
     # %%
     project_coverage_areas = get_coverage_boundaries(trondheim_projects, "trondheim")
     # test_coverage = project_coverage_areas["trondheim_2023"]["coverage"]
@@ -465,6 +518,28 @@ if __name__ == "__main__":
     )
     plt.xlabel("Date")
     # %%
+    mean, lower_percentile, upper_percentile = get_rolling_average_mean_percentiles(
+        upper_bound_values, lower_bound_values, window_size=120
+    )
+    plt.plot(time_line, mean, label="Rolling average", lw=3)
+    plt.fill_between(
+        time_line,
+        lower_percentile,
+        upper_percentile,
+        alpha=0.4,
+        label="Rolling average percentiles",
+    )
+    plt.plot(time_line, lower_bound_values, label="Lower bound", alpha=0.5)
+    plt.plot(time_line, upper_bound_values, label="Upper bound", alpha=0.5)
+    print(time_line)
+    plt.xlim(time_line[700], time_line[1400])
+    plt.xlabel("Date")
+    plt.ylabel("Area (m^2)")
+    # %%
+    save_project_time_period_coverage(
+        project_time_period_coverage,
+        "trondheim",
+    )
 
 # %%
 if __name__ == "__main__1":
