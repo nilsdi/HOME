@@ -45,6 +45,32 @@ def get_project_metadata(project_names: str or list[str]) -> list:
     return metadata_projects
 
 
+def filter_projects_without_metadata(projects: list[str]) -> list[str]:
+    """
+    Filter out projects that do not have metadata.
+
+    Args:
+    - projects: list of strings, names of the projects
+
+    Returns:
+    - filtered_projects: list of strings, names of the projects with metadata
+    """
+    metadata = _get_newest_metadata()
+    project_list_adjusted_names = [
+        x.lower().replace(" ", "_") for x in metadata["ProjectList"]
+    ]
+    project_list_adjusted_names = [
+        unicodedata.normalize("NFC", project_name)
+        for project_name in project_list_adjusted_names
+    ]
+    filtered_projects = []
+    for project_name in projects:
+        project_name_adjusted = project_name.lower().replace(" ", "_")
+        if project_name_adjusted in project_list_adjusted_names:
+            filtered_projects.append(project_name)
+    return filtered_projects
+
+
 def get_project_geometry(project_names: str or list[str]) -> gpd.GeoSeries:
     """
     Get geometry for a project from metadata.

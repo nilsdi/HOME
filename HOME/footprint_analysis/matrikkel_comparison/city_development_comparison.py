@@ -12,6 +12,9 @@ from HOME.footprint_analysis.matrikkel_comparison.matrikkel_data.prepare_municip
     get_time_series,
 )
 
+root_dir = Path(__file__).parents[3]
+print(root_dir)
+
 
 # %%
 def prepare_city_data(city: str):
