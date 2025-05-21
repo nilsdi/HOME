@@ -384,11 +384,11 @@ def get_total_footprint_data(time_period_coverage: dict[int, dict]):
         if "lower_bound_polygons" in patch_data.keys():
             lower_bound_polygons = patch_data["lower_bound_polygons"]
         else:
-            lower_bound_polygons = gpd.GeoDataFrame(geometry=[])
+            lower_bound_polygons = gpd.GeoDataFrame(geometry=[], crs="EPSG:25833")
         if "upper_bound_polygons" in patch_data.keys():
             upper_bound_polygons = patch_data["upper_bound_polygons"]
         else:
-            upper_bound_polygons = gpd.GeoDataFrame(geometry=[])
+            upper_bound_polygons = gpd.GeoDataFrame(geometry=[], crs="EPSG:25833")
         # get the area of the polygons
         lower_bound_area = lower_bound_polygons.area.sum()
         upper_bound_area = upper_bound_polygons.area.sum()

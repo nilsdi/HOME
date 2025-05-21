@@ -505,6 +505,16 @@ if __name__ == "__main__":
     # get the city data for Trondheim
     city = "trondheim"
     city_buildings_matrikkel, FKB_bygning_city = get_city_data(city)
+    print(FKB_bygning_city.crs)
+    # %%
+    # print 3 buildings in the niddle of the FKB_bygbing dataframe
+    print(f"the FKB_bygning_city is of type {type(FKB_bygning_city)}")
+    FKB_bygning_city[90000:90003]
+    for i, row in FKB_bygning_city[90000:90003].to_crs("EPSG:25833").iterrows():
+        print(f"the shape area {row.SHAPE_Area}")
+        print(f"the geometry area {row.geometry.area}")
+        print("1")
+    # %%
     city_building_objects, fkb_matches = make_buildings(
         city_buildings_matrikkel, FKB_bygning_city
     )
