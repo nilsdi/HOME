@@ -194,42 +194,44 @@ def datetime_converter(o):
     #     ax.set_ylabel("Relative coverage")
     #     fig.show()
 
-    # %%
-    def get_city_best_coverage(city, coverage_data, n_projects_decade=10):
-        """
-        Get the best coverage for a city, by selecting the n_projects_decade
-        best (highest relative coverage withtin the municipality boundaries)
-        projects for each decade
-        """
-        best_candidates = {}
-        decades = []
-        for project, data in coverage_data.items():
-            project_year = data["time"].year
-            project_decade = project_year - project_year % 10
-            if project_decade not in decades:
-                decades.append(project_decade)
-                best_candidates[project_decade] = {"candidates": {}}
-            best_candidates[project_decade]["candidates"][project] = data
-        for decade, data in best_candidates.items():
-            data["candidates"] = dict(
-                sorted(
-                    data["candidates"].items(),
-                    key=lambda item: item[1]["relative_overlap"],
-                    reverse=True,
-                )
-            )
-        selected_candidates = {}
-        for decade, data in best_candidates.items():
-            selected_candidates[decade] = dict(
-                list(data["candidates"].items())[:n_projects_decade]
-            )
-        return selected_candidates
 
-    # trondheim_best_coverage = get_city_best_coverage(
-    #     "trondheim", City_overlaps_shapes["trondheim"]
-    # )
-    # # trondheim_best_coverage == trondheim_coverage_geo_plot
-    # print(trondheim_best_coverage)
+# %%
+def get_city_best_coverage(city, coverage_data, n_projects_decade=10):
+    """
+    Get the best coverage for a city, by selecting the n_projects_decade
+    best (highest relative coverage withtin the municipality boundaries)
+    projects for each decade
+    """
+    best_candidates = {}
+    decades = []
+    for project, data in coverage_data.items():
+        project_year = data["time"].year
+        project_decade = project_year - project_year % 10
+        if project_decade not in decades:
+            decades.append(project_decade)
+            best_candidates[project_decade] = {"candidates": {}}
+        best_candidates[project_decade]["candidates"][project] = data
+    for decade, data in best_candidates.items():
+        data["candidates"] = dict(
+            sorted(
+                data["candidates"].items(),
+                key=lambda item: item[1]["relative_overlap"],
+                reverse=True,
+            )
+        )
+    selected_candidates = {}
+    for decade, data in best_candidates.items():
+        selected_candidates[decade] = dict(
+            list(data["candidates"].items())[:n_projects_decade]
+        )
+    return selected_candidates
+
+
+# trondheim_best_coverage = get_city_best_coverage(
+#     "trondheim", City_overlaps_shapes["trondheim"]
+# )
+# # trondheim_best_coverage == trondheim_coverage_geo_plot
+# print(trondheim_best_coverage)
 
 
 # %% bar plot of covered area
@@ -315,7 +317,7 @@ def plot_city_coverage(city, coverage_data, city_boundary):
     gs = GridSpec(nrows, ncols, figure=fig)
     # make ten colors from the tab10 colormap
     tab10 = cm.get_cmap("tab10")
-    colors = [tab10(i) for i in range(10)]
+    colors = [tab10(i) for i in range(50)]
 
     world_clipped = world.cx[
         city_extend[0] : city_extend[2], city_extend[1] : city_extend[3]
@@ -423,7 +425,7 @@ if __name__ == "__main__":
             root_dir
             / f"data/figures/matrikkel_comparison/data_selection_cities"
             / f"{file_name}.png",
-            dpi=300,
+            dpi=900,
             bbox_inches="tight",
         )
         # save the best coverage for the ctys to a json
@@ -439,8 +441,8 @@ if __name__ == "__main__":
 
     # %% print list of projects for speicific city:
     resolution_required = 0.6
-    n_best = 10
-    city = "ålesund"
+    n_best = 20
+    city = "bergen"
     best_coverage_json = (
         root_dir
         / f"data/matrikkel_comparison/city_data/{city}_coverage_plot_res_{resolution_required}_nbest_{n_best}.json"
