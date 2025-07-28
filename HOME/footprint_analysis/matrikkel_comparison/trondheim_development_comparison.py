@@ -42,11 +42,14 @@ with open(matrikkel_data_path, "rb") as f:
 
 HOME_data_path = (
     root_dir
-    / "data/matrikkel_comparison/HOME_municipal_data/trondheim_2025-05-04_13-10-42_project_time_period_coverage.pkl"
+    / "data/matrikkel_comparison/HOME_municipal_data/trondheim_2025-07-07_17-29-17_project_time_period_coverage.pkl"
 )
 with open(HOME_data_path, "rb") as f:
     HOME_time_period_coverage = pickle.load(f)
 
+# %%
+print(HOME_time_period_coverage.keys())
+print(HOME_time_period_coverage[1000].keys())
 # %% the HOME data
 time_line, lower_bound_values, upper_bound_values = get_total_footprint_data(
     HOME_time_period_coverage
@@ -138,18 +141,18 @@ def plot_rolling_average_mean_percentiles(
     #     alpha=0.4,
     #     label="Rolling average percentiles",
     # )
-    ax.fill_between(
-        time_line,
-        lower_percentile_from_std,
-        upper_percentile_from_std,
-        color="crimson",
-        alpha=0.7,
-        label="Rolling average 95 CI",
-    )
-    ax.plot(time, mean, label="Rolling average", lw=4.5, color="crimson")
+    # ax.fill_between(
+    #     time_line,
+    #     lower_percentile_from_std,
+    #     upper_percentile_from_std,
+    #     color="crimson",
+    #     alpha=0.7,
+    #     label="Rolling average 95 CI",
+    # )
+    ax.plot(time, mean, label="Rolling average", lw=2, color="crimson")
     if set_xlim:
-        ax.set_xlim(datetime(1985, 1, 1), datetime(2018, 1, 1))
-        ax.set_ylim(0.5e7, 1.21e7)
+        ax.set_xlim(datetime(2012, 1, 1), datetime(2025, 1, 1))
+        # ax.set_ylim(0.5e7, 1.21e7)
         ax.legend(loc="upper left")
 
     return ax
@@ -636,8 +639,8 @@ plot_rolling_average_mean_percentiles(
     upper_bound_values,
     ax_large,
 )
-ax_large.set_xlim(datetime(1981, 1, 1), datetime(2016, 1, 1))
-ax_large.set_ylim(0.5e7, 1.21e7)
+ax_large.set_xlim(datetime(1935, 1, 1), datetime(2024, 1, 1))
+ax_large.set_ylim(0.1e7, 1.51e7)
 ax_large.legend(loc="upper left")
 ax_large.set_ylabel("Built-up area (m2)")
 

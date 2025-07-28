@@ -392,10 +392,10 @@ def plot_city_coverage(city, coverage_data, city_boundary):
 # %%
 # list the projects by city:
 if __name__ == "__main__":
-    cities = [
-        "trondheim",
+    cities = [  # all Nowegian municipalities with > 50k inhabitants
         "oslo",
         "bergen",
+        "trondheim",
         "stavanger",
         "bærum",
         "kristiansand",
@@ -405,12 +405,17 @@ if __name__ == "__main__":
         "fredrikstad",
         "sandnes",
         "tromsø",
-        "skien",
+        "sandefjord",
+        "ski",
+        "sarpsborg",
+        "tønsberg",
         "ålesund",
+        "skien",
         "bodø",
+        "moss",
     ]
     resolution_required = 0.6
-    n_best = 10
+    n_best = 20
     # %%
     city_overlaps_shapes, city_boundaries_shapely = get_city_projects(
         cities, resolution_required
@@ -440,9 +445,32 @@ if __name__ == "__main__":
             json.dump(best_coverage, f, default=datetime_converter)
 
     # %% print list of projects for speicific city:
-    resolution_required = 0.6
-    n_best = 20
-    city = "bergen"
+    # resolution_required = 0.6
+    # n_best = 20
+    # city = "asker"
+    # make a textfile for the projects needed for each city
+    with open(root_dir / "data/matrikkel_comparison/city_project_names.txt", "w") as f:
+        f.write(
+            f"# List of projects needed for each city at minimal resolution {resolution_required}, max {n_best} projects\n"
+        )
+        f.write("# Format: city: processed [yes/no],  project1 project2 ...\n")
+        f.write("\n")
+        for city in cities:
+            f.write(f"{city}: processed [no], ")
+            best_coverage_json = (
+                root_dir
+                / f"data/matrikkel_comparison/city_data/{city}_coverage_plot_res_{resolution_required}_nbest_{n_best}.json"
+            )
+            with open(best_coverage_json, "r") as bf:
+                best_coverage = json.load(bf)
+            projects_needed = []
+            for decade, data in best_coverage.items():
+                for project, pdata in data.items():
+                    projects_needed.append(project.lower().replace(" ", "_"))
+            project_needed_cl = " ".join(projects_needed)
+            f.write(f"{project_needed_cl}\n")
+    # %%
+    city = "trondheim"
     best_coverage_json = (
         root_dir
         / f"data/matrikkel_comparison/city_data/{city}_coverage_plot_res_{resolution_required}_nbest_{n_best}.json"

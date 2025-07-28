@@ -77,7 +77,7 @@ def find_projects_for_municipality(municipality: str) -> list[str]:
     count_before_filter = len(potential_projects)
     potential_projects = filter_projects_without_metadata(potential_projects)
     print(
-        f"Filtered {count_before_filter - len(potential_projects)} projects without metadata."
+        f"Filtered {count_before_filter - len(potential_projects)}/{len(potential_projects)}projects without metadata."
     )
     project_geometries = get_project_geometry(potential_projects)
 
@@ -91,7 +91,9 @@ def find_projects_for_municipality(municipality: str) -> list[str]:
     return projects
 
 
-def get_coverage_boundaries(projects: list[str], municipality: str):
+def get_coverage_boundaries(
+    projects: list[str], municipality: str, print_progress: bool = False
+) -> dict[str, dict]:
     """
     Get a dictionary (keyed by project name) with a shape of the the coverage the project
     introduces for a municipality, and the time it did so.
@@ -107,11 +109,15 @@ def get_coverage_boundaries(projects: list[str], municipality: str):
     city_boundaries = get_municipal_boundaries(municipality).to_crs("EPSG:25833")
     city_coverage_boundaries = {}
     projects_details = get_project_details(projects)
-    for project in projects:
+    for i, project in enumerate(projects):
+        if print_progress:
+            print(f"Processing project {project} - {i+1}/{len(projects)}")
         # get the coverage of the project
         project_coverage = project_coverage_area(project).to_crs("EPSG:25833")
+        project_coverage = project_coverage.reset_index(drop=True)
+        city_boundaries = city_boundaries.reset_index(drop=True)
         city_project_coverage = gpd.overlay(
-            project_coverage, city_boundaries
+            project_coverage, city_boundaries, keep_geom_type=False
         )  # intersect(project_coverage, city_boundaries)
         project_date = projects_details[project]["capture_date"]
         city_coverage_boundaries[project] = {
@@ -135,6 +141,7 @@ def get_time_period_coverage(
     end_date: str = None,
     print_times: bool = False,
     progress_bar: bool = False,
+    analytics: bool = False,
 ):
     """
     Separate the coverage of the projects into patches which cover a specific time period,
@@ -166,12 +173,19 @@ def get_time_period_coverage(
     municipality_boundaries = get_municipal_boundaries(municipality)
     time_period_coverage = {}
     time_patch_id = 1000
-    print(["None"] + list(city_coverage_boundaries.keys()))
+    if analytics:
+        print(["None"] + list(city_coverage_boundaries.keys()))
     overhead_stop_time = time.time()
-    print(
-        f"Time taken to get the overhead time: {overhead_stop_time - overhead_start_time:.2f} seconds"
-    )
-    for project in ["None"] + list(city_coverage_boundaries.keys()):
+    if analytics:
+        print(
+            f"Time taken to get the overhead time: {overhead_stop_time - overhead_start_time:.2f} seconds"
+        )
+    projects_iterable = ["None"] + list(city_coverage_boundaries.keys())
+    if progress_bar:
+        projects_iterable = tqdm(
+            projects_iterable, desc="Processing projects", unit="project"
+        )
+    for project in projects_iterable:
         project_overhead_time = time.time()
         if project == "None":
             # we initialize with the full city, to get the first observation
@@ -187,9 +201,10 @@ def get_time_period_coverage(
                 f"Project {project} is not within the specified time period ({project_date}, range {start_date}, {end_date}."
             )
         project_overhead_finish_time = time.time()
-        print(
-            f"Time taken to get the project ({project}) overhead time: {project_overhead_finish_time - project_overhead_time:.2f} seconds"
-        )
+        if analytics:
+            print(
+                f"Time taken to get the project ({project}) overhead time: {project_overhead_finish_time - project_overhead_time:.2f} seconds"
+            )
         for (
             comparison_project,
             comparison_project_data,
@@ -213,22 +228,25 @@ def get_time_period_coverage(
                 keep_geom_type=True,
             )
             intersection_time = time.time()
-            print(
-                f"Time taken to get the intersection of the project ({project}) and comparison project ({comparison_project}): {intersection_time - comparision_poject_loading_time:.2f} seconds"
-            )
+            if analytics:
+                print(
+                    f"Time taken to get the intersection of the project ({project}) and comparison project ({comparison_project}): {intersection_time - comparision_poject_loading_time:.2f} seconds"
+                )
             # print the types of geometries of project_coverage and comparison_project_coverage
             project_coverage_types = project_coverage.geom_type.unique()
             comparison_project_coverage_types = (
                 comparison_project_coverage.geom_type.unique()
             )
-            print(f"Project ({project}) coverage types: {project_coverage_types}")
-            print(
-                f"Comparison ({comparison_project}) project coverage types: {comparison_project_coverage_types}"
-            )
+            if analytics:
+                print(f"Project ({project}) coverage types: {project_coverage_types}")
+                print(
+                    f"Comparison ({comparison_project}) project coverage types: {comparison_project_coverage_types}"
+                )
             type_print_time = time.time()
-            print(
-                f"Time taken to print the types of geometries: {type_print_time - intersection_time:.2f} seconds"
-            )
+            if analytics:
+                print(
+                    f"Time taken to print the types of geometries: {type_print_time - intersection_time:.2f} seconds"
+                )
             if sum(intersection.area) > 0:
                 # add the intersection to the time_period_coverage
                 time_period_coverage[time_patch_id] = {
@@ -240,32 +258,36 @@ def get_time_period_coverage(
                 }
                 time_patch_id += 1
                 intersection_saving_time = time.time()
-                print(
-                    f"Time taken to save the intersection of the project ({project}) and comparison project ({comparison_project}): {intersection_saving_time - type_print_time:.2f} seconds"
-                )
+                if analytics:
+                    print(
+                        f"Time taken to save the intersection of the project ({project}) and comparison project ({comparison_project}): {intersection_saving_time - type_print_time:.2f} seconds"
+                    )
                 project_coverage = gpd.overlay(
                     project_coverage,
                     intersection,
                     how="difference",
                 )
                 project_coverage_update_time = time.time()
-                print(
-                    f"Time taken to update the project coverage ({project}) after intersection: {project_coverage_update_time - intersection_saving_time:.2f} seconds"
-                )
+                if analytics:
+                    print(
+                        f"Time taken to update the project coverage ({project}) after intersection: {project_coverage_update_time - intersection_saving_time:.2f} seconds"
+                    )
                 if sum(project_coverage.area) == 0:
                     # if the project coverage is empty, we can stop here
                     break
             post_intersection_time = time.time()
-            print(
-                f"Time taken to get the project comparison({project}, {comparison_project}) coverage after intersection: {post_intersection_time - intersection_time:.2f} seconds"
-            )
+            if analytics:
+                print(
+                    f"Time taken to get the project comparison({project}, {comparison_project}) coverage after intersection: {post_intersection_time - intersection_time:.2f} seconds"
+                )
             for patch_id, patch_data in time_period_coverage.items():
-                print(
-                    f'Patch {patch_id}: starts {patch_data["start_date"]}, ends {patch_data["end_date"]}'
-                )
-                print(
-                    f'Patch {patch_id}: start project {patch_data["start_project"]}, end project {patch_data["end_project"]}'
-                )
+                if analytics:
+                    print(
+                        f'Patch {patch_id}: starts {patch_data["start_date"]}, ends {patch_data["end_date"]}'
+                    )
+                    print(
+                        f'Patch {patch_id}: start project {patch_data["start_project"]}, end project {patch_data["end_project"]}'
+                    )
         if sum(project_coverage.area) > 0:
             # add the remaining project coverage to the time_period_coverage
             time_period_coverage[time_patch_id] = {
@@ -477,9 +499,11 @@ if __name__ == "__main__":
         "trondheim_1988",
         "trondheim_1971",
     ]
-    trondheim_projects_long = find_projects_for_municipality("trondheim")
+    trondheim_projects = find_projects_for_municipality("trondheim")
     # %%
-    project_coverage_areas = get_coverage_boundaries(trondheim_projects, "trondheim")
+    project_coverage_areas = get_coverage_boundaries(
+        trondheim_projects, "trondheim", print_progress=True
+    )
     # test_coverage = project_coverage_areas["trondheim_2023"]["coverage"]
     # print(test_coverage)
     # print(sum(test_coverage.area))

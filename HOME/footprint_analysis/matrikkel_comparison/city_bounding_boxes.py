@@ -127,7 +127,7 @@ def get_municipal_boundaries(municipality_name: str):
         if municipality_name in name.lower():
             municipality_data = feature
             municipality_geometry = feature["geometry"]
-            print(f"found {municipality_name}: {name}")
+            # print(f"found {municipality_name}: {name}")
 
     # project_borders to 4326
     municipality_geometry_4326 = transform_geometry(municipality_geometry)
