@@ -59,7 +59,7 @@ if __name__ == "__main__":
         for idx, line in enumerate(lines):
             if line.strip().startswith(f"{city}:"):
                 # Replace the line with the updated status
-                lines[idx] = f"{city}: processed [yes] (now), {projects_list}\n"
+                lines[idx] = f"{city}: processed [yes] ({now}), {projects_list}\n"
 
         with open(city_projects_overview_path, "w") as f:
             f.writelines(lines)
